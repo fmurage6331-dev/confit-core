@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://rwklyqbpzpvhlfhymgyn.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "labtrack-mcp",
+      "version": "0.1.0",
+      "title": "LabTrack Hospital MCP"
+    },
+    "tools": [
+      {
+        "name": "list_patients",
+        "title": "List patients",
+        "description": "List recent patient registrations visible to the signed-in user. Supports an optional name search and limit.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "search": {
+              "description": "Optional name substring to filter by.",
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_patient",
+        "title": "Get patient",
+        "description": "Fetch a patient registration by file number, including requested services, associated lab tests, and prescriptions.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "file_number": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Reception file/registration number."
+            }
+          },
+          "required": [
+            "file_number"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_services",
+        "title": "List services",
+        "description": "List the hospital's configured services, lab tests, and procedures from the catalog.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "description": "Optional catalog kind filter.",
+              "type": "string",
+              "enum": [
+                "service",
+                "lab",
+                "procedure",
+                "consultation"
+              ]
+            },
+            "active_only": {
+              "default": true,
+              "type": "boolean"
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

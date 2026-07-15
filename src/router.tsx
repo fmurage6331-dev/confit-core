@@ -1,0 +1,22 @@
+/**
+ * LabTrack — Laboratory Records
+ * Copyright (c) 2026 Francis Muhoro. All rights reserved.
+ * Author: Francis Muhoro
+ */
+
+import { QueryClient } from "@tanstack/react-query";
+import { createRouter } from "@tanstack/react-router";
+import { routeTree } from "./routeTree.gen";
+
+export const getRouter = () => {
+  const queryClient = new QueryClient();
+
+  const router = createRouter({
+    routeTree,
+    context: { queryClient },
+    scrollRestoration: true,
+    defaultPreloadStaleTime: 0,
+  });
+
+  return router;
+};
