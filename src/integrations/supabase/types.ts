@@ -14,16 +14,1923 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      access_requests: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      admissions: {
+        Row: {
+          admission_reason: string | null
+          admission_type: string | null
+          admitted_at: string | null
+          admitting_doctor: string | null
+          bed_id: string | null
+          created_at: string | null
+          created_by: string | null
+          discharged_at: string | null
+          encounter_id: string | null
+          expected_discharge_date: string | null
+          id: string
+          patient_id: string | null
+          status: string | null
+          updated_at: string | null
+          ward_id: string | null
+        }
+        Insert: {
+          admission_reason?: string | null
+          admission_type?: string | null
+          admitted_at?: string | null
+          admitting_doctor?: string | null
+          bed_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          discharged_at?: string | null
+          encounter_id?: string | null
+          expected_discharge_date?: string | null
+          id?: string
+          patient_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          ward_id?: string | null
+        }
+        Update: {
+          admission_reason?: string | null
+          admission_type?: string | null
+          admitted_at?: string | null
+          admitting_doctor?: string | null
+          bed_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          discharged_at?: string | null
+          encounter_id?: string | null
+          expected_discharge_date?: string | null
+          id?: string
+          patient_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          ward_id?: string | null
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          app_name: string
+          id: string
+          logo_url: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          app_name?: string
+          id?: string
+          logo_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          app_name?: string
+          id?: string
+          logo_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      appointments: {
+        Row: {
+          appointment_type: string | null
+          created_at: string | null
+          created_by: string | null
+          duration_minutes: number | null
+          encounter_id: string | null
+          id: string
+          notes: string | null
+          patient_id: string | null
+          provider_id: string | null
+          reason: string | null
+          scheduled_at: string
+          status: string | null
+          time_range: unknown
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          duration_minutes?: number | null
+          encounter_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          provider_id?: string | null
+          reason?: string | null
+          scheduled_at: string
+          status?: string | null
+          time_range?: unknown
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          duration_minutes?: number | null
+          encounter_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          provider_id?: string | null
+          reason?: string | null
+          scheduled_at?: string
+          status?: string | null
+          time_range?: unknown
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          action: string
+          changed_at: string | null
+          changed_by: string | null
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
+      beds: {
+        Row: {
+          bed_number: string
+          created_at: string | null
+          id: string
+          status: string | null
+          updated_at: string | null
+          ward_id: string | null
+        }
+        Insert: {
+          bed_number: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          ward_id?: string | null
+        }
+        Update: {
+          bed_number?: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          ward_id?: string | null
+        }
+        Relationships: []
+      }
+      clinical_notes: {
+        Row: {
+          admission_id: string | null
+          authored_at: string | null
+          authored_by: string | null
+          content: string | null
+          created_at: string | null
+          encounter_id: string | null
+          id: string
+          note_type: string
+        }
+        Insert: {
+          admission_id?: string | null
+          authored_at?: string | null
+          authored_by?: string | null
+          content?: string | null
+          created_at?: string | null
+          encounter_id?: string | null
+          id?: string
+          note_type: string
+        }
+        Update: {
+          admission_id?: string | null
+          authored_at?: string | null
+          authored_by?: string | null
+          content?: string | null
+          created_at?: string | null
+          encounter_id?: string | null
+          id?: string
+          note_type?: string
+        }
+        Relationships: []
+      }
+      deliveries: {
+        Row: {
+          batch_number: string | null
+          created_at: string
+          created_by: string | null
+          delivery_date: string
+          expiry_date: string | null
+          id: string
+          invoice_number: string | null
+          item_name: string
+          notes: string | null
+          quantity: number
+          received_by: string | null
+          stock_item_id: string | null
+          supplier: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_date?: string
+          expiry_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          item_name: string
+          notes?: string | null
+          quantity: number
+          received_by?: string | null
+          stock_item_id?: string | null
+          supplier?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_date?: string
+          expiry_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          item_name?: string
+          notes?: string | null
+          quantity?: number
+          received_by?: string | null
+          stock_item_id?: string | null
+          supplier?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      encounter_amendments: {
+        Row: {
+          amendment_text: string
+          created_at: string | null
+          created_by: string | null
+          encounter_id: string
+          id: string
+          reason_for_amendment: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amendment_text: string
+          created_at?: string | null
+          created_by?: string | null
+          encounter_id: string
+          id?: string
+          reason_for_amendment?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amendment_text?: string
+          created_at?: string | null
+          created_by?: string | null
+          encounter_id?: string
+          id?: string
+          reason_for_amendment?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      encounter_diagnoses: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          diagnosis_type: string | null
+          encounter_id: string
+          icd11_code: string
+          icd11_title: string
+          icd11_uri: string | null
+          id: string
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          diagnosis_type?: string | null
+          encounter_id: string
+          icd11_code: string
+          icd11_title: string
+          icd11_uri?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          diagnosis_type?: string | null
+          encounter_id?: string
+          icd11_code?: string
+          icd11_title?: string
+          icd11_uri?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      encounter_indicator_tags: {
+        Row: {
+          encounter_id: string
+          id: string
+          indicator_code: string
+          tagged_at: string | null
+          tagged_by: string | null
+        }
+        Insert: {
+          encounter_id: string
+          id?: string
+          indicator_code: string
+          tagged_at?: string | null
+          tagged_by?: string | null
+        }
+        Update: {
+          encounter_id?: string
+          id?: string
+          indicator_code?: string
+          tagged_at?: string | null
+          tagged_by?: string | null
+        }
+        Relationships: []
+      }
+      encounter_room_visits: {
+        Row: {
+          encounter_id: string
+          entered_at: string
+          id: string
+          left_at: string | null
+          room_id: string | null
+        }
+        Insert: {
+          encounter_id: string
+          entered_at?: string
+          id?: string
+          left_at?: string | null
+          room_id?: string | null
+        }
+        Update: {
+          encounter_id?: string
+          entered_at?: string
+          id?: string
+          left_at?: string | null
+          room_id?: string | null
+        }
+        Relationships: []
+      }
+      encounters: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          amount_paid: number | null
+          created_at: string | null
+          created_by: string | null
+          current_room_id: string | null
+          diagnoses: Json | null
+          encounter_type: string | null
+          from_room: string | null
+          history: Json | null
+          id: string
+          insurance_coverage_percentage: number | null
+          insurance_covered: number | null
+          insurance_provider_id: string | null
+          next_room_id: string | null
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          patient_due: number | null
+          patient_id: string | null
+          payment_method: string | null
+          payment_mode: string | null
+          payment_reference: string | null
+          payment_status: string | null
+          status: string | null
+          subtotal: number | null
+          tests: Json | null
+          updated_at: string | null
+          vitals: Json | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amount_paid?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          current_room_id?: string | null
+          diagnoses?: Json | null
+          encounter_type?: string | null
+          from_room?: string | null
+          history?: Json | null
+          id: string
+          insurance_coverage_percentage?: number | null
+          insurance_covered?: number | null
+          insurance_provider_id?: string | null
+          next_room_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          patient_due?: number | null
+          patient_id?: string | null
+          payment_method?: string | null
+          payment_mode?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tests?: Json | null
+          updated_at?: string | null
+          vitals?: Json | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amount_paid?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          current_room_id?: string | null
+          diagnoses?: Json | null
+          encounter_type?: string | null
+          from_room?: string | null
+          history?: Json | null
+          id?: string
+          insurance_coverage_percentage?: number | null
+          insurance_covered?: number | null
+          insurance_provider_id?: string | null
+          next_room_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          patient_due?: number | null
+          patient_id?: string | null
+          payment_method?: string | null
+          payment_mode?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tests?: Json | null
+          updated_at?: string | null
+          vitals?: Json | null
+        }
+        Relationships: []
+      }
+      fund_utilizations: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          updated_at: string
+          util_date: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          util_date?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          util_date?: string
+        }
+        Relationships: []
+      }
+      icd11_codes: {
+        Row: {
+          code: string
+          title: string
+          uri: string | null
+          validated_at: string | null
+        }
+        Insert: {
+          code: string
+          title: string
+          uri?: string | null
+          validated_at?: string | null
+        }
+        Update: {
+          code?: string
+          title?: string
+          uri?: string | null
+          validated_at?: string | null
+        }
+        Relationships: []
+      }
+      insurance_providers: {
+        Row: {
+          code: string
+          coverage_percentage: number
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          coverage_percentage?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          coverage_percentage?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      invoice_line_items: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          description: string | null
+          encounter_id: string | null
+          id: string
+          insurance_covered_amount: number | null
+          invoice_id: string | null
+          item_type: string
+          quantity: number | null
+          source_id: string | null
+          unit_price: number | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          description?: string | null
+          encounter_id?: string | null
+          id?: string
+          insurance_covered_amount?: number | null
+          invoice_id?: string | null
+          item_type: string
+          quantity?: number | null
+          source_id?: string | null
+          unit_price?: number | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          description?: string | null
+          encounter_id?: string | null
+          id?: string
+          insurance_covered_amount?: number | null
+          invoice_id?: string | null
+          item_type?: string
+          quantity?: number | null
+          source_id?: string | null
+          unit_price?: number | null
+        }
+        Relationships: []
+      }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          invoice_id: string | null
+          method: string | null
+          paid_at: string | null
+          received_by: string | null
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          method?: string | null
+          paid_at?: string | null
+          received_by?: string | null
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          method?: string | null
+          paid_at?: string | null
+          received_by?: string | null
+          reference?: string | null
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          amount_paid: number | null
+          balance: number | null
+          created_at: string | null
+          created_by: string | null
+          discount: number | null
+          encounter_id: string | null
+          id: string
+          insurance_covered: number | null
+          invoice_number: string | null
+          patient_id: string | null
+          status: string | null
+          subtotal: number | null
+          total_due: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          balance?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          discount?: number | null
+          encounter_id?: string | null
+          id?: string
+          insurance_covered?: number | null
+          invoice_number?: string | null
+          patient_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          total_due?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          balance?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          discount?: number | null
+          encounter_id?: string | null
+          id?: string
+          insurance_covered?: number | null
+          invoice_number?: string | null
+          patient_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          total_due?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lab_test_catalog: {
+        Row: {
+          cash_price: number | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          insurance_price: number | null
+          is_active: boolean
+          kind: string
+          name: string
+          price: number
+          target_room_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cash_price?: number | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          insurance_price?: number | null
+          is_active?: boolean
+          kind?: string
+          name: string
+          price?: number
+          target_room_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cash_price?: number | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          insurance_price?: number | null
+          is_active?: boolean
+          kind?: string
+          name?: string
+          price?: number
+          target_room_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lab_tests: {
+        Row: {
+          age: number
+          created_at: string
+          created_by: string | null
+          id: string
+          is_medical_camp: boolean
+          is_positive: boolean
+          lab_number: string
+          notes: string | null
+          patient_name: string
+          registration_id: string | null
+          registration_number: string
+          result: string | null
+          sent_at: string | null
+          sent_to_room: string | null
+          test_date: string
+          test_name: string
+          updated_at: string
+        }
+        Insert: {
+          age: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_medical_camp?: boolean
+          is_positive?: boolean
+          lab_number: string
+          notes?: string | null
+          patient_name: string
+          registration_id?: string | null
+          registration_number: string
+          result?: string | null
+          sent_at?: string | null
+          sent_to_room?: string | null
+          test_date?: string
+          test_name: string
+          updated_at?: string
+        }
+        Update: {
+          age?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_medical_camp?: boolean
+          is_positive?: boolean
+          lab_number?: string
+          notes?: string | null
+          patient_name?: string
+          registration_id?: string | null
+          registration_number?: string
+          result?: string | null
+          sent_at?: string | null
+          sent_to_room?: string | null
+          test_date?: string
+          test_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      machine_logs: {
+        Row: {
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          log_date: string
+          log_type: Database["public"]["Enums"]["machine_log_type"]
+          machine_id: string
+          next_due_date: string | null
+          performed_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          log_date?: string
+          log_type: Database["public"]["Enums"]["machine_log_type"]
+          machine_id: string
+          next_due_date?: string | null
+          performed_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          log_date?: string
+          log_type?: Database["public"]["Enums"]["machine_log_type"]
+          machine_id?: string
+          next_due_date?: string | null
+          performed_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      machines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          location: string | null
+          model: string | null
+          name: string
+          notes: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          model?: string | null
+          name: string
+          notes?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          model?: string | null
+          name?: string
+          notes?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      moh_indicator_definitions: {
+        Row: {
+          criteria_type: string | null
+          criteria_value: string | null
+          description: string | null
+          form_number: string
+          id: string
+          indicator_code: string
+        }
+        Insert: {
+          criteria_type?: string | null
+          criteria_value?: string | null
+          description?: string | null
+          form_number: string
+          id?: string
+          indicator_code: string
+        }
+        Update: {
+          criteria_type?: string | null
+          criteria_value?: string | null
+          description?: string | null
+          form_number?: string
+          id?: string
+          indicator_code?: string
+        }
+        Relationships: []
+      }
+      moh_indicators: {
+        Row: {
+          category: string
+          code: string
+          created_at: string | null
+          data_type: string
+          description: string
+          id: string
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string | null
+          data_type?: string
+          description: string
+          id?: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string | null
+          data_type?: string
+          description?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      moh_monthly_aggregates: {
+        Row: {
+          computed_at: string | null
+          id: string
+          indicator_code: string
+          period_month: string
+          value: number
+        }
+        Insert: {
+          computed_at?: string | null
+          id?: string
+          indicator_code: string
+          period_month: string
+          value?: number
+        }
+        Update: {
+          computed_at?: string | null
+          id?: string
+          indicator_code?: string
+          period_month?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      moh_report_corrections: {
+        Row: {
+          adjusted_value: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          indicator_code: string
+          period_month: string
+          reason: string
+        }
+        Insert: {
+          adjusted_value: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          indicator_code: string
+          period_month: string
+          reason: string
+        }
+        Update: {
+          adjusted_value?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          indicator_code?: string
+          period_month?: string
+          reason?: string
+        }
+        Relationships: []
+      }
+      moh_report_line_items: {
+        Row: {
+          column_label: string | null
+          id: string
+          indicator_code: string | null
+          row_label: string
+          section: string | null
+          sort_order: number
+          template_id: string | null
+        }
+        Insert: {
+          column_label?: string | null
+          id?: string
+          indicator_code?: string | null
+          row_label: string
+          section?: string | null
+          sort_order?: number
+          template_id?: string | null
+        }
+        Update: {
+          column_label?: string | null
+          id?: string
+          indicator_code?: string | null
+          row_label?: string
+          section?: string | null
+          sort_order?: number
+          template_id?: string | null
+        }
+        Relationships: []
+      }
+      moh_report_submissions: {
+        Row: {
+          checked_at: string | null
+          checked_by: string | null
+          created_at: string | null
+          export_url: string | null
+          id: string
+          period_month: string
+          prepared_at: string | null
+          prepared_by: string | null
+          received_by: string | null
+          status: string
+          template_id: string
+        }
+        Insert: {
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          export_url?: string | null
+          id?: string
+          period_month: string
+          prepared_at?: string | null
+          prepared_by?: string | null
+          received_by?: string | null
+          status?: string
+          template_id: string
+        }
+        Update: {
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          export_url?: string | null
+          id?: string
+          period_month?: string
+          prepared_at?: string | null
+          prepared_by?: string | null
+          received_by?: string | null
+          status?: string
+          template_id?: string
+        }
+        Relationships: []
+      }
+      moh_report_templates: {
+        Row: {
+          form_code: string
+          id: string
+          title: string
+          version: string
+        }
+        Insert: {
+          form_code: string
+          id?: string
+          title: string
+          version: string
+        }
+        Update: {
+          form_code?: string
+          id?: string
+          title?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      patient_registrations_legacy: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          address_line1: string | null
+          address_line2: string | null
+          amount_paid: number
+          cause_of_death: string | null
+          city: string | null
+          country: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          current_room_id: string | null
+          date_of_birth: string | null
+          date_of_death: string | null
+          diagnoses: Json
+          dob_known: boolean | null
+          education_level: string | null
+          email: string | null
+          estimated_age: number | null
+          family_name: string | null
+          file_number: string | null
+          first_name: string | null
+          from_room: string | null
+          history: Json
+          id: string
+          insurance_coverage_percentage: number | null
+          insurance_covered: number
+          insurance_provider_id: string | null
+          is_deceased: boolean | null
+          marital_status: string | null
+          middle_name: string | null
+          nationality: string | null
+          next_of_kin: Json | null
+          next_room_id: string | null
+          notes: string | null
+          occupation: string | null
+          paid_at: string | null
+          paid_by: string | null
+          patient_due: number
+          patient_name: string
+          payment_method: string | null
+          payment_mode: string
+          payment_reference: string | null
+          payment_status: string
+          phone: string | null
+          postal_code: string | null
+          relationships: Json | null
+          religion: string | null
+          sex: string | null
+          status: string
+          subtotal: number
+          tests: Json
+          updated_at: string
+          vitals: Json
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          amount_paid?: number
+          cause_of_death?: string | null
+          city?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_room_id?: string | null
+          date_of_birth?: string | null
+          date_of_death?: string | null
+          diagnoses?: Json
+          dob_known?: boolean | null
+          education_level?: string | null
+          email?: string | null
+          estimated_age?: number | null
+          family_name?: string | null
+          file_number?: string | null
+          first_name?: string | null
+          from_room?: string | null
+          history?: Json
+          id?: string
+          insurance_coverage_percentage?: number | null
+          insurance_covered?: number
+          insurance_provider_id?: string | null
+          is_deceased?: boolean | null
+          marital_status?: string | null
+          middle_name?: string | null
+          nationality?: string | null
+          next_of_kin?: Json | null
+          next_room_id?: string | null
+          notes?: string | null
+          occupation?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          patient_due?: number
+          patient_name: string
+          payment_method?: string | null
+          payment_mode: string
+          payment_reference?: string | null
+          payment_status?: string
+          phone?: string | null
+          postal_code?: string | null
+          relationships?: Json | null
+          religion?: string | null
+          sex?: string | null
+          status?: string
+          subtotal?: number
+          tests?: Json
+          updated_at?: string
+          vitals?: Json
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          amount_paid?: number
+          cause_of_death?: string | null
+          city?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_room_id?: string | null
+          date_of_birth?: string | null
+          date_of_death?: string | null
+          diagnoses?: Json
+          dob_known?: boolean | null
+          education_level?: string | null
+          email?: string | null
+          estimated_age?: number | null
+          family_name?: string | null
+          file_number?: string | null
+          first_name?: string | null
+          from_room?: string | null
+          history?: Json
+          id?: string
+          insurance_coverage_percentage?: number | null
+          insurance_covered?: number
+          insurance_provider_id?: string | null
+          is_deceased?: boolean | null
+          marital_status?: string | null
+          middle_name?: string | null
+          nationality?: string | null
+          next_of_kin?: Json | null
+          next_room_id?: string | null
+          notes?: string | null
+          occupation?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          patient_due?: number
+          patient_name?: string
+          payment_method?: string | null
+          payment_mode?: string
+          payment_reference?: string | null
+          payment_status?: string
+          phone?: string | null
+          postal_code?: string | null
+          relationships?: Json | null
+          religion?: string | null
+          sex?: string | null
+          status?: string
+          subtotal?: number
+          tests?: Json
+          updated_at?: string
+          vitals?: Json
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          cause_of_death: string | null
+          city: string | null
+          country: string | null
+          county: string | null
+          created_at: string | null
+          created_by: string | null
+          date_of_birth: string | null
+          date_of_death: string | null
+          dob_known: boolean | null
+          education_level: string | null
+          email: string | null
+          estimated_age: number | null
+          family_name: string | null
+          file_number: string | null
+          first_name: string | null
+          id: string
+          is_deceased: boolean | null
+          marital_status: string | null
+          middle_name: string | null
+          nationality: string | null
+          next_of_kin: Json | null
+          occupation: string | null
+          patient_name: string | null
+          phone: string | null
+          postal_code: string | null
+          relationships: Json | null
+          religion: string | null
+          sex: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          cause_of_death?: string | null
+          city?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_of_birth?: string | null
+          date_of_death?: string | null
+          dob_known?: boolean | null
+          education_level?: string | null
+          email?: string | null
+          estimated_age?: number | null
+          family_name?: string | null
+          file_number?: string | null
+          first_name?: string | null
+          id?: string
+          is_deceased?: boolean | null
+          marital_status?: string | null
+          middle_name?: string | null
+          nationality?: string | null
+          next_of_kin?: Json | null
+          occupation?: string | null
+          patient_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          relationships?: Json | null
+          religion?: string | null
+          sex?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          cause_of_death?: string | null
+          city?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_of_birth?: string | null
+          date_of_death?: string | null
+          dob_known?: boolean | null
+          education_level?: string | null
+          email?: string | null
+          estimated_age?: number | null
+          family_name?: string | null
+          file_number?: string | null
+          first_name?: string | null
+          id?: string
+          is_deceased?: boolean | null
+          marital_status?: string | null
+          middle_name?: string | null
+          nationality?: string | null
+          next_of_kin?: Json | null
+          occupation?: string | null
+          patient_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          relationships?: Json | null
+          religion?: string | null
+          sex?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      prescriptions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dispensed_at: string | null
+          dispensed_by: string | null
+          dosage: string | null
+          drug_name: string
+          duration: string | null
+          frequency: string | null
+          id: string
+          notes: string | null
+          quantity: number
+          registration_id: string
+          status: string
+          stock_item_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dispensed_at?: string | null
+          dispensed_by?: string | null
+          dosage?: string | null
+          drug_name: string
+          duration?: string | null
+          frequency?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          registration_id: string
+          status?: string
+          stock_item_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dispensed_at?: string | null
+          dispensed_by?: string | null
+          dosage?: string | null
+          drug_name?: string
+          duration?: string | null
+          frequency?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          registration_id?: string
+          status?: string
+          stock_item_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      radiology_orders: {
+        Row: {
+          catalog_id: string | null
+          clinical_indication: string | null
+          created_at: string | null
+          encounter_id: string | null
+          id: string
+          ordered_at: string | null
+          ordered_by: string | null
+          patient_id: string | null
+          priority: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          catalog_id?: string | null
+          clinical_indication?: string | null
+          created_at?: string | null
+          encounter_id?: string | null
+          id?: string
+          ordered_at?: string | null
+          ordered_by?: string | null
+          patient_id?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          catalog_id?: string | null
+          clinical_indication?: string | null
+          created_at?: string | null
+          encounter_id?: string | null
+          id?: string
+          ordered_at?: string | null
+          ordered_by?: string | null
+          patient_id?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      radiology_results: {
+        Row: {
+          created_at: string | null
+          findings: string | null
+          id: string
+          image_paths: Json | null
+          impression: string | null
+          order_id: string | null
+          radiologist: string | null
+          reported_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          findings?: string | null
+          id?: string
+          image_paths?: Json | null
+          impression?: string | null
+          order_id?: string | null
+          radiologist?: string | null
+          reported_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          findings?: string | null
+          id?: string
+          image_paths?: Json | null
+          impression?: string | null
+          order_id?: string | null
+          radiologist?: string | null
+          reported_at?: string | null
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          created_at: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          permission?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
+      room_indicator_map: {
+        Row: {
+          indicator_code: string
+          room_id: string
+        }
+        Insert: {
+          indicator_code: string
+          room_id: string
+        }
+        Update: {
+          indicator_code?: string
+          room_id?: string
+        }
+        Relationships: []
+      }
+      rooms: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stock_items: {
+        Row: {
+          cash_price: number | null
+          category: string | null
+          created_at: string
+          current_quantity: number
+          id: string
+          insurance_price: number | null
+          kind: string
+          name: string
+          notes: string | null
+          reorder_level: number
+          unit: string
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          cash_price?: number | null
+          category?: string | null
+          created_at?: string
+          current_quantity?: number
+          id?: string
+          insurance_price?: number | null
+          kind?: string
+          name: string
+          notes?: string | null
+          reorder_level?: number
+          unit?: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cash_price?: number | null
+          category?: string | null
+          created_at?: string
+          current_quantity?: number
+          id?: string
+          insurance_price?: number | null
+          kind?: string
+          name?: string
+          notes?: string | null
+          reorder_level?: number
+          unit?: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          change: number
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          notes: string | null
+          reason: string
+        }
+        Insert: {
+          change: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          notes?: string | null
+          reason: string
+        }
+        Update: {
+          change?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          notes?: string | null
+          reason?: string
+        }
+        Relationships: []
+      }
+      test_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          parameters: Json
+          test_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parameters?: Json
+          test_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parameters?: Json
+          test_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_room_access: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wards: {
+        Row: {
+          capacity: number | null
+          created_at: string | null
+          daily_rate: number | null
+          floor: string | null
+          gender_restriction: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          section: string | null
+          ward_type: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string | null
+          daily_rate?: number | null
+          floor?: string | null
+          gender_restriction?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          section?: string | null
+          ward_type?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string | null
+          daily_rate?: number | null
+          floor?: string | null
+          gender_restriction?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          section?: string | null
+          ward_type?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      encounter_records_summary: {
+        Row: {
+          balance: number | null
+          discharge_note_count: number | null
+          doctor_note_count: number | null
+          encounter_date: string | null
+          encounter_id: string | null
+          encounter_status: string | null
+          invoice_id: string | null
+          invoice_status: string | null
+          lab_test_count: number | null
+          patient_id: string | null
+          patient_name: string | null
+          prescription_count: number | null
+          radiology_order_count: number | null
+          total_due: number | null
+        }
+        Relationships: []
+      }
+      patient_registrations: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          address_line1: string | null
+          address_line2: string | null
+          amount_paid: number | null
+          cause_of_death: string | null
+          city: string | null
+          country: string | null
+          county: string | null
+          created_at: string | null
+          created_by: string | null
+          current_room_id: string | null
+          date_of_birth: string | null
+          date_of_death: string | null
+          diagnoses: Json | null
+          dob_known: boolean | null
+          education_level: string | null
+          email: string | null
+          estimated_age: number | null
+          family_name: string | null
+          file_number: string | null
+          first_name: string | null
+          from_room: string | null
+          history: Json | null
+          id: string | null
+          insurance_coverage_percentage: number | null
+          insurance_covered: number | null
+          insurance_provider_id: string | null
+          is_deceased: boolean | null
+          marital_status: string | null
+          middle_name: string | null
+          nationality: string | null
+          next_of_kin: Json | null
+          next_room_id: string | null
+          notes: string | null
+          occupation: string | null
+          paid_at: string | null
+          paid_by: string | null
+          patient_due: number | null
+          patient_id: string | null
+          patient_name: string | null
+          payment_method: string | null
+          payment_mode: string | null
+          payment_reference: string | null
+          payment_status: string | null
+          phone: string | null
+          postal_code: string | null
+          relationships: Json | null
+          religion: string | null
+          sex: string | null
+          status: string | null
+          subtotal: number | null
+          tests: Json | null
+          updated_at: string | null
+          vitals: Json | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      accrue_daily_bed_charges: { Args: never; Returns: undefined }
+      can_access_room: {
+        Args: { _room: string; _user: string }
+        Returns: boolean
+      }
+      get_return_room: { Args: { p_encounter_id: string }; Returns: string }
+      has_role:
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { allowed_roles: string[] }; Returns: boolean }
+      is_approved: { Args: { _user_id: string }; Returns: boolean }
+      refresh_moh_aggregates: {
+        Args: { target_month: string }
+        Returns: undefined
+      }
+      send_lab_results_to_requesting_room: {
+        Args: { p_encounter_id: string }
+        Returns: string
+      }
+      user_has_permission: {
+        Args: { _perm: string; _user: string }
+        Returns: boolean
+      }
+      validate_and_get_icd11: {
+        Args: { search_code: string }
+        Returns: {
+          p_code: string
+          p_is_cached: boolean
+          p_title: string
+          p_uri: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "admin"
+        | "staff"
+        | "accountant"
+        | "lab_tech"
+        | "records_officer"
+        | "doctor"
+        | "clinical_officer"
+        | "nurse"
+        | "radiologist"
+        | "pharmacist"
+        | "mortician"
+      machine_log_type: "maintenance" | "service" | "calibration"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +2057,21 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "admin",
+        "staff",
+        "accountant",
+        "lab_tech",
+        "records_officer",
+        "doctor",
+        "clinical_officer",
+        "nurse",
+        "radiologist",
+        "pharmacist",
+        "mortician",
+      ],
+      machine_log_type: ["maintenance", "service", "calibration"],
+    },
   },
 } as const
