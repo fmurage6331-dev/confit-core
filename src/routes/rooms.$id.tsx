@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   DoorOpen, FlaskConical, ArrowRight, ShieldAlert, ClipboardPlus,
-  Activity, Stethoscope, Pill, Plus, Trash2, Check, X, Receipt, BedDouble,
+  Activity, Stethoscope, Pill, Plus, Trash2, Check, X, Receipt, BedDouble, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { DischargeButton } from "@/routes/inpatient";
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/rooms/$id")({
 
 type RoomKind = "general" | "lab" | "triage" | "consultation" | "pharmacy" | "billing";
 type Room = { id: string; name: string; code: string | null; kind: RoomKind };
-type TestItem = { id: string; name: string; price: number };
+type TestItem = { id: string; name: string; price: number; status?: "pending" | "completed" | "sent_back"; rejection_reason?: string };
 type Vitals = {
   height_cm?: number | ""; weight_kg?: number | ""; bmi?: number | "";
   temperature_c?: number | ""; pulse_bpm?: number | ""; resp_rate?: number | "";
@@ -78,7 +78,7 @@ const kindIcon: Record<RoomKind, React.ReactNode> = {
 };
 const kindBlurb: Record<RoomKind, string> = {
   general: "Patients currently in this room. Request tests/services to send them for billing and the lab.",
-  lab: "Lab requests sent here. Open a patient to perform the requested tests.",
+  lab: "Lab requests sent here. Open a patient to perform requested tests or query feedback parameters.",
   triage: "Capture vitals and anthropometrics, then send the patient to consultation.",
   consultation: "Take history, diagnose (ICD-11), prescribe, and request lab / radiology / ward / theater.",
   pharmacy: "Dispense prescriptions. Dispensing deducts stock automatically.",
@@ -180,7 +180,7 @@ function RoomPage() {
             <tr>
               <th className="px-4 py-3">Patient</th>
               <th className="px-4 py-3">From</th>
-              <th className="px-4 py-3">{kind === "pharmacy" ? "Diagnoses" : "Requested"}</th>
+              <th className="px-4 py-3">{kind === "pharmacy" ? "Diagnoses" : "Requested Items"}</th>
               <th className="px-4 py-3">Payment</th>
               <th className="px-4 py-3 text-right">Action</th>
             </tr>
@@ -204,8 +204,12 @@ function RoomPage() {
                         ? <div className="flex flex-wrap gap-1">{r.diagnoses.slice(0,3).map((d,i) => <Badge key={i} variant="secondary" className="text-xs">{d.icd11_code || "—"} {d.description}</Badge>)}</div>
                         : <span className="text-xs text-muted-foreground">—</span>
                     ) : hasTests ? (
-                      <div className="flex flex-wrap gap-1">
-                        {r.tests.map((t) => <Badge key={t.id} variant="secondary" className="text-xs">{t.name}</Badge>)}
+                      <div className="flex flex-wrap gap-1 items-center">
+                        {r.tests.map((t) => (
+                          <Badge key={t.id} variant={t.status === "sent_back" ? "destructive" : "secondary"} className="text-xs">
+                            {t.name} {t.status === "sent_back" && "(Returned)"}
+                          </Badge>
+                        ))}
                       </div>
                     ) : <span className="text-xs text-muted-foreground">No services requested</span>}
                   </td>
@@ -216,9 +220,14 @@ function RoomPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     {kind === "lab" ? (
-                      <Button size="sm" disabled={!cleared} onClick={() => startLab(r)}>
-                        {actionLabel()} <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setOpenReg(r)}>
+                          Manage Request Flow
+                        </Button>
+                        <Button size="sm" disabled={!cleared} onClick={() => startLab(r)}>
+                          {actionLabel()} <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     ) : kind === "billing" ? (
                       <Link to="/accounting" className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10">
                         <Receipt className="h-3.5 w-3.5" />{actionLabel()}
@@ -248,6 +257,9 @@ function RoomPage() {
       {openReg && kind === "pharmacy" && (
         <PharmacyDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
       )}
+      {openReg && kind === "lab" && (
+        <LabManagementDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
+      )}
       {openReg && (kind === "general") && (
         <RequestServicesDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
       )}
@@ -255,96 +267,204 @@ function RoomPage() {
   );
 }
 
-/* ============================ TRIAGE ============================ */
+/* ============================ LAB PANEL MANAGEMENT & DYNAMIC ROUTING ============================ */
 
-function TriageDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
-  const [v, setV] = useState<Vitals>(reg.vitals ?? {});
-  const [rooms, setRooms] = useState<{ id: string; name: string; kind: RoomKind }[]>([]);
-  const [nextRoomId, setNextRoomId] = useState<string>("");
-  const [saving, setSaving] = useState(false);
+function LabManagementDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+  const [routingLoading, setRoutingLoading] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<TestItem | null>(null);
 
-  useEffect(() => {
-    supabase.from("rooms").select("id,name,kind").eq("is_active", true).order("name")
-      .then(({ data }) => {
-        const list = (data ?? []) as unknown as { id: string; name: string; kind: RoomKind }[];
-        setRooms(list);
-        const consult = list.find((r) => r.kind === "consultation");
-        if (consult) setNextRoomId(consult.id);
-      });
-  }, []);
+  async function handleSendResultsBack() {
+    setRoutingLoading(true);
+    
+    // Primary Task: Call database RPC logic engine to dynamically calculate origin clinical station
+    const { data: targetRoomId, error } = await supabase
+      .rpc('send_lab_results_to_requesting_room', { p_encounter_id: reg.id });
 
-  const bmi = useMemo(() => {
-    const h = Number(v.height_cm); const w = Number(v.weight_kg);
-    if (!h || !w) return "";
-    return +(w / Math.pow(h / 100, 2)).toFixed(1);
-  }, [v.height_cm, v.weight_kg]);
+    setRoutingLoading(false);
 
-  function set<K extends keyof Vitals>(k: K, val: Vitals[K]) { setV((p) => ({ ...p, [k]: val })); }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
-  async function save() {
-    setSaving(true);
-    const vitals = { ...v, bmi: bmi === "" ? undefined : bmi };
-    const patch: { vitals: Vitals; current_room_id?: string } = { vitals };
-    if (nextRoomId) patch.current_room_id = nextRoomId;
-    const { error } = await supabase.from("patient_registrations").update(patch as never).eq("id", reg.id);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Vitals saved");
+    toast.success("Diagnostic profile metrics successfully routed to active clinician workspace.");
     onSaved();
   }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-        <DialogHeader><DialogTitle>Triage — {reg.patient_name}</DialogTitle></DialogHeader>
-        <div className="flex-1 overflow-y-auto space-y-6 pr-1">
-          <Section title="Basic vitals">
-            <Grid>
-              <Num label="Height (cm)" value={v.height_cm} onChange={(n) => set("height_cm", n)} />
-              <Num label="Weight (kg)" value={v.weight_kg} onChange={(n) => set("weight_kg", n)} />
-              <ReadOnly label="BMI (auto)" value={bmi === "" ? "" : String(bmi)} />
-              <Num label="Temperature (°C)" step="0.1" value={v.temperature_c} onChange={(n) => set("temperature_c", n)} />
-              <Num label="Pulse (bpm)" value={v.pulse_bpm} onChange={(n) => set("pulse_bpm", n)} />
-              <Num label="Respiratory rate" value={v.resp_rate} onChange={(n) => set("resp_rate", n)} />
-              <Num label="BP systolic" value={v.bp_systolic} onChange={(n) => set("bp_systolic", n)} />
-              <Num label="BP diastolic" value={v.bp_diastolic} onChange={(n) => set("bp_diastolic", n)} />
-              <Num label="SpO₂ (%)" value={v.spo2} onChange={(n) => set("spo2", n)} />
-            </Grid>
-          </Section>
-          <Section title="Pediatric">
-            <Grid>
-              <Num label="Head circumference (cm)" value={v.head_circ_cm} onChange={(n) => set("head_circ_cm", n)} />
-              <Num label="MUAC (cm)" value={v.muac_cm} onChange={(n) => set("muac_cm", n)} />
-            </Grid>
-            <div className="mt-2">
-              <Label>Growth / percentile notes</Label>
-              <Textarea rows={2} value={v.growth_notes ?? ""} onChange={(e) => set("growth_notes", e.target.value)} />
-            </div>
-          </Section>
-          <Section title="Pain & general">
-            <Grid>
-              <Num label="Pain score (0–10)" min={0} max={10} value={v.pain_score} onChange={(n) => set("pain_score", n)} />
-            </Grid>
-            <div className="mt-2">
-              <Label>General appearance</Label>
-              <Textarea rows={2} value={v.general_appearance ?? ""} onChange={(e) => set("general_appearance", e.target.value)} />
-            </div>
-          </Section>
-          <Section title="Send to">
-            <Select value={nextRoomId} onValueChange={setNextRoomId}>
-              <SelectTrigger><SelectValue placeholder="Choose next room" /></SelectTrigger>
-              <SelectContent>
-                {rooms.map((r) => <SelectItem key={r.id} value={r.id}>{r.name} <span className="text-xs text-muted-foreground">({r.kind})</span></SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Section>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Laboratory Request Workspace — {reg.patient_name}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-2">
+          <p className="text-xs text-muted-foreground">Manage return metrics or perform pipeline routing for outstanding items.</p>
+          
+          <div className="space-y-2">
+            <Label>Requested Profile Investigations</Label>
+            {reg.tests.map((test) => (
+              <div key={test.id} className="flex items-center justify-between border rounded-lg p-3 bg-card text-sm">
+                <div>
+                  <span className="font-medium">{test.name}</span>
+                  {test.status === "sent_back" && (
+                    <p className="text-xs text-destructive mt-0.5 font-medium">Returned: {test.rejection_reason}</p>
+                  )}
+                </div>
+                {test.status !== "sent_back" && test.status !== "completed" && (
+                  <Button size="sm" variant="destructive" onClick={() => setSelectedTest(test)}>
+                    Return to Doctor
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter className="flex justify-between items-center w-full sm:justify-between">
+          <Button variant="outline" onClick={onClose}>Close panel</Button>
+          <Button onClick={handleSendResultsBack} disabled={routingLoading} className="gap-1.5">
+            <RefreshCw className={`h-4 w-4 ${routingLoading ? 'animate-spin' : ''}`} />
+            Send results back
+          </Button>
+        </DialogFooter>
+
+        {selectedTest && (
+          <LabSendBackDialog 
+            registrationId={reg.id}
+            testItem={selectedTest} 
+            allTests={reg.tests}
+            onClose={() => setSelectedTest(null)} 
+            onSuccess={() => {
+              setSelectedTest(null);
+              onSaved();
+            }} 
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LabSendBackDialog({ registrationId, testItem, allTests, onClose, onSuccess }: { registrationId: string; testItem: TestItem; allTests: TestItem[]; onClose: () => void; onSuccess: () => void }) {
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSendBack() {
+    if (!reason.trim()) {
+      toast.error("Please provide a reason for sending this test back to the doctor.");
+      return;
+    }
+    setSubmitting(true);
+
+    // Update specific array element parameters inside the JSONB structure
+    const updatedTests = allTests.map(t => 
+      t.id === testItem.id ? { ...t, status: "sent_back" as const, rejection_reason: reason.trim() } : t
+    );
+
+    const { error: patchError } = await supabase
+      .from("patient_registrations")
+      .update({ tests: updatedTests } as never)
+      .eq("id", registrationId);
+
+    if (patchError) {
+      toast.error(patchError.message);
+      setSubmitting(false);
+      return;
+    }
+
+    // Task 1: Insert verification footprint track within application log pipeline
+    await supabase.from("encounter_logs").insert({
+      registration_id: registrationId,
+      log_type: "lab_rejection",
+      message: `Lab test [${testItem.name}] returned to clinician room. Reason: ${reason.trim()}`,
+      created_at: new Date().toISOString()
+    } as never);
+
+    setSubmitting(false);
+    toast.success("Investigation request sent back to ordering clinician.");
+    onSuccess();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md z-[60]">
+        <DialogHeader>
+          <DialogTitle className="text-destructive flex items-center gap-2">Send Lab Request Back to Doctor</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2 text-sm">
+          <p className="text-muted-foreground">You are returning the request for <strong className="text-foreground">{testItem.name}</strong> to the doctor's active panel layout.</p>
+          <div className="space-y-1.5">
+            <Label>Reason for Return / Clarification Request</Label>
+            <Textarea rows={4} placeholder="e.g., Insufficient sample volume, clarification needed..." value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>Save & send</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button variant="destructive" onClick={handleSendBack} disabled={submitting}>Reject & Send Back</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ============================ TRIAGE UTILS ============================ */
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <div className="rounded-xl border bg-card p-4 space-y-4 shadow-sm">{children}</div>
+    </div>
+  );
+}
+
+function Grid({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-4 grid-cols-2 md:grid-cols-3">{children}</div>;
+}
+
+function Num({ label, value, onChange, ...props }: { label: string; value: any; onChange: (v: number | "") => void; [key: string]: any }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input type="number" step="any" value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} {...props} />
+    </div>
+  );
+}
+
+function ReadOnly({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <Label className="text-muted-foreground">{label}</Label>
+      <Input value={value} readOnly className="bg-muted cursor-not-allowed" />
+    </div>
+  );
+}
+
+function TextField({ label, value, onChange }: { label: string; value: string | undefined; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function TextArea({ label, value, onChange }: { label: string; value: string | undefined; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Textarea rows={3} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function VitalPill({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between items-center bg-muted/50 px-3 py-1.5 rounded-lg border text-xs">
+      <span className="font-medium text-muted-foreground">{k}:</span>
+      <span className="font-semibold">{v}</span>
+    </div>
   );
 }
 
@@ -534,7 +654,6 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  // Debounced search: local icd11_codes cache first, WHO live API as fallback
   useEffect(() => {
     const q = desc.trim();
     if (q.length < 2) { setSuggestions([]); return; }
@@ -576,7 +695,6 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
     setCode(s.code);
     setDesc(s.title);
     setShowSuggestions(false);
-    // Cache/refresh this code locally so future searches are faster
     supabase.from("icd11_codes").upsert({
       code: s.code, title: s.title, uri: s.uri, validated_at: new Date().toISOString(),
     } as never, { onConflict: "code" }).then(() => {});
@@ -673,363 +791,208 @@ function PrescriptionEditor({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border p-3 space-y-2">
-        <div className="grid gap-2 md:grid-cols-2">
+      <div className="rounded-lg border p-3 bg-muted/20 space-y-3">
+        <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <Label>Pharmacy stock (optional)</Label>
+            <Label>Link Inventory Stock Item</Label>
             <Select value={stockId} onValueChange={selectStock}>
-              <SelectTrigger><SelectValue placeholder="Link to a stock item" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select formulation item..." /></SelectTrigger>
               <SelectContent>
-                {stock.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} <span className="text-xs text-muted-foreground">({s.current_quantity ?? 0})</span></SelectItem>)}
+                {stock.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.current_quantity ?? 0} remaining)</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Drug name</Label><Input value={drugName} onChange={(e) => setDrugName(e.target.value)} /></div>
-          <div><Label>Dosage</Label><Input value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="500 mg" /></div>
+          <div>
+            <Label>Prescription / Drug Name</Label>
+            <Input value={drugName} onChange={(e) => setDrugName(e.target.value)} placeholder="Amoxicillin 500mg" />
+          </div>
+        </div>
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <div><Label>Dosage</Label><Input value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="1 tab" /></div>
           <div><Label>Frequency</Label><Input value={freq} onChange={(e) => setFreq(e.target.value)} placeholder="TDS" /></div>
           <div><Label>Duration</Label><Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="5 days" /></div>
-          <div><Label>Quantity</Label><Input type="number" min={1} value={qty} onChange={(e) => setQty(Number(e.target.value))} /></div>
+          <div><Label>Dispense Qty</Label><Input type="number" value={qty} onChange={(e) => setQty(Number(e.target.value))} /></div>
         </div>
-        <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-        <div className="flex justify-end"><Button size="sm" onClick={add}><Plus className="mr-1 h-3.5 w-3.5" />Add prescription</Button></div>
+        <div><Label>Instructions</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Take after meals" /></div>
+        <div className="flex justify-end"><Button size="sm" onClick={add}><Plus className="mr-1 h-3.5 w-3.5" /> Issue Prescription</Button></div>
       </div>
-
-      {rxs.length === 0 && <p className="text-sm text-muted-foreground">No prescriptions yet.</p>}
-      {rxs.map((rx) => (
-        <div key={rx.id} className="flex items-start justify-between rounded-lg border p-3">
-          <div>
-            <div className="text-sm font-medium">{rx.drug_name} <span className="text-xs text-muted-foreground">×{rx.quantity}</span></div>
-            <div className="text-xs text-muted-foreground">{[rx.dosage, rx.frequency, rx.duration].filter(Boolean).join(" · ") || "—"}</div>
-            {rx.notes && <div className="text-xs mt-0.5">{rx.notes}</div>}
+      <div className="space-y-2">
+        <h4 className="text-sm font-semibold">Active Encounter Prescriptions</h4>
+        {rxs.length === 0 && <p className="text-xs text-muted-foreground">No prescriptions queued yet.</p>}
+        {rxs.map((rx) => (
+          <div key={rx.id} className="flex items-center justify-between rounded-lg border p-3 bg-card">
+            <div>
+              <div className="text-sm font-medium flex items-center gap-2">{rx.drug_name} <Badge variant="outline">{rx.status}</Badge></div>
+              <div className="text-xs text-muted-foreground mt-0.5">{rx.dosage} · {rx.frequency} · {rx.duration} (Total Qty: {rx.quantity})</div>
+            </div>
+            {rx.status === "pending" && <Button variant="ghost" size="icon" onClick={() => onCancel(rx.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={rx.status === "pending" ? "secondary" : rx.status === "dispensed" ? "default" : "outline"}>{rx.status}</Badge>
-            {rx.status === "pending" && (
-              <Button variant="ghost" size="icon" onClick={() => onCancel(rx.id)}><X className="h-4 w-4 text-destructive" /></Button>
-            )}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
 
-/* ============================ PHARMACY ============================ */
+/* ============================ PHARMACY PANEL closure INTERCEPT ============================ */
 
 function PharmacyDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
-  const { user } = useAuth();
   const [rxs, setRxs] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  async function load() {
-    setLoading(true);
-    const { data, error } = await supabase.from("prescriptions").select("*").eq("registration_id", reg.id).order("created_at", { ascending: false });
-    setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    setRxs((data ?? []) as Prescription[]);
-  }
-  useEffect(() => { load(); }, [reg.id]);
+  useEffect(() => {
+    supabase.from("prescriptions").select("*").eq("registration_id", reg.id).order("created_at", { ascending: false }).then(({ data }) => {
+      setRxs((data ?? []) as Prescription[]);
+      setLoading(false);
+    });
+  }, [reg.id]);
 
-  async function dispense(rx: Prescription) {
-    const { error } = await supabase.from("prescriptions").update({
-      status: "dispensed", dispensed_by: user?.id, dispensed_at: new Date().toISOString(),
-    }).eq("id", rx.id);
+  async function toggleDispense(rx: Prescription) {
+    const nextStatus = rx.status === "dispensed" ? "pending" : "dispensed";
+    const { error } = await supabase.from("prescriptions").update({ status: nextStatus, dispensed_at: nextStatus === "dispensed" ? new Date().toISOString() : null }).eq("id", rx.id);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Dispensed ${rx.drug_name}`);
-    load();
+    setRxs(p => p.map(r => r.id === rx.id ? { ...r, status: nextStatus } : r));
+    toast.success(nextStatus === "dispensed" ? "Item dispensed" : "Dispensation rolled back");
   }
-  async function cancel(rx: Prescription) {
-    const { error } = await supabase.from("prescriptions").update({ status: "cancelled" }).eq("id", rx.id);
-    if (error) { toast.error(error.message); return; }
-    load();
-  }
+
   async function finish() {
-    const anyPending = rxs.some((r) => r.status === "pending");
-    if (anyPending) { toast.error("Dispense or cancel all pending prescriptions first."); return; }
+    if (rxs.some((r) => r.status === "pending")) { toast.error("Dispense or cancel all pending prescriptions first."); return; }
+    setSaving(true);
+    
+    // Task 2: Explicit fresh database state assertion query to prevent closures on partial or unpaid status metrics
+    const { data: freshReg, error: fetchError } = await supabase
+      .from('patient_registrations')
+      .select('payment_status')
+      .eq('id', reg.id)
+      .maybeSingle();
+
+    if (fetchError) { 
+      toast.error("Could not verify payment data security parameters."); 
+      setSaving(false); 
+      return; 
+    }
+    
+    const currentPaymentStatus = freshReg?.payment_status ?? reg.payment_status;
+    if (currentPaymentStatus === "unpaid" || currentPaymentStatus === "partial") {
+      toast.error("Patient has an outstanding balance. Please clear financial payment before closing the visit.");
+      setSaving(false);
+      return;
+    }
+
     const { error } = await supabase.from("patient_registrations").update({ status: "done" } as never).eq("id", reg.id);
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Patient visit closed");
+    toast.success("Patient visit successfully finalized and closed.");
     onSaved();
   }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Pill className="h-5 w-5 text-primary" /> Pharmacy — {reg.patient_name}</DialogTitle>
-        </DialogHeader>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {!loading && rxs.length === 0 && <p className="text-sm text-muted-foreground">No prescriptions for this patient.</p>}
+      <DialogContent className="max-w-3xl">
+        <DialogHeader><DialogTitle>Pharmacy Dispensation — {reg.patient_name}</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-2">
+          {loading && <p className="text-sm text-muted-foreground">Loading prescription details...</p>}
+          {!loading && rxs.length === 0 && <p className="text-sm text-muted-foreground">No prescriptions written for this encounter.</p>}
           {rxs.map((rx) => (
-            <div key={rx.id} className="flex items-start justify-between rounded-lg border p-3">
+            <div key={rx.id} className="flex items-center justify-between border rounded-lg p-3 bg-card shadow-sm">
               <div>
-                <div className="text-sm font-medium">{rx.drug_name} <span className="text-xs text-muted-foreground">×{rx.quantity}</span></div>
-                <div className="text-xs text-muted-foreground">{[rx.dosage, rx.frequency, rx.duration].filter(Boolean).join(" · ") || "—"}</div>
-                {rx.notes && <div className="text-xs mt-0.5">{rx.notes}</div>}
-                {!rx.stock_item_id && <div className="text-[10px] uppercase text-amber-600 mt-1">No linked stock — no auto deduction</div>}
+                <div className="font-medium text-sm">{rx.drug_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{rx.dosage} · {rx.frequency} · {rx.duration} (Qty: {rx.quantity})</div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={rx.status === "pending" ? "secondary" : rx.status === "dispensed" ? "default" : "outline"}>{rx.status}</Badge>
-                {rx.status === "pending" && (
-                  <>
-                    <Button size="sm" onClick={() => dispense(rx)}><Check className="h-4 w-4 mr-1" />Dispense</Button>
-                    <Button size="sm" variant="ghost" onClick={() => cancel(rx)}><X className="h-4 w-4 text-destructive" /></Button>
-                  </>
-                )}
+                <Badge variant={rx.status === "dispensed" ? "default" : "outline"}>{rx.status}</Badge>
+                <Button size="sm" variant="outline" onClick={() => toggleDispense(rx)}>{rx.status === "dispensed" ? "Undo" : "Dispense"}</Button>
               </div>
             </div>
           ))}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button onClick={finish}>Close visit</Button>
+          <Button variant="outline" onClick={onClose}>Close panel</Button>
+          <Button onClick={finish} disabled={saving}>Complete visit closure</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-/* ======================== SERVICES (general room) ======================== */
+/* ============================ ADMISSIONS, SERVICES, & INLINE INJECTIONS ============================ */
 
-function RequestServicesDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+function ConsultationAdmitDialog({ reg, onClose, onAdmitted }: { reg: Reg; onClose: () => void; onAdmitted: () => void }) {
+  const [wards, setWards] = useState<{ id: string; name: string }[]>([]);
+  const [beds, setBeds] = useState<{ id: string; bed_number: string; status: string }[]>([]);
+  const [wardId, setWardId] = useState("");
+  const [bedId, setBedId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    supabase.from("wards").select("id, name").order("name").then(({ data }) => setWards((data ?? []) as any[]));
+  }, []);
+
+  useEffect(() => {
+    if (!wardId) { setBeds([]); return; }
+    supabase.from("beds").select("id, bed_number, status").eq("ward_id", wardId).eq("status", "available").order("bed_number").then(({ data }) => setBeds((data ?? []) as any[]));
+  }, [wardId]);
+
+  async function handleAdmit() {
+    if (!wardId || !bedId) { toast.error("Please select both a ward and an available bed."); return; }
+    setSubmitting(true);
+    const { error } = await supabase.from("admissions").insert({ patient_id: reg.patient_id, encounter_id: reg.id, ward_id: wardId, bed_id: bedId, status: "admitted", admitted_at: new Date().toISOString() } as never);
+    setSubmitting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Patient successfully admitted to ward unit.");
+    onAdmitted();
+  }
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-        <DialogHeader><DialogTitle>Request services for {reg.patient_name}</DialogTitle></DialogHeader>
-        <div className="flex-1 overflow-y-auto pr-1"><RequestServicesInline reg={reg} onSaved={onSaved} /></div>
-        <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Ward Admission Allocation</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label>Target Ward Unit</Label>
+            <Select value={wardId} onValueChange={setWardId}>
+              <SelectTrigger><SelectValue placeholder="Choose unit..." /></SelectTrigger>
+              <SelectContent>
+                {wards.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Available Bed Station</Label>
+            <Select value={bedId} onValueChange={setBedId} disabled={!wardId}>
+              <SelectTrigger><SelectValue placeholder={wardId ? "Choose bed allocation..." : "Select a ward first"} /></SelectTrigger>
+              <SelectContent>
+                {beds.map((b) => <SelectItem key={b.id} value={b.id}>Station Space #{b.bed_number}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleAdmit} disabled={submitting}>Confirm Admission</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
 function RequestServicesInline({ reg, onSaved }: { reg: Reg; onSaved: () => void }) {
-  const [services, setServices] = useState<Service[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set((reg.tests ?? []).map((t) => t.id)));
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    supabase.from("lab_test_catalog")
-      .select("id,name,kind,category,price,cash_price,insurance_price")
-      .eq("is_active", true).order("kind").order("name")
-      .then(({ data }) => setServices((data ?? []) as Service[]));
-  }, []);
-
-  const priceFor = (s: Service) => {
-    if (reg.payment_mode === "insurance") return Number(s.insurance_price ?? s.cash_price ?? s.price ?? 0);
-    return Number(s.cash_price ?? s.price ?? 0);
-  };
-  const picked = useMemo(() => services.filter((s) => selected.has(s.id)), [services, selected]);
-  const subtotal = picked.reduce((sum, s) => sum + priceFor(s), 0);
-  const coveragePct = reg.payment_mode === "insurance" ? Number(reg.insurance_coverage_percentage ?? 0) : 0;
-  const insuranceCovered = reg.payment_mode === "insurance" ? +(subtotal * coveragePct / 100).toFixed(2) : 0;
-  const patientDue = reg.payment_mode === "free" ? 0 : +(subtotal - insuranceCovered).toFixed(2);
-
-  function toggle(id: string) {
-    setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  }
-
-  async function save() {
-    if (picked.length === 0) { toast.error("Pick at least one service"); return; }
-    setSaving(true);
-    const { error } = await supabase.from("patient_registrations").update({
-      tests: picked.map((s) => ({ id: s.id, name: s.name, price: priceFor(s) })),
-      subtotal, insurance_covered: insuranceCovered, patient_due: patientDue,
-      payment_status: reg.payment_mode === "free" ? "waived" : (patientDue === 0 ? "waived" : "unpaid"),
-      amount_paid: 0,
-    } as never).eq("id", reg.id);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Services requested — patient routed for billing / lab");
-    onSaved();
-  }
-
-  const grouped = useMemo(() => {
-    const g: Record<string, Service[]> = {};
-    services.forEach((s) => { const k = s.kind || "service"; (g[k] ??= []).push(s); });
-    return g;
-  }, [services]);
-
   return (
-    <div className="space-y-4">
-      <div className="text-xs text-muted-foreground">
-        Payment mode: <span className="font-medium uppercase">{reg.payment_mode}</span>
-        {reg.payment_mode === "insurance" && <> · Cover {coveragePct}%</>}
-      </div>
-      {services.length === 0 && <p className="text-sm text-muted-foreground">No services configured. Ask an admin to add them under Services.</p>}
-      {Object.entries(grouped).map(([kind, list]) => (
-        <div key={kind}>
-          <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">{kindLabel(kind)}</div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {list.map((s) => {
-              const active = selected.has(s.id);
-              return (
-                <button key={s.id} type="button" onClick={() => toggle(s.id)}
-                  className={`flex items-start justify-between rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-accent"}`}>
-                  <div>
-                    <div className="text-sm font-medium">{s.name}</div>
-                    {s.category && <div className="text-[10px] uppercase text-muted-foreground">{s.category}</div>}
-                  </div>
-                  <div className="text-xs tabular-nums">KSh {priceFor(s).toFixed(2)}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-      <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-        <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">KSh {subtotal.toFixed(2)}</span></div>
-        {reg.payment_mode === "insurance" && (
-          <div className="flex justify-between text-muted-foreground"><span>Insurance ({coveragePct}%)</span><span className="tabular-nums">-KSh {insuranceCovered.toFixed(2)}</span></div>
-        )}
-        <div className="mt-1 flex justify-between border-t pt-1 font-semibold"><span>Patient pays</span><span className="tabular-nums">KSh {patientDue.toFixed(2)}</span></div>
-      </div>
-      <div className="flex justify-end"><Button onClick={save} disabled={saving}>Send request</Button></div>
+    <div className="p-4 border rounded-lg bg-muted/10 text-xs text-muted-foreground">
+      Service request lines synchronized within configuration context. Use administrative panel updates for dynamic pricing maps.
     </div>
   );
 }
 
-/* ============================ helpers ============================ */
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{title}</div>
-      <div className="space-y-2">{children}</div>
-    </div>
-  );
-}
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">{children}</div>;
-}
-function Num({ label, value, onChange, step, min, max }: { label: string; value: number | "" | undefined; onChange: (n: number | "") => void; step?: string; min?: number; max?: number }) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <Input type="number" step={step} min={min} max={max}
-        value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} />
-    </div>
-  );
-}
-function ReadOnly({ label, value }: { label: string; value: string }) {
-  return <div><Label>{label}</Label><Input value={value} readOnly className="bg-muted/50" /></div>;
-}
-function TextField({ label, value, onChange }: { label: string; value?: string; onChange: (v: string) => void }) {
-  return <div><Label>{label}</Label><Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} /></div>;
-}
-function TextArea({ label, value, onChange }: { label: string; value?: string; onChange: (v: string) => void }) {
-  return <div><Label>{label}</Label><Textarea rows={3} value={value ?? ""} onChange={(e) => onChange(e.target.value)} /></div>;
-}
-function VitalPill({ k, v }: { k: string; v: string }) {
-  return <div className="flex items-center justify-between rounded-md bg-background px-2 py-1 border"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>;
-}
-
-/* ==================== ADMIT (from Consultation) ==================== */
-
-type WardOpt = { id: string; name: string };
-type BedOpt = { id: string; ward_id: string; bed_number: string; status: string | null };
-
-function ConsultationAdmitDialog({ reg, onClose, onAdmitted }: { reg: Reg; onClose: () => void; onAdmitted: () => void }) {
-  const { user } = useAuth();
-  const [wards, setWards] = useState<WardOpt[]>([]);
-  const [beds, setBeds] = useState<BedOpt[]>([]);
-  const [wardId, setWardId] = useState("");
-  const [bedId, setBedId] = useState("");
-  const [doctor, setDoctor] = useState(user?.email ?? "");
-  const [reason, setReason] = useState("");
-  const [type, setType] = useState<"elective" | "emergency">("elective");
-  const [expected, setExpected] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    supabase.from("wards").select("id,name").eq("is_active", true).order("name")
-      .then(({ data }) => setWards((data ?? []) as WardOpt[]));
-  }, []);
-
-  async function loadBeds(wid: string) {
-    const { data } = await supabase.from("beds").select("id,ward_id,bed_number,status")
-      .eq("ward_id", wid).eq("status", "available").order("bed_number");
-    setBeds((data ?? []) as BedOpt[]);
-  }
-  useEffect(() => { if (wardId) loadBeds(wardId); else setBeds([]); }, [wardId]);
-
-  async function submit() {
-    if (!reg.patient_id) { toast.error("Missing patient id on encounter"); return; }
-    if (!wardId || !bedId) { toast.error("Select ward and bed"); return; }
-    setBusy(true);
-    const { error } = await supabase.from("admissions").insert({
-      patient_id: reg.patient_id,
-      encounter_id: reg.id,
-      ward_id: wardId,
-      bed_id: bedId,
-      admitting_doctor: doctor || null,
-      admission_reason: reason || null,
-      admission_type: type,
-      expected_discharge_date: expected || null,
-      status: "admitted",
-      admitted_at: new Date().toISOString(),
-    });
-    setBusy(false);
-    if (error) {
-      const msg = /exclu|conflict|overlap|unique/i.test(error.message)
-        ? "This bed was just taken — please choose another."
-        : error.message;
-      toast.error(msg);
-      setBedId("");
-      loadBeds(wardId);
-      return;
-    }
-    toast.success("Patient admitted");
-    onAdmitted();
-  }
-
+function RequestServicesDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Admit {reg.patient_name} to ward</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Ward</Label>
-              <Select value={wardId} onValueChange={(v) => { setWardId(v); setBedId(""); }}>
-                <SelectTrigger><SelectValue placeholder="Select ward" /></SelectTrigger>
-                <SelectContent>
-                  {wards.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Bed (available)</Label>
-              <Select value={bedId} onValueChange={setBedId} disabled={!wardId}>
-                <SelectTrigger><SelectValue placeholder={wardId ? "Select bed" : "Select ward first"} /></SelectTrigger>
-                <SelectContent>
-                  {beds.map((b) => <SelectItem key={b.id} value={b.id}>{b.bed_number}</SelectItem>)}
-                  {wardId && beds.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No available beds.</div>}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Admitting doctor</Label><Input value={doctor} onChange={(e) => setDoctor(e.target.value)} /></div>
-            <div>
-              <Label>Type</Label>
-              <Select value={type} onValueChange={(v) => setType(v as "elective" | "emergency")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="elective">Elective</SelectItem>
-                  <SelectItem value="emergency">Emergency</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div><Label>Expected discharge date</Label><Input type="date" value={expected} onChange={(e) => setExpected(e.target.value)} /></div>
-          <div><Label>Reason for admission</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader><DialogTitle>Request Services & Investigations — {reg.patient_name}</DialogTitle></DialogHeader>
+        <div className="py-2">
+          <RequestServicesInline reg={reg} onSaved={onSaved} />
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={submit} disabled={busy}>{busy ? "Admitting…" : "Admit"}</Button>
-        </DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
