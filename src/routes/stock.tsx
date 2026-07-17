@@ -37,6 +37,7 @@ function StockPage() {
   const qc = useQueryClient();
   const [openItem, setOpenItem] = useState(false);
   const [openMove, setOpenMove] = useState<{ id: string; name: string } | null>(null);
+  const [editItem, setEditItem] = useState<any | null>(null);
   const [tab, setTab] = useState<"all" | typeof KINDS[number]["value"]>("all");
 
   const { data: items, isLoading } = useQuery({
@@ -51,6 +52,12 @@ function StockPage() {
   const addItem = useMutation({
     mutationFn: async (i: Record<string, unknown>) => { const { error } = await supabase.from("stock_items").insert(i as never); if (error) throw error; },
     onSuccess: () => { toast.success("Product added"); qc.invalidateQueries({ queryKey: ["stock_items"] }); setOpenItem(false); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateItem = useMutation({
+    mutationFn: async (i: Record<string, unknown>) => { const { error } = await supabase.from("stock_items").update(i as never).eq('id', (i.id as string)); if (error) throw error; },
+    onSuccess: () => { toast.success("Product updated"); qc.invalidateQueries({ queryKey: ["stock_items"] }); setEditItem(null); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -85,6 +92,7 @@ function StockPage() {
                   unit: f.get("unit") || "pcs",
                   current_quantity: Number(f.get("current_quantity") || 0),
                   reorder_level: Number(f.get("reorder_level") || 0),
+                  unit_price: Number(f.get("unit_price") || 0),
                   notes: f.get("notes"),
                 });
               }} className="space-y-3">
@@ -101,6 +109,7 @@ function StockPage() {
                   </div>
                   <div><Label>Category</Label><Input name="category" placeholder="e.g. Antibiotics" /></div>
                 </div>
+                <div><Label>Unit price (KES)</Label><Input type="number" step="0.01" name="unit_price" defaultValue={0} /></div>
                 <div className="grid grid-cols-3 gap-3">
                   <div><Label>Unit</Label><Input name="unit" defaultValue="pcs" /></div>
                   <div><Label>Starting qty</Label><Input type="number" step="0.01" name="current_quantity" defaultValue={0} /></div>
@@ -134,10 +143,20 @@ function StockPage() {
       <div className="rounded-xl border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr><th className="px-4 py-2">Item</th><th className="px-4 py-2">Kind</th><th className="px-4 py-2">Category</th><th className="px-4 py-2">Unit</th><th className="px-4 py-2">On hand</th><th className="px-4 py-2">Reorder ≤</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 no-print"></th></tr>
+            <tr>
+              <th className="px-4 py-2">Item</th>
+              <th className="px-4 py-2">Kind</th>
+              <th className="px-4 py-2">Category</th>
+              <th className="px-4 py-2">Unit</th>
+              <th className="px-4 py-2">On hand</th>
+              <th className="px-4 py-2">Reorder ≤</th>
+              <th className="px-4 py-2 text-right">Price</th>
+              <th className="px-4 py-2">Status</th>
+              <th className="px-4 py-2">Action</th>
+            </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
+            {isLoading && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
             {filtered.map((i) => {
               const low = Number(i.current_quantity) <= Number(i.reorder_level);
               return (
@@ -148,20 +167,26 @@ function StockPage() {
                   <td className="px-4 py-2">{i.unit}</td>
                   <td className={`px-4 py-2 font-mono ${low ? "text-destructive font-semibold" : ""}`}>{i.current_quantity}</td>
                   <td className="px-4 py-2 text-muted-foreground">{i.reorder_level}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">KES {Number(i.unit_price ?? 0).toFixed(2)}</td>
                   <td className="px-4 py-2">
                     {low
                       ? <span className="inline-flex rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive">Low</span>
                       : <span className="inline-flex rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success">OK</span>}
                   </td>
                   <td className="px-4 py-2 no-print">
-                    <Button size="sm" variant="outline" onClick={() => setOpenMove({ id: i.id, name: i.name })}>
-                      <ClipboardCheck className="mr-1 h-3 w-3" />Adjust
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEditItem(i)}>
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setOpenMove({ id: i.id, name: i.name })}>
+                        <ClipboardCheck className="mr-1 h-3 w-3" />Adjust
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
             })}
-            {!isLoading && filtered.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No items in this category.</td></tr>}
+            {!isLoading && filtered.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No items in this category.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -194,6 +219,54 @@ function StockPage() {
             <div><Label>Notes</Label><Textarea name="notes" /></div>
             <DialogFooter><Button type="submit" disabled={addMove.isPending}>Save</Button></DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit product</DialogTitle></DialogHeader>
+          {editItem && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              updateItem.mutate({
+                id: editItem.id,
+                name: f.get("name"),
+                kind: f.get("kind") || "consumable",
+                category: f.get("category"),
+                unit: f.get("unit") || "pcs",
+                current_quantity: Number(f.get("current_quantity") || 0),
+                reorder_level: Number(f.get("reorder_level") || 0),
+                unit_price: Number(f.get("unit_price") || 0),
+                notes: f.get("notes"),
+              });
+            }} className="space-y-3">
+              <div><Label>Name *</Label><Input name="name" defaultValue={editItem.name} required /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Kind *</Label>
+                  <Select name="kind" defaultValue={editItem.kind ?? "consumable"}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Category</Label><Input name="category" defaultValue={editItem.category ?? ""} placeholder="e.g. Antibiotics" /></div>
+              </div>
+              <div><Label>Unit price (KES)</Label><Input type="number" step="0.01" name="unit_price" defaultValue={Number(editItem.unit_price ?? 0)} /></div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label>Unit</Label><Input name="unit" defaultValue={editItem.unit ?? "pcs"} /></div>
+                <div><Label>On hand</Label><Input type="number" step="0.01" name="current_quantity" defaultValue={Number(editItem.current_quantity ?? 0)} /></div>
+                <div><Label>Reorder ≤</Label><Input type="number" step="0.01" name="reorder_level" defaultValue={Number(editItem.reorder_level ?? 0)} /></div>
+              </div>
+              <div><Label>Notes</Label><Textarea name="notes" defaultValue={editItem.notes ?? ""} /></div>
+              <DialogFooter className="flex gap-2">
+                <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
+                <Button type="submit" disabled={updateItem.isPending}>Save</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
