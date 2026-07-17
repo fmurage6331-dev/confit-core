@@ -527,18 +527,105 @@ function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () =
 }
 
 function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagnosis[]) => void }) {
-  const [code, setCode] = useState(""); const [desc, setDesc] = useState(""); const [notes, setNotes] = useState("");
+  const [code, setCode] = useState("");
+  const [desc, setDesc] = useState("");
+  const [notes, setNotes] = useState("");
+  const [suggestions, setSuggestions] = useState<{ code: string; title: string; uri: string | null }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  // Debounced search: local icd11_codes cache first, WHO live API as fallback
+  useEffect(() => {
+    const q = desc.trim();
+    if (q.length < 2) { setSuggestions([]); return; }
+
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data: local } = await supabase
+          .from("icd11_codes")
+          .select("code,title,uri")
+          .or(`title.ilike.%${q}%,code.ilike.${q}%`)
+          .limit(10);
+
+        let results = (local ?? []) as { code: string; title: string; uri: string | null }[];
+
+        if (results.length < 5) {
+          const { data: liveData, error: liveError } = await supabase.functions.invoke("icd11-search", {
+            body: { query: q },
+          });
+          if (!liveError && liveData?.results) {
+            const seen = new Set(results.map((r) => r.code));
+            for (const r of liveData.results as { code: string; title: string; uri: string | null }[]) {
+              if (!seen.has(r.code)) { results.push(r); seen.add(r.code); }
+            }
+          }
+        }
+
+        setSuggestions(results.slice(0, 10));
+        setShowSuggestions(true);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [desc]);
+
+  function pickSuggestion(s: { code: string; title: string; uri: string | null }) {
+    setCode(s.code);
+    setDesc(s.title);
+    setShowSuggestions(false);
+    // Cache/refresh this code locally so future searches are faster
+    supabase.from("icd11_codes").upsert({
+      code: s.code, title: s.title, uri: s.uri, validated_at: new Date().toISOString(),
+    } as never, { onConflict: "code" }).then(() => {});
+  }
+
   function add() {
     if (!code.trim() && !desc.trim()) { toast.error("Enter an ICD-11 code or description"); return; }
     setDxs([...dxs, { icd11_code: code.trim(), description: desc.trim(), notes: notes.trim() || undefined }]);
-    setCode(""); setDesc(""); setNotes("");
+    setCode(""); setDesc(""); setNotes(""); setSuggestions([]);
   }
+
   return (
     <div className="space-y-3">
       <div className="rounded-lg border p-3 space-y-2">
         <div className="grid gap-2 md:grid-cols-3">
-          <div><Label>ICD-11 code</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. CA22.0" /></div>
-          <div className="md:col-span-2"><Label>Diagnosis</Label><Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="e.g. Acute bronchitis" /></div>
+          <div>
+            <Label>ICD-11 code</Label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. CA22.0" />
+          </div>
+          <div className="md:col-span-2 relative">
+            <Label>Diagnosis</Label>
+            <Input
+              value={desc}
+              onChange={(e) => { setDesc(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="e.g. Acute bronchitis"
+              autoComplete="off"
+            />
+            {showSuggestions && (searching || suggestions.length > 0) && (
+              <div className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto rounded-md border bg-popover shadow-md">
+                {searching && suggestions.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">Searching…</div>
+                )}
+                {suggestions.map((s) => (
+                  <button
+                    key={s.code}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pickSuggestion(s)}
+                    className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                  >
+                    <span className="shrink-0 font-mono text-xs text-primary">{s.code}</span>
+                    <span>{s.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         <div className="flex justify-end"><Button size="sm" onClick={add}><Plus className="mr-1 h-3.5 w-3.5" />Add diagnosis</Button></div>
