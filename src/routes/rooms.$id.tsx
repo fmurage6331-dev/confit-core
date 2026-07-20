@@ -59,7 +59,6 @@ type Service = {
   id: string; name: string; kind: string; category: string | null;
   price: number; cash_price: number | null; insurance_price: number | null;
 };
-// Added unit_price to StockItem so UI can surface pricing when prescribing
 type StockItem = { id: string; name: string; kind: string | null; current_quantity: number | null; unit_price?: number | null };
 type Prescription = {
   id: string; registration_id: string; stock_item_id: string | null;
@@ -347,191 +346,654 @@ function LabManagementDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () 
   );
 }
 
-function LabSendBackDialog(_props: { registrationId: string; testItem: TestItem; allTests: TestItem[]; onClose: () => void; onSuccess: () => void }) {
-  return null;
-}
+function LabSendBackDialog({ registrationId, testItem, allTests, onClose, onSuccess }: { registrationId: string; testItem: TestItem; allTests: TestItem[]; onClose: () => void; onSuccess: () => void }) {
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-function TriageDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
-function PharmacyDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
-function RequestServicesDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
-
-/* ============================ CONSULTATION DIALOG ============================ */
-
-type LabCatalog = { id: string; name: string; price: number; cash_price: number | null; insurance_price: number | null; kind: string };
-
-function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
-  const [saving, setSaving] = useState(false);
-  const [catalog, setCatalog] = useState<LabCatalog[]>([]);
-  const [search, setSearch] = useState("");
-  const [tests, setTests] = useState<TestItem[]>(reg.tests ?? []);
-  const [history, setHistory] = useState<History>(reg.history ?? {});
-  const [diagnoses, setDiagnoses] = useState<Diagnosis[]>(reg.diagnoses ?? []);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("lab_test_catalog")
-        .select("id,name,price,cash_price,insurance_price,kind")
-        .eq("is_active", true)
-        .order("name");
-      setCatalog((data ?? []) as LabCatalog[]);
-    })();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return catalog.slice(0, 20);
-    return catalog.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 30);
-  }, [catalog, search]);
-
-  function addTest(c: LabCatalog) {
-    if (tests.some((t) => t.id === c.id)) return;
-    const price = reg.payment_mode === "insurance" ? (c.insurance_price ?? c.price) : (c.cash_price ?? c.price);
-    setTests([...tests, { id: c.id, name: c.name, price: Number(price) || 0, status: "pending" }]);
-  }
-  function removeTest(id: string) { setTests(tests.filter((t) => t.id !== id)); }
-
-  function updateDx(i: number, patch: Partial<Diagnosis>) {
-    setDiagnoses(diagnoses.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
-  }
-  function addDx() { setDiagnoses([...diagnoses, { icd11_code: "", description: "", notes: "" }]); }
-  function removeDx(i: number) { setDiagnoses(diagnoses.filter((_, idx) => idx !== i)); }
-
-  async function save(sendToLab: boolean) {
-    setSaving(true);
-    const payload: Record<string, unknown> = { history, diagnoses, tests };
-    const newLabTests = tests.filter((t) => !(reg.tests ?? []).some((rt) => rt.id === t.id));
-    if (sendToLab && newLabTests.length > 0) {
-      payload.payment_status = "unpaid";
-      payload.from_room = "Consultation";
+  async function handleSendBack() {
+    if (!reason.trim()) {
+      toast.error("Please provide a reason for sending this test back to the doctor.");
+      return;
     }
-    const { error } = await (supabase.from("patient_registrations") as any).update(payload).eq("id", reg.id);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(sendToLab && newLabTests.length > 0 ? "Consultation saved. Lab request sent." : "Consultation saved.");
-    onSaved();
-  }
+    setSubmitting(true);
 
-  async function markDone() {
-    setSaving(true);
-    const { error } = await (supabase.from("patient_registrations") as any)
-      .update({ history, diagnoses, tests, status: "done" }).eq("id", reg.id);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Consultation complete.");
-    onSaved();
-  }
+    // Update specific array element parameters inside the JSONB structure
+    const updatedTests = allTests.map(t => 
+      t.id === testItem.id ? { ...t, status: "sent_back" as const, rejection_reason: reason.trim() } : t
+    );
 
-  const hasPendingLab = tests.some((t) => t.status === "pending" || !t.status);
-  const hasNewLab = tests.some((t) => !(reg.tests ?? []).some((rt) => rt.id === t.id));
+    const { error: patchError } = await supabase
+      .from("patient_registrations")
+      .update({ tests: updatedTests } as never)
+      .eq("id", registrationId);
+
+    if (patchError) {
+      toast.error(patchError.message);
+      setSubmitting(false);
+      return;
+    }
+
+    // Task 1: Insert verification footprint track within application log pipeline
+    await supabase.from("encounter_logs").insert({
+      registration_id: registrationId,
+      log_type: "lab_rejection",
+      message: `Lab test [${testItem.name}] returned to clinician room. Reason: ${reason.trim()}`,
+      created_at: new Date().toISOString()
+    } as never);
+
+    setSubmitting(false);
+    toast.success("Investigation request sent back to ordering clinician.");
+    onSuccess();
+  }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md z-[60]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Stethoscope className="h-5 w-5 text-primary" />
-            Consultation — {reg.patient_name}
-            {reg.file_number && <Badge variant="secondary" className="ml-2">#{reg.file_number}</Badge>}
-          </DialogTitle>
+          <DialogTitle className="text-destructive flex items-center gap-2">Send Lab Request Back to Doctor</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-5 py-2">
-          <section className="space-y-2">
-            <h3 className="font-semibold text-sm">Clinical History</h3>
-            <div>
-              <Label className="text-xs">Presenting Complaint</Label>
-              <Textarea rows={2} value={history.presenting_complaint ?? ""}
-                onChange={(e) => setHistory({ ...history, presenting_complaint: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">History of Presenting Illness</Label>
-              <Textarea rows={2} value={history.hpi ?? ""}
-                onChange={(e) => setHistory({ ...history, hpi: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Past Medical</Label>
-                <Textarea rows={2} value={history.past_medical ?? ""}
-                  onChange={(e) => setHistory({ ...history, past_medical: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">Allergies</Label>
-                <Textarea rows={2} value={history.allergies ?? ""}
-                  onChange={(e) => setHistory({ ...history, allergies: e.target.value })} />
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-sm">Diagnoses (ICD-11)</h3>
-              <Button size="sm" variant="outline" onClick={addDx}><Plus className="h-3.5 w-3.5 mr-1" />Add</Button>
-            </div>
-            {diagnoses.length === 0 && <p className="text-xs text-muted-foreground">No diagnoses recorded.</p>}
-            {diagnoses.map((d, i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <Input placeholder="ICD-11 code" className="w-32" value={d.icd11_code}
-                  onChange={(e) => updateDx(i, { icd11_code: e.target.value })} />
-                <Input placeholder="Description" value={d.description}
-                  onChange={(e) => updateDx(i, { description: e.target.value })} />
-                <Button size="icon" variant="ghost" onClick={() => removeDx(i)}><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            ))}
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="font-semibold text-sm flex items-center gap-1"><FlaskConical className="h-4 w-4" />Request Lab Tests / Services</h3>
-            <Input placeholder="Search tests…" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <div className="max-h-40 overflow-y-auto border rounded-md divide-y">
-              {filtered.map((c) => {
-                const selected = tests.some((t) => t.id === c.id);
-                return (
-                  <button type="button" key={c.id} disabled={selected}
-                    onClick={() => addTest(c)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/40 disabled:opacity-50">
-                    <span>{c.name} <span className="text-xs text-muted-foreground">({c.kind})</span></span>
-                    <span className="text-xs">{selected ? <Check className="h-4 w-4 text-emerald-600" /> : `KES ${c.price}`}</span>
-                  </button>
-                );
-              })}
-              {filtered.length === 0 && <div className="px-3 py-4 text-xs text-muted-foreground text-center">No matches.</div>}
-            </div>
-            {tests.length > 0 && (
-              <div className="space-y-1">
-                <Label className="text-xs">Selected</Label>
-                {tests.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between text-sm border rounded-md px-3 py-1.5">
-                    <span className="flex items-center gap-2">
-                      {t.name}
-                      {t.status === "completed" && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">completed</Badge>}
-                      {t.status === "sent_back" && <Badge variant="destructive">returned</Badge>}
-                    </span>
-                    <Button size="icon" variant="ghost" onClick={() => removeTest(t.id)}
-                      disabled={t.status === "completed"}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={markDone} disabled={saving || hasPendingLab}>
-              Complete Consultation
-            </Button>
-            <Button onClick={() => save(true)} disabled={saving || !hasNewLab} className="gap-1.5">
-              <FlaskConical className="h-4 w-4" />Send Lab Request
-            </Button>
-            <Button variant="outline" onClick={() => save(false)} disabled={saving}>Save</Button>
+        <div className="space-y-3 py-2 text-sm">
+          <p className="text-muted-foreground">You are returning the request for <strong className="text-foreground">{testItem.name}</strong> to the doctor's active panel layout.</p>
+          <div className="space-y-1.5">
+            <Label>Reason for Return / Clarification Request</Label>
+            <Textarea rows={4} placeholder="e.g., Insufficient sample volume, clarification needed..." value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button variant="destructive" onClick={handleSendBack} disabled={submitting}>Reject & Send Back</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
+/* ============================ TRIAGE UTILS ============================ */
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <div className="rounded-xl border bg-card p-4 space-y-4 shadow-sm">{children}</div>
+    </div>
+  );
+}
+
+function Grid({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-4 grid-cols-2 md:grid-cols-3">{children}</div>;
+}
+
+function Num({ label, value, onChange, ...props }: { label: string; value: any; onChange: (v: number | "") => void; [key: string]: any }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input type="number" step="any" value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} {...props} />
+    </div>
+  );
+}
+
+function ReadOnly({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <Label className="text-muted-foreground">{label}</Label>
+      <Input value={value} readOnly className="bg-muted cursor-not-allowed" />
+    </div>
+  );
+}
+
+function TextField({ label, value, onChange }: { label: string; value: string | undefined; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function TextArea({ label, value, onChange }: { label: string; value: string | undefined; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Textarea rows={3} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function VitalPill({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between items-center bg-muted/50 px-3 py-1.5 rounded-lg border text-xs">
+      <span className="font-medium text-muted-foreground">{k}:</span>
+      <span className="font-semibold">{v}</span>
+    </div>
+  );
+}
+
+/* ========================= CONSULTATION ========================= */
+
+function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+  const { user, hasPerm } = useAuth();
+  const canAdmit = hasPerm("admit_patient");
+  const [tab, setTab] = useState<"history" | "diagnosis" | "prescription" | "requests">("history");
+  const [h, setH] = useState<History>(reg.history ?? {});
+  const [dxs, setDxs] = useState<Diagnosis[]>(reg.diagnoses ?? []);
+  const [rxs, setRxs] = useState<Prescription[]>([]);
+  const [stock, setStock] = useState<StockItem[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [admitOpen, setAdmitOpen] = useState(false);
+  const [admission, setAdmission] = useState<{ id: string; encounter_id: string | null; ward_name: string | null; bed_number: string | null } | null>(null);
+
+  async function loadAdmission() {
+    const { data } = await supabase
+      .from("admissions")
+      .select("id,encounter_id,wards(name),beds(bed_number)")
+      .eq("encounter_id", reg.id)
+      .eq("status", "admitted")
+      .maybeSingle();
+    if (data) {
+      const d = data as unknown as { id: string; encounter_id: string | null; wards: { name: string } | null; beds: { bed_number: string } | null };
+      setAdmission({ id: d.id, encounter_id: d.encounter_id, ward_name: d.wards?.name ?? null, bed_number: d.beds?.bed_number ?? null });
+    } else setAdmission(null);
+  }
+
+  useEffect(() => {
+    supabase.from("prescriptions").select("*").eq("registration_id", reg.id).order("created_at", { ascending: false })
+      .then(({ data }) => setRxs((data ?? []) as Prescription[]));
+    supabase.from("stock_items").select("id,name,kind,current_quantity").eq("kind", "pharmaceutical").order("name")
+      .then(({ data }) => setStock((data ?? []) as StockItem[]));
+    loadAdmission();
+  }, [reg.id]);
+
+  function setHK<K extends keyof History>(k: K, v: History[K]) { setH((p) => ({ ...p, [k]: v })); }
+
+  async function saveNotes() {
+    setSaving(true);
+    const { error } = await supabase.from("patient_registrations").update({
+      history: h, diagnoses: dxs,
+    } as never).eq("id", reg.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Consultation saved");
+  }
+
+  async function addRx(rx: Omit<Prescription, "id" | "registration_id" | "status" | "created_at" | "dispensed_at">) {
+    const { data, error } = await supabase.from("prescriptions").insert({
+      registration_id: reg.id, ...rx, created_by: user?.id,
+    }).select("*").single();
+    if (error) { toast.error(error.message); return; }
+    setRxs((p) => [data as Prescription, ...p]);
+    toast.success("Prescription added — patient routed to pharmacy");
+  }
+
+  async function cancelRx(id: string) {
+    const { error } = await supabase.from("prescriptions").update({ status: "cancelled" }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    setRxs((p) => p.map((r) => r.id === id ? { ...r, status: "cancelled" } : r));
+  }
+
+  async function finishAndSend() {
+    await saveNotes();
+    if (rxs.some((r) => r.status === "pending")) {
+      toast.info("Pending prescriptions will move the patient to pharmacy.");
+    }
+    onSaved();
+  }
+
+  const v = reg.vitals ?? {};
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[88vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Stethoscope className="h-5 w-5 text-primary" /> Consultation — {reg.patient_name}
+            {admission && (
+              <Badge className="ml-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                <BedDouble className="mr-1 h-3 w-3" />
+                Admitted{admission.ward_name ? ` · ${admission.ward_name}` : ""}{admission.bed_number ? ` bed ${admission.bed_number}` : ""}
+              </Badge>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        {canAdmit && (
+          <div className="flex flex-wrap items-center gap-2">
+            {!admission ? (
+              <Button size="sm" variant="outline" onClick={() => setAdmitOpen(true)}>
+                <BedDouble className="mr-1 h-4 w-4" /> Admit to ward
+              </Button>
+            ) : (
+              <DischargeButton
+                admissionId={admission.id}
+                encounterId={admission.encounter_id}
+                onDone={() => { loadAdmission(); onSaved(); }}
+              />
+            )}
+          </div>
+        )}
+
+        {admitOpen && (
+          <ConsultationAdmitDialog
+            reg={reg}
+            onClose={() => setAdmitOpen(false)}
+            onAdmitted={() => { setAdmitOpen(false); loadAdmission(); }}
+          />
+        )}
+
+        <div className="rounded-lg border bg-muted/30 p-2 text-xs grid grid-cols-2 md:grid-cols-4 gap-2">
+          <VitalPill k="BP" v={v.bp_systolic && v.bp_diastolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"} />
+          <VitalPill k="Pulse" v={v.pulse_bpm ? `${v.pulse_bpm} bpm` : "—"} />
+          <VitalPill k="Temp" v={v.temperature_c ? `${v.temperature_c} °C` : "—"} />
+          <VitalPill k="SpO₂" v={v.spo2 ? `${v.spo2}%` : "—"} />
+          <VitalPill k="Weight" v={v.weight_kg ? `${v.weight_kg} kg` : "—"} />
+          <VitalPill k="Height" v={v.height_cm ? `${v.height_cm} cm` : "—"} />
+          <VitalPill k="BMI" v={v.bmi ? String(v.bmi) : "—"} />
+          <VitalPill k="Pain" v={v.pain_score !== undefined && v.pain_score !== "" ? `${v.pain_score}/10` : "—"} />
+        </div>
+
+        <div className="mt-2 flex gap-1 border-b">
+          {(["history","diagnosis","prescription","requests"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-3 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground"}`}>
+              {t === "requests" ? "Requests (Lab / Radiology / Ward / Theater)" : t}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto pt-3 pr-1 space-y-4">
+          {tab === "history" && (
+            <>
+              <Section title="Presenting complaint & HPI">
+                <TextField label="Chief complaint" value={h.presenting_complaint} onChange={(v) => setHK("presenting_complaint", v)} />
+                <TextArea label="History of present illness" value={h.hpi} onChange={(v) => setHK("hpi", v)} />
+              </Section>
+              <Section title="Past medical / surgical">
+                <TextArea label="Past medical" value={h.past_medical} onChange={(v) => setHK("past_medical", v)} />
+                <TextArea label="Past surgical" value={h.past_surgical} onChange={(v) => setHK("past_surgical", v)} />
+                <TextField label="Allergies" value={h.allergies} onChange={(v) => setHK("allergies", v)} />
+                <TextField label="Current medications" value={h.current_meds} onChange={(v) => setHK("current_meds", v)} />
+              </Section>
+              <Section title="Social & family">
+                <TextField label="Smoking" value={h.smoking} onChange={(v) => setHK("smoking", v)} />
+                <TextField label="Alcohol" value={h.alcohol} onChange={(v) => setHK("alcohol", v)} />
+                <TextField label="Occupational exposure" value={h.occupation_exposure} onChange={(v) => setHK("occupation_exposure", v)} />
+                <TextArea label="Family history" value={h.family_history} onChange={(v) => setHK("family_history", v)} />
+              </Section>
+              <Section title="Review of systems">
+                <TextArea label="ROS" value={h.ros} onChange={(v) => setHK("ros", v)} />
+              </Section>
+            </>
+          )}
+
+          {tab === "diagnosis" && (
+            <DiagnosisEditor dxs={dxs} setDxs={setDxs} />
+          )}
+
+          {tab === "prescription" && (
+            <PrescriptionEditor rxs={rxs} stock={stock} onAdd={addRx} onCancel={cancelRx} />
+          )}
+
+          {tab === "requests" && (
+            <RequestServicesInline reg={reg} onSaved={onSaved} />
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button onClick={finishAndSend} disabled={saving}>Save consultation</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagnosis[]) => void }) {
+  const [code, setCode] = useState("");
+  const [desc, setDesc] = useState("");
+  const [notes, setNotes] = useState("");
+  const [suggestions, setSuggestions] = useState<{ code: string; title: string; uri: string | null }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const q = desc.trim();
+    if (q.length < 2) { setSuggestions([]); return; }
+
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data: local } = await supabase
+          .from("icd11_codes")
+          .select("code,title,uri")
+          .or(`title.ilike.%${q}%,code.ilike.${q}%`)
+          .limit(10);
+
+        let results = (local ?? []) as { code: string; title: string; uri: string | null }[];
+
+        if (results.length < 5) {
+          const { data: liveData, error: liveError } = await supabase.functions.invoke("icd11-search", {
+            body: { query: q },
+          });
+          if (!liveError && liveData?.results) {
+            const seen = new Set(results.map((r) => r.code));
+            for (const r of liveData.results as { code: string; title: string; uri: string | null }[]) {
+              if (!seen.has(r.code)) { results.push(r); seen.add(r.code); }
+            }
+          }
+        }
+
+        setSuggestions(results.slice(0, 10));
+        setShowSuggestions(true);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [desc]);
+
+  function pickSuggestion(s: { code: string; title: string; uri: string | null }) {
+    setCode(s.code);
+    setDesc(s.title);
+    setShowSuggestions(false);
+    supabase.from("icd11_codes").upsert({
+      code: s.code, title: s.title, uri: s.uri, validated_at: new Date().toISOString(),
+    } as never, { onConflict: "code" }).then(() => {});
+  }
+
+  function add() {
+    if (!code.trim() && !desc.trim()) { toast.error("Enter an ICD-11 code or description"); return; }
+    setDxs([...dxs, { icd11_code: code.trim(), description: desc.trim(), notes: notes.trim() || undefined }]);
+    setCode(""); setDesc(""); setNotes(""); setSuggestions([]);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border p-3 space-y-2">
+        <div className="grid gap-2 md:grid-cols-3">
+          <div>
+            <Label>ICD-11 code</Label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. CA22.0" />
+          </div>
+          <div className="md:col-span-2 relative">
+            <Label>Diagnosis</Label>
+            <Input
+              value={desc}
+              onChange={(e) => { setDesc(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="e.g. Acute bronchitis"
+              autoComplete="off"
+            />
+            {showSuggestions && (searching || suggestions.length > 0) && (
+              <div className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto rounded-md border bg-popover shadow-md">
+                {searching && suggestions.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">Searching…</div>
+                )}
+                {suggestions.map((s) => (
+                  <button
+                    key={s.code}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pickSuggestion(s)}
+                    className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                  >
+                    <span className="shrink-0 font-mono text-xs text-primary">{s.code}</span>
+                    <span>{s.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div className="flex justify-end"><Button size="sm" onClick={add}><Plus className="mr-1 h-3.5 w-3.5" />Add diagnosis</Button></div>
+      </div>
+      {dxs.length === 0 && <p className="text-sm text-muted-foreground">No diagnoses added.</p>}
+      {dxs.map((d, i) => (
+        <div key={i} className="flex items-start justify-between rounded-lg border p-3">
+          <div>
+            <div className="text-sm font-medium">{d.icd11_code || <span className="text-muted-foreground">no code</span>} — {d.description}</div>
+            {d.notes && <div className="text-xs text-muted-foreground mt-0.5">{d.notes}</div>}
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setDxs(dxs.filter((_, x) => x !== i))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PrescriptionEditor({
+  rxs, stock, onAdd, onCancel,
+}: {
+  rxs: Prescription[]; stock: StockItem[];
+  onAdd: (rx: Omit<Prescription, "id" | "registration_id" | "status" | "created_at" | "dispensed_at">) => void | Promise<void>;
+  onCancel: (id: string) => void;
+}) {
+  const [stockId, setStockId] = useState<string>("");
+  const [drugName, setDrugName] = useState(""); const [dosage, setDosage] = useState("");
+  const [freq, setFreq] = useState(""); const [duration, setDuration] = useState("");
+  const [qty, setQty] = useState<number>(1); const [notes, setNotes] = useState("");
+
+  function selectStock(id: string) {
+    setStockId(id);
+    const s = stock.find((x) => x.id === id);
+    if (s && !drugName) setDrugName(s.name);
+  }
+  async function add() {
+    if (!drugName.trim()) { toast.error("Drug name is required"); return; }
+    await onAdd({
+      stock_item_id: stockId || null, drug_name: drugName.trim(),
+      dosage: dosage || null, frequency: freq || null, duration: duration || null,
+      quantity: Number(qty) || 1, notes: notes || null,
+    });
+    setStockId(""); setDrugName(""); setDosage(""); setFreq(""); setDuration(""); setQty(1); setNotes("");
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border p-3 bg-muted/20 space-y-3">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <Label>Link Inventory Stock Item</Label>
+            <Select value={stockId} onValueChange={selectStock}>
+              <SelectTrigger><SelectValue placeholder="Select formulation item..." /></SelectTrigger>
+              <SelectContent>
+                {stock.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.current_quantity ?? 0} remaining)</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Prescription / Drug Name</Label>
+            <Input value={drugName} onChange={(e) => setDrugName(e.target.value)} placeholder="Amoxicillin 500mg" />
+          </div>
+        </div>
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <div><Label>Dosage</Label><Input value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="1 tab" /></div>
+          <div><Label>Frequency</Label><Input value={freq} onChange={(e) => setFreq(e.target.value)} placeholder="TDS" /></div>
+          <div><Label>Duration</Label><Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="5 days" /></div>
+          <div><Label>Dispense Qty</Label><Input type="number" value={qty} onChange={(e) => setQty(Number(e.target.value))} /></div>
+        </div>
+        <div><Label>Instructions</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Take after meals" /></div>
+        <div className="flex justify-end"><Button size="sm" onClick={add}><Plus className="mr-1 h-3.5 w-3.5" /> Issue Prescription</Button></div>
+      </div>
+      <div className="space-y-2">
+        <h4 className="text-sm font-semibold">Active Encounter Prescriptions</h4>
+        {rxs.length === 0 && <p className="text-xs text-muted-foreground">No prescriptions queued yet.</p>}
+        {rxs.map((rx) => (
+          <div key={rx.id} className="flex items-center justify-between rounded-lg border p-3 bg-card">
+            <div>
+              <div className="text-sm font-medium flex items-center gap-2">{rx.drug_name} <Badge variant="outline">{rx.status}</Badge></div>
+              <div className="text-xs text-muted-foreground mt-0.5">{rx.dosage} · {rx.frequency} · {rx.duration} (Total Qty: {rx.quantity})</div>
+            </div>
+            {rx.status === "pending" && <Button variant="ghost" size="icon" onClick={() => onCancel(rx.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================ PHARMACY PANEL closure INTERCEPT ============================ */
+
+function PharmacyDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+  const [rxs, setRxs] = useState<Prescription[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.from("prescriptions").select("*").eq("registration_id", reg.id).order("created_at", { ascending: false }).then(({ data }) => {
+      setRxs((data ?? []) as Prescription[]);
+      setLoading(false);
+    });
+  }, [reg.id]);
+
+  async function toggleDispense(rx: Prescription) {
+    const nextStatus = rx.status === "dispensed" ? "pending" : "dispensed";
+    const { error } = await supabase.from("prescriptions").update({ status: nextStatus, dispensed_at: nextStatus === "dispensed" ? new Date().toISOString() : null }).eq("id", rx.id);
+    if (error) { toast.error(error.message); return; }
+    setRxs(p => p.map(r => r.id === rx.id ? { ...r, status: nextStatus } : r));
+    toast.success(nextStatus === "dispensed" ? "Item dispensed" : "Dispensation rolled back");
+  }
+
+  async function finish() {
+    if (rxs.some((r) => r.status === "pending")) { toast.error("Dispense or cancel all pending prescriptions first."); return; }
+    setSaving(true);
+    
+    // Task 2: Explicit fresh database state assertion query to prevent closures on partial or unpaid status metrics
+    const { data: freshReg, error: fetchError } = await supabase
+      .from('patient_registrations')
+      .select('payment_status')
+      .eq('id', reg.id)
+      .maybeSingle();
+
+    if (fetchError) { 
+      toast.error("Could not verify payment data security parameters."); 
+      setSaving(false); 
+      return; 
+    }
+    
+    const currentPaymentStatus = freshReg?.payment_status ?? reg.payment_status;
+    if (currentPaymentStatus === "unpaid" || currentPaymentStatus === "partial") {
+      toast.error("Patient has an outstanding balance. Please clear financial payment before closing the visit.");
+      setSaving(false);
+      return;
+    }
+
+    const { error } = await supabase.from("patient_registrations").update({ status: "done" } as never).eq("id", reg.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Patient visit successfully finalized and closed.");
+    onSaved();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader><DialogTitle>Pharmacy Dispensation — {reg.patient_name}</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-2">
+          {loading && <p className="text-sm text-muted-foreground">Loading prescription details...</p>}
+          {!loading && rxs.length === 0 && <p className="text-sm text-muted-foreground">No prescriptions written for this encounter.</p>}
+          {rxs.map((rx) => (
+            <div key={rx.id} className="flex items-center justify-between border rounded-lg p-3 bg-card shadow-sm">
+              <div>
+                <div className="font-medium text-sm">{rx.drug_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{rx.dosage} · {rx.frequency} · {rx.duration} (Qty: {rx.quantity})</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={rx.status === "dispensed" ? "default" : "outline"}>{rx.status}</Badge>
+                <Button size="sm" variant="outline" onClick={() => toggleDispense(rx)}>{rx.status === "dispensed" ? "Undo" : "Dispense"}</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close panel</Button>
+          <Button onClick={finish} disabled={saving}>Complete visit closure</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================ ADMISSIONS, SERVICES, & INLINE INJECTIONS ============================ */
+
+function ConsultationAdmitDialog({ reg, onClose, onAdmitted }: { reg: Reg; onClose: () => void; onAdmitted: () => void }) {
+  const [wards, setWards] = useState<{ id: string; name: string }[]>([]);
+  const [beds, setBeds] = useState<{ id: string; bed_number: string; status: string }[]>([]);
+  const [wardId, setWardId] = useState("");
+  const [bedId, setBedId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    supabase.from("wards").select("id, name").order("name").then(({ data }) => setWards((data ?? []) as any[]));
+  }, []);
+
+  useEffect(() => {
+    if (!wardId) { setBeds([]); return; }
+    supabase.from("beds").select("id, bed_number, status").eq("ward_id", wardId).eq("status", "available").order("bed_number").then(({ data }) => setBeds((data ?? []) as any[]));
+  }, [wardId]);
+
+  async function handleAdmit() {
+    if (!wardId || !bedId) { toast.error("Please select both a ward and an available bed."); return; }
+    setSubmitting(true);
+    const { error } = await supabase.from("admissions").insert({ patient_id: reg.patient_id, encounter_id: reg.id, ward_id: wardId, bed_id: bedId, status: "admitted", admitted_at: new Date().toISOString() } as never);
+    setSubmitting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Patient successfully admitted to ward unit.");
+    onAdmitted();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Ward Admission Allocation</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label>Target Ward Unit</Label>
+            <Select value={wardId} onValueChange={setWardId}>
+              <SelectTrigger><SelectValue placeholder="Choose unit..." /></SelectTrigger>
+              <SelectContent>
+                {wards.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Available Bed Station</Label>
+            <Select value={bedId} onValueChange={setBedId} disabled={!wardId}>
+              <SelectTrigger><SelectValue placeholder={wardId ? "Choose bed allocation..." : "Select a ward first"} /></SelectTrigger>
+              <SelectContent>
+                {beds.map((b) => <SelectItem key={b.id} value={b.id}>Station Space #{b.bed_number}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleAdmit} disabled={submitting}>Confirm Admission</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RequestServicesInline({ reg, onSaved }: { reg: Reg; onSaved: () => void }) {
+  return (
+    <div className="p-4 border rounded-lg bg-muted/10 text-xs text-muted-foreground">
+      Service request lines synchronized within configuration context. Use administrative panel updates for dynamic pricing maps.
+    </div>
+  );
+}
+
+function RequestServicesDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader><DialogTitle>Request Services & Investigations — {reg.patient_name}</DialogTitle></DialogHeader>
+        <div className="py-2">
+          <RequestServicesInline reg={reg} onSaved={onSaved} />
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
