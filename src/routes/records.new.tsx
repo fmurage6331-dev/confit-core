@@ -55,7 +55,7 @@ function NewRecord() {
       message?: string;
       registrationId?: string;
       fromRoom?: string | null;
-      requestedTests?: { id: string; name: string }[];
+      requestedTests?: { id: string; name: string; requested_by_room_id?: string | null }[];
     }
   >({ state: "idle" });
   const [form, setForm] = useState({
@@ -84,7 +84,7 @@ function NewRecord() {
         setClearance({ state: "unknown", message: "No registration found for this number. The lab can only run tests requested by reception." });
         return;
       }
-      const requested = (row.tests as { id: string; name: string }[] | null) ?? [];
+      const requested = (row.tests as { id: string; name: string; requested_by_room_id?: string | null }[] | null) ?? [];
       const settled = row.payment_status === "paid" || row.payment_status === "waived";
       const base = { registrationId: row.id ?? undefined, fromRoom: row.from_room ?? undefined, requestedTests: requested };
       if (settled) setClearance({ state: "cleared", message: `${row.patient_name} cleared by accounting${row.from_room ? ` · from ${row.from_room}` : ""}.`, ...base });
@@ -156,11 +156,69 @@ function NewRecord() {
       is_medical_camp: isMedicalCamp,
       registration_id: clearance.registrationId ?? null,
       sent_to_room: clearance.fromRoom ?? null,
+      sent_at: clearance.registrationId ? new Date().toISOString() : null,
       created_by: user!.id,
     }).select("id").single();
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Record saved");
+
+    // Route the patient back once every test requested for this visit has a result —
+    // not just this one. If Room A and Room B both requested tests for the same visit,
+    // finishing Room A's test shouldn't pull the patient out of the lab while Room B's
+    // is still pending. We only move the patient when nothing is left outstanding, and
+    // we send them to the room tied to whichever test was requested (falling back to the
+    // room-visit-history lookup for older/untagged requests).
+    if (clearance.registrationId && clearance.requestedTests && clearance.requestedTests.length > 0) {
+      const { data: doneTests, error: doneError } = await supabase
+        .from("lab_tests")
+        .select("test_name")
+        .eq("registration_id", clearance.registrationId);
+
+      if (doneError) {
+        toast.error(`Result saved, but couldn't check remaining tests: ${doneError.message}`);
+      } else {
+        const completedNames = new Set((doneTests ?? []).map((t) => t.test_name));
+        const stillPending = clearance.requestedTests.filter((t) => !completedNames.has(t.name));
+
+        if (stillPending.length > 0) {
+          toast.success(`Record saved — ${stillPending.length} more requested test(s) still pending before the patient is routed back.`);
+        } else {
+          // Everything requested for this visit is done. Prefer the specific room tied
+          // to the test just completed; fall back to the generic visit-history lookup
+          // if this test (or an older request) wasn't tagged with a room.
+          const thisTest = clearance.requestedTests.find((t) => t.name === test_name);
+          const targetRoomId = thisTest?.requested_by_room_id ?? null;
+
+          const { error: routeError } = targetRoomId
+            ? await supabase.rpc("send_lab_result_to_room", {
+                p_encounter_id: clearance.registrationId,
+                p_room_id: targetRoomId,
+              })
+            : await supabase.rpc("send_lab_results_to_requesting_room", {
+                p_encounter_id: clearance.registrationId,
+              });
+
+          if (routeError) {
+            toast.error(`Result saved, but couldn't route patient back automatically: ${routeError.message}`);
+          } else {
+            toast.success("Record saved — all requested tests complete, patient routed back to requesting room");
+          }
+        }
+      }
+    } else if (clearance.registrationId) {
+      // No tagged requested-tests list to check against (e.g. medical camp / untracked
+      // request) — fall back to the original best-effort routing.
+      const { error: routeError } = await supabase.rpc("send_lab_results_to_requesting_room", {
+        p_encounter_id: clearance.registrationId,
+      });
+      if (routeError) {
+        toast.error(`Result saved, but couldn't route patient back automatically: ${routeError.message}`);
+      } else {
+        toast.success("Record saved — patient routed back to requesting room");
+      }
+    } else {
+      toast.success("Record saved");
+    }
     navigate({ to: "/records/$id", params: { id: data!.id } });
   }
   
