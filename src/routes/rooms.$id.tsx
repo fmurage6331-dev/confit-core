@@ -352,7 +352,186 @@ function LabSendBackDialog(_props: { registrationId: string; testItem: TestItem;
 }
 
 function TriageDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
-function ConsultationDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
 function PharmacyDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
 function RequestServicesDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
+
+/* ============================ CONSULTATION DIALOG ============================ */
+
+type LabCatalog = { id: string; name: string; price: number; cash_price: number | null; insurance_price: number | null; kind: string };
+
+function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [catalog, setCatalog] = useState<LabCatalog[]>([]);
+  const [search, setSearch] = useState("");
+  const [tests, setTests] = useState<TestItem[]>(reg.tests ?? []);
+  const [history, setHistory] = useState<History>(reg.history ?? {});
+  const [diagnoses, setDiagnoses] = useState<Diagnosis[]>(reg.diagnoses ?? []);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("lab_test_catalog")
+        .select("id,name,price,cash_price,insurance_price,kind")
+        .eq("is_active", true)
+        .order("name");
+      setCatalog((data ?? []) as LabCatalog[]);
+    })();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return catalog.slice(0, 20);
+    return catalog.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 30);
+  }, [catalog, search]);
+
+  function addTest(c: LabCatalog) {
+    if (tests.some((t) => t.id === c.id)) return;
+    const price = reg.payment_mode === "insurance" ? (c.insurance_price ?? c.price) : (c.cash_price ?? c.price);
+    setTests([...tests, { id: c.id, name: c.name, price: Number(price) || 0, status: "pending" }]);
+  }
+  function removeTest(id: string) { setTests(tests.filter((t) => t.id !== id)); }
+
+  function updateDx(i: number, patch: Partial<Diagnosis>) {
+    setDiagnoses(diagnoses.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+  }
+  function addDx() { setDiagnoses([...diagnoses, { icd11_code: "", description: "", notes: "" }]); }
+  function removeDx(i: number) { setDiagnoses(diagnoses.filter((_, idx) => idx !== i)); }
+
+  async function save(sendToLab: boolean) {
+    setSaving(true);
+    const payload: Record<string, unknown> = { history, diagnoses, tests };
+    const newLabTests = tests.filter((t) => !(reg.tests ?? []).some((rt) => rt.id === t.id));
+    if (sendToLab && newLabTests.length > 0) {
+      payload.payment_status = "unpaid";
+      payload.from_room = "Consultation";
+    }
+    const { error } = await supabase.from("patient_registrations").update(payload).eq("id", reg.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(sendToLab && newLabTests.length > 0 ? "Consultation saved. Lab request sent." : "Consultation saved.");
+    onSaved();
+  }
+
+  async function markDone() {
+    setSaving(true);
+    const { error } = await supabase.from("patient_registrations")
+      .update({ history, diagnoses, tests, status: "done" }).eq("id", reg.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Consultation complete.");
+    onSaved();
+  }
+
+  const hasPendingLab = tests.some((t) => t.status === "pending" || !t.status);
+  const hasNewLab = tests.some((t) => !(reg.tests ?? []).some((rt) => rt.id === t.id));
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Stethoscope className="h-5 w-5 text-primary" />
+            Consultation — {reg.patient_name}
+            {reg.file_number && <Badge variant="secondary" className="ml-2">#{reg.file_number}</Badge>}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          <section className="space-y-2">
+            <h3 className="font-semibold text-sm">Clinical History</h3>
+            <div>
+              <Label className="text-xs">Presenting Complaint</Label>
+              <Textarea rows={2} value={history.presenting_complaint ?? ""}
+                onChange={(e) => setHistory({ ...history, presenting_complaint: e.target.value })} />
+            </div>
+            <div>
+              <Label className="text-xs">History of Presenting Illness</Label>
+              <Textarea rows={2} value={history.hpi ?? ""}
+                onChange={(e) => setHistory({ ...history, hpi: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Past Medical</Label>
+                <Textarea rows={2} value={history.past_medical ?? ""}
+                  onChange={(e) => setHistory({ ...history, past_medical: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Allergies</Label>
+                <Textarea rows={2} value={history.allergies ?? ""}
+                  onChange={(e) => setHistory({ ...history, allergies: e.target.value })} />
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm">Diagnoses (ICD-11)</h3>
+              <Button size="sm" variant="outline" onClick={addDx}><Plus className="h-3.5 w-3.5 mr-1" />Add</Button>
+            </div>
+            {diagnoses.length === 0 && <p className="text-xs text-muted-foreground">No diagnoses recorded.</p>}
+            {diagnoses.map((d, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <Input placeholder="ICD-11 code" className="w-32" value={d.icd11_code}
+                  onChange={(e) => updateDx(i, { icd11_code: e.target.value })} />
+                <Input placeholder="Description" value={d.description}
+                  onChange={(e) => updateDx(i, { description: e.target.value })} />
+                <Button size="icon" variant="ghost" onClick={() => removeDx(i)}><Trash2 className="h-4 w-4" /></Button>
+              </div>
+            ))}
+          </section>
+
+          <section className="space-y-2">
+            <h3 className="font-semibold text-sm flex items-center gap-1"><FlaskConical className="h-4 w-4" />Request Lab Tests / Services</h3>
+            <Input placeholder="Search tests…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <div className="max-h-40 overflow-y-auto border rounded-md divide-y">
+              {filtered.map((c) => {
+                const selected = tests.some((t) => t.id === c.id);
+                return (
+                  <button type="button" key={c.id} disabled={selected}
+                    onClick={() => addTest(c)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/40 disabled:opacity-50">
+                    <span>{c.name} <span className="text-xs text-muted-foreground">({c.kind})</span></span>
+                    <span className="text-xs">{selected ? <Check className="h-4 w-4 text-emerald-600" /> : `KES ${c.price}`}</span>
+                  </button>
+                );
+              })}
+              {filtered.length === 0 && <div className="px-3 py-4 text-xs text-muted-foreground text-center">No matches.</div>}
+            </div>
+            {tests.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Selected</Label>
+                {tests.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between text-sm border rounded-md px-3 py-1.5">
+                    <span className="flex items-center gap-2">
+                      {t.name}
+                      {t.status === "completed" && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">completed</Badge>}
+                      {t.status === "sent_back" && <Badge variant="destructive">returned</Badge>}
+                    </span>
+                    <Button size="icon" variant="ghost" onClick={() => removeTest(t.id)}
+                      disabled={t.status === "completed"}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={markDone} disabled={saving || hasPendingLab}>
+              Complete Consultation
+            </Button>
+            <Button onClick={() => save(true)} disabled={saving || !hasNewLab} className="gap-1.5">
+              <FlaskConical className="h-4 w-4" />Send Lab Request
+            </Button>
+            <Button variant="outline" onClick={() => save(false)} disabled={saving}>Save</Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
