@@ -30,7 +30,7 @@ export const Route = createFileRoute("/rooms/$id")({
 
 type RoomKind = "general" | "lab" | "triage" | "consultation" | "pharmacy" | "billing";
 type Room = { id: string; name: string; code: string | null; kind: RoomKind };
-type TestItem = { id: string; name: string; price: number };
+type TestItem = { id: string; name: string; price: number; requested_by_room_id?: string | null };
 type Vitals = {
   height_cm?: number | ""; weight_kg?: number | ""; bmi?: number | "";
   temperature_c?: number | ""; pulse_bpm?: number | ""; resp_rate?: number | "";
@@ -243,13 +243,13 @@ function RoomPage() {
         <TriageDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
       )}
       {openReg && kind === "consultation" && (
-        <ConsultationDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
+        <ConsultationDialog reg={openReg} roomId={id} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
       )}
       {openReg && kind === "pharmacy" && (
         <PharmacyDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
       )}
       {openReg && (kind === "general") && (
-        <RequestServicesDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
+        <RequestServicesDialog reg={openReg} roomId={id} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
       )}
     </div>
   );
@@ -350,7 +350,7 @@ function TriageDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void
 
 /* ========================= CONSULTATION ========================= */
 
-function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+function ConsultationDialog({ reg, roomId, onClose, onSaved }: { reg: Reg; roomId: string; onClose: () => void; onSaved: () => void }) {
   const { user, hasPerm } = useAuth();
   const canAdmit = hasPerm("admit_patient");
   const [tab, setTab] = useState<"history" | "diagnosis" | "prescription" | "requests">("history");
@@ -513,7 +513,7 @@ function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () =
           )}
 
           {tab === "requests" && (
-            <RequestServicesInline reg={reg} onSaved={onSaved} />
+            <RequestServicesInline reg={reg} roomId={roomId} onSaved={onSaved} />
           )}
         </div>
 
@@ -792,19 +792,19 @@ function PharmacyDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => vo
 
 /* ======================== SERVICES (general room) ======================== */
 
-function RequestServicesDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => void; onSaved: () => void }) {
+function RequestServicesDialog({ reg, roomId, onClose, onSaved }: { reg: Reg; roomId: string; onClose: () => void; onSaved: () => void }) {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader><DialogTitle>Request services for {reg.patient_name}</DialogTitle></DialogHeader>
-        <div className="flex-1 overflow-y-auto pr-1"><RequestServicesInline reg={reg} onSaved={onSaved} /></div>
+        <div className="flex-1 overflow-y-auto pr-1"><RequestServicesInline reg={reg} roomId={roomId} onSaved={onSaved} /></div>
         <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function RequestServicesInline({ reg, onSaved }: { reg: Reg; onSaved: () => void }) {
+function RequestServicesInline({ reg, roomId, onSaved }: { reg: Reg; roomId: string; onSaved: () => void }) {
   const [services, setServices] = useState<Service[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set((reg.tests ?? []).map((t) => t.id)));
   const [saving, setSaving] = useState(false);
@@ -833,8 +833,19 @@ function RequestServicesInline({ reg, onSaved }: { reg: Reg; onSaved: () => void
   async function save() {
     if (picked.length === 0) { toast.error("Pick at least one service"); return; }
     setSaving(true);
+    // Preserve the room that originally requested each already-existing test (so a test
+    // added earlier by another room keeps pointing back to that room), and tag any newly
+    // picked test with this room. This is what lets overlapping requests — e.g. Room A
+    // and Room B both ordering tests for the same visit — route results back correctly.
+    const existingById = new Map((reg.tests ?? []).map((t) => [t.id, t]));
+    const nextTests = picked.map((s) => ({
+      id: s.id,
+      name: s.name,
+      price: priceFor(s),
+      requested_by_room_id: existingById.get(s.id)?.requested_by_room_id ?? roomId ?? null,
+    }));
     const { error } = await supabase.from("patient_registrations").update({
-      tests: picked.map((s) => ({ id: s.id, name: s.name, price: priceFor(s) })),
+      tests: nextTests,
       subtotal, insurance_covered: insuranceCovered, patient_due: patientDue,
       payment_status: reg.payment_mode === "free" ? "waived" : (patientDue === 0 ? "waived" : "unpaid"),
       amount_paid: 0,
