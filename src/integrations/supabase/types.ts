@@ -2387,6 +2387,10 @@ export type Database = {
         Args: { target_month: string }
         Returns: undefined
       }
+      send_lab_result_to_room: {
+        Args: { p_encounter_id: string; p_room_id: string }
+        Returns: string
+      }
       send_lab_results_to_requesting_room: {
         Args: { p_encounter_id: string }
         Returns: string
