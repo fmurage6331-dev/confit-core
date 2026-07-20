@@ -414,7 +414,7 @@ function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () =
 
   async function markDone() {
     setSaving(true);
-    const { error } = await supabase.from("patient_registrations")
+    const { error } = await (supabase.from("patient_registrations") as any)
       .update({ history, diagnoses, tests, status: "done" }).eq("id", reg.id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
