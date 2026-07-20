@@ -405,7 +405,7 @@ function ConsultationDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () =
       payload.payment_status = "unpaid";
       payload.from_room = "Consultation";
     }
-    const { error } = await supabase.from("patient_registrations").update(payload).eq("id", reg.id);
+    const { error } = await (supabase.from("patient_registrations") as any).update(payload).eq("id", reg.id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success(sendToLab && newLabTests.length > 0 ? "Consultation saved. Lab request sent." : "Consultation saved.");
