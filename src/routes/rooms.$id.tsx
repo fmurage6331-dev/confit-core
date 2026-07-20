@@ -347,4 +347,6 @@ function LabManagementDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () 
   );
 }
 
-function LabSendBackDialog({ registrationId, testItem, allTests, onClose, onSuccess }: { registrationId: string; testItem: TestItem; allTests: TestItem[]; onClose: () => void; onSuccess: () => vo[...]
+function LabSendBackDialog(_props: { registrationId: string; testItem: TestItem; allTests: TestItem[]; onClose: () => void; onSuccess: () => void }) {
+  return null;
+}
