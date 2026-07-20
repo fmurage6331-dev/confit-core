@@ -347,4 +347,12 @@ function LabManagementDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () 
   );
 }
 
-function LabSendBackDialog({ registrationId, testItem, allTests, onClose, onSuccess }: { registrationId: string; testItem: TestItem; allTests: TestItem[]; onClose: () => void; onSuccess: () => vo[...]
+function LabSendBackDialog(_props: { registrationId: string; testItem: TestItem; allTests: TestItem[]; onClose: () => void; onSuccess: () => void }) {
+  return null;
+}
+
+function TriageDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
+function ConsultationDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
+function PharmacyDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
+function RequestServicesDialog(_props: { reg: Reg; onClose: () => void; onSaved: () => void }) { return null; }
+
