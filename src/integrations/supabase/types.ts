@@ -1852,6 +1852,124 @@ export type Database = {
           },
         ]
       }
+      lab_orders: {
+        Row: {
+          catalog_id: string | null
+          created_at: string
+          decline_reason: string | null
+          encounter_id: string | null
+          id: string
+          instructions: string | null
+          order_number: string | null
+          ordered_at: string
+          ordered_by: string | null
+          patient_id: string | null
+          priority: string
+          requested_by_room_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          catalog_id?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          encounter_id?: string | null
+          id?: string
+          instructions?: string | null
+          order_number?: string | null
+          ordered_at?: string
+          ordered_by?: string | null
+          patient_id?: string | null
+          priority?: string
+          requested_by_room_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          catalog_id?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          encounter_id?: string | null
+          id?: string
+          instructions?: string | null
+          order_number?: string | null
+          ordered_at?: string
+          ordered_by?: string | null
+          patient_id?: string | null
+          priority?: string
+          requested_by_room_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_orders_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "lab_test_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "patient_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_requested_by_room_id_fkey"
+            columns: ["requested_by_room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_results: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          performed_by: string | null
+          reported_at: string | null
+          result: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          performed_by?: string | null
+          reported_at?: string | null
+          result?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          performed_by?: string | null
+          reported_at?: string | null
+          result?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_results_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "lab_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       radiology_orders: {
         Row: {
           catalog_id: string | null
