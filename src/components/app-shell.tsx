@@ -5,14 +5,15 @@
  */
 
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, Fragment } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useBranding } from "@/lib/branding-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { FlaskConical, LayoutDashboard, ClipboardList, LogOut, ShieldCheck, Clock, Wrench, Truck, Package, BarChart3, Users, Settings, UserCog, UserPlus, Users2, ShieldHalf, Wallet, DoorOpen, LayoutGrid, Search, Stethoscope, Contact, FileText, ScanLine, BedDouble, FolderOpen, Activity } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FlaskConical, LayoutDashboard, ClipboardList, LogOut, ShieldCheck, Clock, Wrench, Truck, Package, BarChart3, Users, Settings, UserCog, UserPlus, Users2, ShieldHalf, Wallet, DoorOpen, LayoutGrid, Search, Stethoscope, Contact, FileText, ScanLine, BedDouble, FolderOpen, Activity, ChevronDown } from "lucide-react";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, loading, signOut, isApproved, isAdmin, hasPerm, rolesLoading } = useAuth();
@@ -140,6 +141,43 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
           {nav.map(({ to, label, icon: Icon }) => {
+            // MOH reports gets a collapsible submenu
+            if (to === "/moh") {
+              const mohActive = location.pathname.startsWith("/moh");
+              return (
+                <Collapsible key={to} defaultOpen={mohActive}>
+                  <CollapsibleTrigger className={`flex items-center justify-between w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    mohActive ? "bg-primary text-primary-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent"
+                  }`}>
+                    <span className="flex items-center gap-3">
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${mohActive ? "rotate-180" : ""}`} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pl-6 space-y-1 pt-1">
+                    <Link
+                      to="/moh"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh" ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/moh/705"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/705" ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MOH 705 Report
+                    </Link>
+                    {/* Add more MOH reports here */}
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            }
+
             const active = location.pathname === to
               || (to === "/records" && location.pathname.startsWith("/records") && location.pathname !== "/records/new")
               || (to === "/machines" && location.pathname.startsWith("/machines"));
@@ -178,11 +216,26 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <nav className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden no-print">
-          {nav.map(({ to, label, icon: Icon }) => (
-            <Link key={to} to={to as "/dashboard"} className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm hover:bg-accent">
-              <Icon className="h-4 w-4" />{label}
-            </Link>
-          ))}
+          {nav.map(({ to, label, icon: Icon }) => {
+            // MOH submenu on mobile
+            if (to === "/moh") {
+              return (
+                <Fragment key={to}>
+                  <Link to="/moh" className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm hover:bg-accent ${location.pathname === "/moh" ? "bg-accent font-medium" : ""}`}>
+                    <Icon className="h-4 w-4" />MOH Dashboard
+                  </Link>
+                  <Link to="/moh/705" className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm hover:bg-accent ${location.pathname === "/moh/705" ? "bg-accent font-medium" : ""}`}>
+                    <Icon className="h-4 w-4" />MOH 705
+                  </Link>
+                </Fragment>
+              );
+            }
+            return (
+              <Link key={to} to={to as "/dashboard"} className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm hover:bg-accent ${location.pathname === to ? "bg-accent font-medium" : ""}`}>
+                <Icon className="h-4 w-4" />{label}
+              </Link>
+            );
+          })}
         </nav>
         <main className="px-4 py-6 md:px-8 md:py-8">{children}</main>
       </div>
