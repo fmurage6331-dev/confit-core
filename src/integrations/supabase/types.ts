@@ -1802,6 +1802,8 @@ export type Database = {
           frequency: string | null
           id: string
           notes: string | null
+          prescribed_by_name: string | null
+          dispensed_by_name: string | null
           quantity: number
           registration_id: string
           status: string
@@ -1819,6 +1821,8 @@ export type Database = {
           frequency?: string | null
           id?: string
           notes?: string | null
+          prescribed_by_name?: string | null
+          dispensed_by_name?: string | null
           quantity?: number
           registration_id: string
           status?: string
@@ -1836,6 +1840,8 @@ export type Database = {
           frequency?: string | null
           id?: string
           notes?: string | null
+          prescribed_by_name?: string | null
+          dispensed_by_name?: string | null
           quantity?: number
           registration_id?: string
           status?: string
