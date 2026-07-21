@@ -4,85 +4,176 @@
  * Author: Francis Muhoro
  */
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui/button";
-import { ListPlus, Activity, Users, Calendar } from "lucide-react";
+import { useState } from "react";
 import { format } from "date-fns";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
+import { HelpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   component: () => <AppShell><Dashboard /></AppShell>,
 });
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function Dashboard() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-stats"],
+  const [from, setFrom] = useState(todayISO());
+  const [to, setTo] = useState(todayISO());
+
+  const { data: diseases, isLoading: loadingDiseases } = useQuery({
+    queryKey: ["dashboard-top-diseases", from, to],
     queryFn: async () => {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const [{ count: total }, { count: todayCount }, { data: recent }] = await Promise.all([
-        supabase.from("lab_tests").select("*", { count: "exact", head: true }),
-        supabase.from("lab_tests").select("*", { count: "exact", head: true }).gte("test_date", today.toISOString().slice(0, 10)),
-        supabase.from("lab_tests").select("id, patient_name, test_name, lab_number, test_date, result").order("created_at", { ascending: false }).limit(8),
-      ]);
-      const uniquePatients = new Set((recent ?? []).map(r => r.patient_name.toLowerCase())).size;
-      return { total: total ?? 0, todayCount: todayCount ?? 0, recent: recent ?? [], uniquePatients };
+      const { data, error } = await supabase.rpc("dashboard_top_diseases", { p_start: from, p_end: to });
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
-  const stats = [
-    { label: "Total tests", value: data?.total ?? 0, icon: Activity },
-    { label: "Today", value: data?.todayCount ?? 0, icon: Calendar },
-    { label: "Recent patients", value: data?.uniquePatients ?? 0, icon: Users },
-  ];
+  const { data: opd, isLoading: loadingOpd } = useQuery({
+    queryKey: ["dashboard-opd-attendance", from, to],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("dashboard_opd_attendance", { p_start: from, p_end: to });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: trend, isLoading: loadingTrend } = useQuery({
+    queryKey: ["dashboard-admitted-opd-trend", from, to],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("dashboard_admitted_opd_trend", { p_start: from, p_end: to });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: emergencyReferrals, isLoading: loadingEmergencyReferrals } = useQuery({
+    queryKey: ["dashboard-emergency-referrals", from, to],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("dashboard_emergency_referrals", { p_start: from, p_end: to });
+      if (error) throw error;
+      return data?.[0] ?? { emergency_count: 0, referrals_in: 0, referrals_out: 0 };
+    },
+  });
+
+  const under5 = (diseases ?? [])
+    .filter((d) => d.age_band === "under5")
+    .map((d) => ({ name: d.icd11_title, count: Number(d.disease_count) }));
+  const over5 = (diseases ?? [])
+    .filter((d) => d.age_band === "over5")
+    .map((d) => ({ name: d.icd11_title, count: Number(d.disease_count) }));
+
+  const opdUnder5 = Number(opd?.find((o) => o.age_band === "under5")?.attendance_count ?? 0);
+  const opdOver5 = Number(opd?.find((o) => o.age_band === "over5")?.attendance_count ?? 0);
+
+  const trendData = (trend ?? []).map((t) => ({
+    day: format(new Date(t.day), "dd MMM"),
+    Admitted: Number(t.admitted_count),
+    OPD: Number(t.opd_count),
+  }));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Overview of laboratory activity.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Facility activity overview.</p>
         </div>
-        <Button asChild><Link to="/records/new"><ListPlus className="mr-2 h-4 w-4" />New service</Link></Button>
+        <div className="flex items-center gap-2">
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+            className="rounded-md border bg-card px-3 py-2 text-sm" />
+          <span className="text-muted-foreground">to</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+            className="rounded-md border bg-card px-3 py-2 text-sm" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DiseaseChartCard title="Top 10 Diseases under 5" data={under5} loading={loadingDiseases} />
+        <DiseaseChartCard title="Top 10 Diseases over 5" data={over5} loading={loadingDiseases} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {stats.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{label}</span>
-              <Icon className="h-4 w-4 text-primary" />
-            </div>
-            <div className="mt-2 text-3xl font-bold">{isLoading ? "—" : value}</div>
-          </div>
-        ))}
+        <StatCard label="General OPD Attendance <5 years" value={loadingOpd ? "—" : opdUnder5} />
+        <StatCard label="General OPD Attendance >5 years" value={loadingOpd ? "—" : opdOver5} />
+        <StatCard label="Number of Emergency Cases Seen" value={loadingEmergencyReferrals ? "—" : Number(emergencyReferrals?.emergency_count ?? 0)} />
       </div>
 
-      <div className="rounded-xl border bg-card shadow-[var(--shadow-card)]">
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="font-semibold">Recent records</h2>
-          <Link to="/records" className="text-sm font-medium text-primary hover:underline">View all</Link>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="flex flex-col gap-4">
+          <StatCard label="Total Number of Referrals - IN" value={loadingEmergencyReferrals ? "—" : Number(emergencyReferrals?.referrals_in ?? 0)} />
+          <StatCard label="Total Number of Referrals - OUT" value={loadingEmergencyReferrals ? "—" : Number(emergencyReferrals?.referrals_out ?? 0)} />
         </div>
-        <div className="divide-y">
-          {isLoading && <div className="p-5 text-sm text-muted-foreground">Loading…</div>}
-          {!isLoading && data?.recent.length === 0 && (
-            <div className="p-8 text-center text-sm text-muted-foreground">No records yet. Add your first test.</div>
-          )}
-          {data?.recent.map((r) => (
-            <Link key={r.id} to="/records/$id" params={{ id: r.id }}
-              className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-accent/30">
-              <div className="min-w-0">
-                <div className="truncate font-medium">{r.patient_name}</div>
-                <div className="truncate text-sm text-muted-foreground">{r.test_name} · Lab #{r.lab_number}</div>
-              </div>
-              <div className="text-right text-sm text-muted-foreground">
-                <div>{format(new Date(r.test_date), "dd MMM yyyy")}</div>
-                <div className={`text-xs ${r.result ? "text-success" : "text-muted-foreground"}`}>{r.result ? "Result recorded" : "Pending"}</div>
-              </div>
-            </Link>
-          ))}
+        <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)] lg:col-span-2">
+          <h2 className="mb-3 font-semibold">Admitted/OPD Visits</h2>
+          <div className="h-[280px]">
+            {loadingTrend ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : trendData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No visits in this range.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" fontSize={12} />
+                  <YAxis allowDecimals={false} fontSize={12} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="Admitted" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="OPD" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, notTracked }: { label: string; value: number | string; notTracked?: boolean }) {
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {label}
+        {notTracked && (
+          <span title="Not yet tracked — no data source exists for this metric yet">
+            <HelpCircle className="h-3.5 w-3.5" />
+          </span>
+        )}
+      </div>
+      <div className="mt-2 text-3xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+function DiseaseChartCard({ title, data, loading }: { title: string; data: { name: string; count: number }[]; loading: boolean }) {
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+      <h2 className="mb-3 font-semibold">{title}</h2>
+      <div className="h-[280px]">
+        {loading ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading…</div>
+        ) : data.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No diagnoses in this range.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" allowDecimals={false} fontSize={12} />
+              <YAxis type="category" dataKey="name" width={140} fontSize={11} />
+              <Tooltip />
+              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
