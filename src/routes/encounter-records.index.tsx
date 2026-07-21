@@ -53,7 +53,9 @@ function EncounterRecordsList() {
         .order("encounter_date", { ascending: false })
         .limit(500);
       if (error) throw error;
-      return (data ?? []) as unknown as (Row & { patients: { file_number: string | null } | null })[];
+      return (data ?? []) as unknown as (Row & {
+        patients: { file_number: string | null } | null;
+      })[];
     },
   });
 
@@ -61,9 +63,10 @@ function EncounterRecordsList() {
     const rows = data ?? [];
     const ql = q.trim().toLowerCase();
     if (!ql) return rows;
-    return rows.filter((r) =>
-      (r.patient_name ?? "").toLowerCase().includes(ql) ||
-      (r.patients?.file_number ?? "").toLowerCase().includes(ql)
+    return rows.filter(
+      (r) =>
+        (r.patient_name ?? "").toLowerCase().includes(ql) ||
+        (r.patients?.file_number ?? "").toLowerCase().includes(ql),
     );
   }, [data, q]);
 
@@ -75,13 +78,20 @@ function EncounterRecordsList() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">Encounter records</h1>
-          <p className="text-sm text-muted-foreground">All documentation tied to a patient encounter.</p>
+          <p className="text-sm text-muted-foreground">
+            All documentation tied to a patient encounter.
+          </p>
         </div>
       </div>
 
       <div className="relative max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search patient name or file #…" className="pl-9" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search patient name or file #…"
+          className="pl-9"
+        />
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-card)]">
@@ -100,42 +110,74 @@ function EncounterRecordsList() {
           </thead>
           <tbody className="divide-y">
             {isLoading && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">Loading…</td></tr>
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                  Loading…
+                </td>
+              </tr>
             )}
             {error && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-rose-600">{(error as Error).message}</td></tr>
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-rose-600">
+                  {(error as Error).message}
+                </td>
+              </tr>
             )}
             {!isLoading && filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">No encounters found.</td></tr>
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                  No encounters found.
+                </td>
+              </tr>
             )}
             {filtered.map((r) => {
               const notes = (r.doctor_note_count ?? 0) + (r.discharge_note_count ?? 0);
               return (
                 <tr key={r.encounter_id ?? ""} className="hover:bg-accent/40">
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <Link to={"/encounter-records/$id" as never} params={{ id: r.encounter_id ?? "" } as never} className="text-primary hover:underline">
+                    <Link
+                      to={"/encounter-records/$id" as never}
+                      params={{ id: r.encounter_id ?? "" } as never}
+                      className="text-primary hover:underline"
+                    >
                       {r.encounter_date ? format(new Date(r.encounter_date), "dd MMM, HH:mm") : "—"}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium">{r.patient_name ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground">{r.patients?.file_number ?? ""}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {r.patients?.file_number ?? ""}
+                    </div>
                   </td>
-                  <td className="px-4 py-3"><Badge variant="outline">{r.encounter_status ?? "—"}</Badge></td>
+                  <td className="px-4 py-3">
+                    <Badge variant="outline">{r.encounter_status ?? "—"}</Badge>
+                  </td>
                   <td className="px-4 py-3">
                     {r.invoice_id ? (
                       <div>
                         <Badge variant="outline">{r.invoice_status ?? "draft"}</Badge>
                         {Number(r.balance ?? 0) > 0 && (
-                          <div className="text-xs text-rose-600 mt-0.5">Bal {Number(r.balance).toFixed(2)}</div>
+                          <div className="text-xs text-rose-600 mt-0.5">
+                            Bal {Number(r.balance).toFixed(2)}
+                          </div>
                         )}
                       </div>
-                    ) : <span className="text-xs text-muted-foreground">—</span>}
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-center">{notes || <span className="text-muted-foreground">0</span>}</td>
-                  <td className="px-4 py-3 text-center">{r.prescription_count || <span className="text-muted-foreground">0</span>}</td>
-                  <td className="px-4 py-3 text-center">{r.lab_test_count || <span className="text-muted-foreground">0</span>}</td>
-                  <td className="px-4 py-3 text-center">{r.radiology_order_count || <span className="text-muted-foreground">0</span>}</td>
+                  <td className="px-4 py-3 text-center">
+                    {notes || <span className="text-muted-foreground">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {r.prescription_count || <span className="text-muted-foreground">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {r.lab_test_count || <span className="text-muted-foreground">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {r.radiology_order_count || <span className="text-muted-foreground">0</span>}
+                  </td>
                 </tr>
               );
             })}

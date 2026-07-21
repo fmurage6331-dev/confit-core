@@ -10,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, Search } from "lucide-react";
-import {
-  computeFlag,
-  type ParameterResult,
-  type StructuredResult,
-} from "@/lib/test-parameters";
+import { computeFlag, type ParameterResult, type StructuredResult } from "@/lib/test-parameters";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -37,18 +33,15 @@ export function ParameterTable({ value, onChange }: Props) {
   const addCustom = () => {
     onChange({
       ...value,
-      parameters: [
-        ...value.parameters,
-        { name: "", value: "", unit: "", low: null, high: null },
-      ],
+      parameters: [...value.parameters, { name: "", value: "", unit: "", low: null, high: null }],
     });
   };
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    return value.parameters.map((p, i) => ({ p, i })).filter(({ p }) =>
-      !q ? true : p.name.toLowerCase().includes(q),
-    );
+    return value.parameters
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => (!q ? true : p.name.toLowerCase().includes(q)));
   }, [filter, value.parameters]);
 
   const parseNum = (v: string): number | null => {
@@ -144,7 +137,8 @@ export function ParameterTable({ value, onChange }: Props) {
                         "inline-flex h-6 items-center rounded px-2 text-xs font-medium",
                         flag === "High" && "bg-destructive/15 text-destructive",
                         flag === "Low" && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-                        flag === "Normal" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+                        flag === "Normal" &&
+                          "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
                         flag === "" && "text-muted-foreground",
                       )}
                     >
@@ -171,7 +165,9 @@ export function ParameterTable({ value, onChange }: Props) {
       </div>
 
       <div>
-        <Label htmlFor="param-summary">Interpretation / summary <span className="text-muted-foreground">(optional)</span></Label>
+        <Label htmlFor="param-summary">
+          Interpretation / summary <span className="text-muted-foreground">(optional)</span>
+        </Label>
         <Textarea
           id="param-summary"
           rows={2}

@@ -28,7 +28,10 @@ function ForgotPasswordPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const parsed = schema.safeParse(email);
-    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
     setSubmitting(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
@@ -67,8 +70,14 @@ function ForgotPasswordPage() {
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" autoComplete="email" required
-                  value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? "Sending…" : "Send reset link"}
@@ -78,7 +87,11 @@ function ForgotPasswordPage() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Remembered it?{" "}
-            <Link to="/login" search={{ mode: "signin" }} className="font-medium text-primary hover:underline">
+            <Link
+              to="/login"
+              search={{ mode: "signin" }}
+              className="font-medium text-primary hover:underline"
+            >
               Sign in
             </Link>
           </p>

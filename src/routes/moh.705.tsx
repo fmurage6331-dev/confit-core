@@ -11,13 +11,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RefreshCw, Download, Printer, Activity } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/705")({
-  component: () => <AppShell><Moh705Report /></AppShell>,
+  component: () => (
+    <AppShell>
+      <Moh705Report />
+    </AppShell>
+  ),
 });
 
 type ReportRow = {
@@ -79,7 +96,7 @@ function Moh705Report() {
         male: acc.male + Number(r.male_cases || 0),
         female: acc.female + Number(r.female_cases || 0),
       }),
-      { total: 0, male: 0, female: 0 }
+      { total: 0, male: 0, female: 0 },
     );
   }, [rows]);
 
@@ -88,11 +105,25 @@ function Moh705Report() {
       toast.error("No data to export");
       return;
     }
-    const header = ["Row #", "Disease Name", "ICD-11 Code", "Total Cases", "Male Cases", "Female Cases"];
+    const header = [
+      "Row #",
+      "Disease Name",
+      "ICD-11 Code",
+      "Total Cases",
+      "Male Cases",
+      "Female Cases",
+    ];
     const csvRows = [
       header.join(","),
       ...rows.map((r) =>
-        [r.row_number, `"${r.disease_name}"`, `"${r.icd11_code}"`, r.total_cases, r.male_cases, r.female_cases].join(",")
+        [
+          r.row_number,
+          `"${r.disease_name}"`,
+          `"${r.icd11_code}"`,
+          r.total_cases,
+          r.male_cases,
+          r.female_cases,
+        ].join(","),
       ),
     ];
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -136,7 +167,9 @@ function Moh705Report() {
         <CardContent className="pt-6">
           <div className="flex items-end gap-4 flex-wrap">
             <div>
-              <Label htmlFor="form-type" className="text-xs">Form Type</Label>
+              <Label htmlFor="form-type" className="text-xs">
+                Form Type
+              </Label>
               <Select value={formType} onValueChange={(v) => setFormType(v as "A" | "B")}>
                 <SelectTrigger className="w-56" id="form-type">
                   <SelectValue />
@@ -148,7 +181,9 @@ function Moh705Report() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="start-date" className="text-xs">Start Date</Label>
+              <Label htmlFor="start-date" className="text-xs">
+                Start Date
+              </Label>
               <Input
                 id="start-date"
                 type="date"
@@ -158,7 +193,9 @@ function Moh705Report() {
               />
             </div>
             <div>
-              <Label htmlFor="end-date" className="text-xs">End Date</Label>
+              <Label htmlFor="end-date" className="text-xs">
+                End Date
+              </Label>
               <Input
                 id="end-date"
                 type="date"
@@ -195,7 +232,9 @@ function Moh705Report() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Female Cases</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Female Cases
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-pink-600">{totals.female}</div>
@@ -216,7 +255,8 @@ function Moh705Report() {
             <p className="text-sm text-muted-foreground py-8 text-center">Loading report data…</p>
           ) : rows.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
-              No data found for the selected period. Make sure encounters have been recorded with diagnoses.
+              No data found for the selected period. Make sure encounters have been recorded with
+              diagnoses.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -233,8 +273,13 @@ function Moh705Report() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((r) => (
-                    <TableRow key={r.row_number} className={Number(r.total_cases) > 0 ? "font-medium" : ""}>
-                      <TableCell className="text-center text-muted-foreground">{r.row_number}</TableCell>
+                    <TableRow
+                      key={r.row_number}
+                      className={Number(r.total_cases) > 0 ? "font-medium" : ""}
+                    >
+                      <TableCell className="text-center text-muted-foreground">
+                        {r.row_number}
+                      </TableCell>
                       <TableCell>{r.disease_name}</TableCell>
                       <TableCell className="text-center font-mono text-xs text-muted-foreground">
                         {r.icd11_code === "N/A" ? "—" : r.icd11_code}

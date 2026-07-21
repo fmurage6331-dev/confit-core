@@ -100,7 +100,10 @@ function AdminRequestsPage() {
               <div className="p-6 text-sm text-muted-foreground">No pending requests.</div>
             )}
             {pending.map((r) => (
-              <div key={r.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                key={r.id}
+                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div>
                   <div className="font-medium">{r.email}</div>
                   <div className="text-xs text-muted-foreground">
@@ -108,10 +111,19 @@ function AdminRequestsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => decide.mutate({ req: r, approve: false })} disabled={decide.isPending}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => decide.mutate({ req: r, approve: false })}
+                    disabled={decide.isPending}
+                  >
                     <X className="mr-1.5 h-4 w-4" /> Reject
                   </Button>
-                  <Button size="sm" onClick={() => decide.mutate({ req: r, approve: true })} disabled={decide.isPending}>
+                  <Button
+                    size="sm"
+                    onClick={() => decide.mutate({ req: r, approve: true })}
+                    disabled={decide.isPending}
+                  >
                     <Check className="mr-1.5 h-4 w-4" /> Approve
                   </Button>
                 </div>
@@ -132,9 +144,15 @@ function AdminRequestsPage() {
                       {r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : ""}
                     </div>
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    r.status === "approved" ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
-                  }`}>{r.status}</span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      r.status === "approved"
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {r.status}
+                  </span>
                 </div>
               ))}
             </div>

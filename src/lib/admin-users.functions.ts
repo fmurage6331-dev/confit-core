@@ -12,7 +12,6 @@ import { APP_ROLES, type AssignableRole } from "@/lib/roles";
 
 const roleEnum = z.enum([...APP_ROLES, "none"] as [AssignableRole, ...AssignableRole[]]);
 
-
 async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
@@ -31,7 +30,10 @@ export const listUsers = createServerFn({ method: "GET" })
     const { data: usersResp, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
     if (error) throw new Error(error.message);
     const ids = usersResp.users.map((u) => u.id);
-    const { data: roles } = await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids);
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id, role")
+      .in("user_id", ids);
     const roleMap = new Map<string, string[]>();
     (roles ?? []).forEach((r) => {
       const arr = roleMap.get(r.user_id) ?? [];
@@ -53,11 +55,13 @@ export const listUsers = createServerFn({ method: "GET" })
 export const createUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { email: string; password: string; role: AssignableRole }) =>
-    z.object({
-      email: z.string().trim().email().max(255),
-      password: z.string().min(8).max(72),
-      role: roleEnum,
-    }).parse(d),
+    z
+      .object({
+        email: z.string().trim().email().max(255),
+        password: z.string().min(8).max(72),
+        role: roleEnum,
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
@@ -88,7 +92,9 @@ export const setUserRole = createServerFn({ method: "POST" })
     // Remove existing roles
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     if (data.role !== "none") {
-      const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: data.userId, role: data.role });
       if (error) throw new Error(error.message);
     }
     return { ok: true };

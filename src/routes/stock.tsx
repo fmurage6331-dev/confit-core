@@ -72,9 +72,7 @@ function StockPage() {
   const [openItem, setOpenItem] = useState(false);
   const [openMove, setOpenMove] = useState<StockItem | null>(null);
   const [editItem, setEditItem] = useState<StockItem | null>(null);
-  const [tab, setTab] = useState<
-    "all" | (typeof KINDS)[number]["value"]
-  >("all");
+  const [tab, setTab] = useState<"all" | (typeof KINDS)[number]["value"]>("all");
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["stock_items"],
@@ -92,9 +90,7 @@ function StockPage() {
 
   const addItem = useMutation({
     mutationFn: async (i: Record<string, unknown>) => {
-      const { error } = await supabase
-        .from("stock_items")
-        .insert(i as never);
+      const { error } = await supabase.from("stock_items").insert(i as never);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -147,9 +143,8 @@ function StockPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const filtered = (items ?? []).filter(
-    (i) =>
-      tab === "all" ? true : (i.kind ?? "consumable") === tab,
+  const filtered = (items ?? []).filter((i) =>
+    tab === "all" ? true : (i.kind ?? "consumable") === tab,
   );
 
   return (
@@ -161,8 +156,8 @@ function StockPage() {
             Stock & products
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pharmaceutical, non-pharmaceutical and consumable inventory. Record
-            usage, adjustments and stock takes.
+            Pharmaceutical, non-pharmaceutical and consumable inventory. Record usage, adjustments
+            and stock takes.
           </p>
         </div>
         <div className="flex gap-2">
@@ -190,17 +185,11 @@ function StockPage() {
                     kind: f.get("kind") || "consumable",
                     category: f.get("category"),
                     unit: f.get("unit") || "pcs",
-                    current_quantity: Number(
-                      f.get("current_quantity") || 0,
-                    ),
-                    reorder_level: Number(
-                      f.get("reorder_level") || 0,
-                    ),
+                    current_quantity: Number(f.get("current_quantity") || 0),
+                    reorder_level: Number(f.get("reorder_level") || 0),
                     buy_price: Number(f.get("buy_price") || 0),
                     cash_price: Number(f.get("cash_price") || 0),
-                    insurance_price: Number(
-                      f.get("insurance_price") || 0,
-                    ),
+                    insurance_price: Number(f.get("insurance_price") || 0),
                     unit_price: Number(f.get("cash_price") || 0),
                     notes: f.get("notes"),
                   });
@@ -229,39 +218,21 @@ function StockPage() {
                   </div>
                   <div>
                     <Label>Category</Label>
-                    <Input
-                      name="category"
-                      placeholder="e.g. Antibiotics"
-                    />
+                    <Input name="category" placeholder="e.g. Antibiotics" />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>Buy price (KES)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="buy_price"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="buy_price" defaultValue={0} />
                   </div>
                   <div>
                     <Label>Cash price (KES)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="cash_price"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="cash_price" defaultValue={0} />
                   </div>
                   <div>
                     <Label>Insurance price (KES)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="insurance_price"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="insurance_price" defaultValue={0} />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -271,21 +242,11 @@ function StockPage() {
                   </div>
                   <div>
                     <Label>Starting qty</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="current_quantity"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="current_quantity" defaultValue={0} />
                   </div>
                   <div>
                     <Label>Reorder ≤</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="reorder_level"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="reorder_level" defaultValue={0} />
                   </div>
                 </div>
                 <div>
@@ -293,10 +254,7 @@ function StockPage() {
                   <Textarea name="notes" />
                 </div>
                 <DialogFooter>
-                  <Button
-                    type="submit"
-                    disabled={addItem.isPending}
-                  >
+                  <Button type="submit" disabled={addItem.isPending}>
                     Save
                   </Button>
                 </DialogFooter>
@@ -324,9 +282,7 @@ function StockPage() {
 
       <div className="hidden print:block mb-4">
         <h2 className="text-xl font-bold">Stock Take Report</h2>
-        <p className="text-sm">
-          Generated {new Date().toLocaleString()}
-        </p>
+        <p className="text-sm">Generated {new Date().toLocaleString()}</p>
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -349,52 +305,38 @@ function StockPage() {
           <tbody className="divide-y">
             {isLoading && (
               <tr>
-                <td
-                  colSpan={11}
-                  className="p-6 text-center text-muted-foreground"
-                >
+                <td colSpan={11} className="p-6 text-center text-muted-foreground">
                   Loading…
                 </td>
               </tr>
             )}
             {filtered.map((i) => {
-              const low =
-                Number(i.current_quantity) <=
-                Number(i.reorder_level);
+              const low = Number(i.current_quantity) <= Number(i.reorder_level);
               return (
                 <tr
                   key={i.id}
                   className="cursor-pointer transition-colors hover:bg-muted/40"
                   onClick={() => setOpenMove(i)}
                 >
-                  <td className="px-4 py-2 font-medium">
-                    {i.name}
-                  </td>
+                  <td className="px-4 py-2 font-medium">{i.name}</td>
                   <td className="px-4 py-2">
                     <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
                       {kindLabel(i.kind ?? "consumable")}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground">
-                    {i.category}
-                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">{i.category}</td>
                   <td className="px-4 py-2">{i.unit}</td>
                   <td
                     className={`px-4 py-2 font-mono ${low ? "text-destructive font-semibold" : ""}`}
                   >
                     {i.current_quantity}
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground">
-                    {i.reorder_level}
-                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">{i.reorder_level}</td>
                   <td className="px-4 py-2 text-right tabular-nums">
                     KES {Number(i.buy_price ?? 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">
-                    KES{" "}
-                    {Number(
-                      i.cash_price ?? i.unit_price ?? 0,
-                    ).toFixed(2)}
+                    KES {Number(i.cash_price ?? i.unit_price ?? 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">
                     KES {Number(i.insurance_price ?? 0).toFixed(2)}
@@ -440,10 +382,7 @@ function StockPage() {
             })}
             {!isLoading && filtered.length === 0 && (
               <tr>
-                <td
-                  colSpan={11}
-                  className="p-6 text-center text-muted-foreground"
-                >
+                <td colSpan={11} className="p-6 text-center text-muted-foreground">
                   No items in this category.
                 </td>
               </tr>
@@ -452,10 +391,7 @@ function StockPage() {
         </table>
       </div>
 
-      <Dialog
-        open={!!openMove}
-        onOpenChange={(v) => !v && setOpenMove(null)}
-      >
+      <Dialog open={!!openMove} onOpenChange={(v) => !v && setOpenMove(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adjust: {openMove?.name}</DialogTitle>
@@ -471,12 +407,8 @@ function StockPage() {
                   prices: {
                     buy_price: Number(f.get("buy_price") || 0),
                     cash_price: Number(f.get("cash_price") || 0),
-                    insurance_price: Number(
-                      f.get("insurance_price") || 0,
-                    ),
-                    unit_price: Number(
-                      f.get("cash_price") || 0,
-                    ),
+                    insurance_price: Number(f.get("insurance_price") || 0),
+                    unit_price: Number(f.get("cash_price") || 0),
                   },
                   move:
                     change !== 0
@@ -498,9 +430,7 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="buy_price"
-                    defaultValue={Number(
-                      openMove.buy_price ?? 0,
-                    )}
+                    defaultValue={Number(openMove.buy_price ?? 0)}
                   />
                 </div>
                 <div>
@@ -509,11 +439,7 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="cash_price"
-                    defaultValue={Number(
-                      openMove.cash_price ??
-                        openMove.unit_price ??
-                        0,
-                    )}
+                    defaultValue={Number(openMove.cash_price ?? openMove.unit_price ?? 0)}
                   />
                 </div>
                 <div>
@@ -522,9 +448,7 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="insurance_price"
-                    defaultValue={Number(
-                      openMove.insurance_price ?? 0,
-                    )}
+                    defaultValue={Number(openMove.insurance_price ?? 0)}
                   />
                 </div>
               </div>
@@ -539,18 +463,10 @@ function StockPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="usage">
-                        Usage (subtract)
-                      </SelectItem>
-                      <SelectItem value="adjustment">
-                        Adjustment
-                      </SelectItem>
-                      <SelectItem value="stock_take">
-                        Stock take correction
-                      </SelectItem>
-                      <SelectItem value="delivery">
-                        Delivery (manual)
-                      </SelectItem>
+                      <SelectItem value="usage">Usage (subtract)</SelectItem>
+                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                      <SelectItem value="stock_take">Stock take correction</SelectItem>
+                      <SelectItem value="delivery">Delivery (manual)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -570,10 +486,7 @@ function StockPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={adjustProduct.isPending}
-                >
+                <Button type="submit" disabled={adjustProduct.isPending}>
                   Save
                 </Button>
               </DialogFooter>
@@ -582,10 +495,7 @@ function StockPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={!!editItem}
-        onOpenChange={(o) => !o && setEditItem(null)}
-      >
+      <Dialog open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit product</DialogTitle>
@@ -601,17 +511,11 @@ function StockPage() {
                   kind: f.get("kind") || "consumable",
                   category: f.get("category"),
                   unit: f.get("unit") || "pcs",
-                  current_quantity: Number(
-                    f.get("current_quantity") || 0,
-                  ),
-                  reorder_level: Number(
-                    f.get("reorder_level") || 0,
-                  ),
+                  current_quantity: Number(f.get("current_quantity") || 0),
+                  reorder_level: Number(f.get("reorder_level") || 0),
                   buy_price: Number(f.get("buy_price") || 0),
                   cash_price: Number(f.get("cash_price") || 0),
-                  insurance_price: Number(
-                    f.get("insurance_price") || 0,
-                  ),
+                  insurance_price: Number(f.get("insurance_price") || 0),
                   unit_price: Number(f.get("cash_price") || 0),
                   notes: f.get("notes"),
                 });
@@ -620,30 +524,18 @@ function StockPage() {
             >
               <div>
                 <Label>Name *</Label>
-                <Input
-                  name="name"
-                  defaultValue={editItem.name}
-                  required
-                />
+                <Input name="name" defaultValue={editItem.name} required />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Kind *</Label>
-                  <Select
-                    name="kind"
-                    defaultValue={
-                      editItem.kind ?? "consumable"
-                    }
-                  >
+                  <Select name="kind" defaultValue={editItem.kind ?? "consumable"}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {KINDS.map((k) => (
-                        <SelectItem
-                          key={k.value}
-                          value={k.value}
-                        >
+                        <SelectItem key={k.value} value={k.value}>
                           {k.label}
                         </SelectItem>
                       ))}
@@ -666,9 +558,7 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="buy_price"
-                    defaultValue={Number(
-                      editItem.buy_price ?? 0,
-                    )}
+                    defaultValue={Number(editItem.buy_price ?? 0)}
                   />
                 </div>
                 <div>
@@ -677,11 +567,7 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="cash_price"
-                    defaultValue={Number(
-                      editItem.cash_price ??
-                        editItem.unit_price ??
-                        0,
-                    )}
+                    defaultValue={Number(editItem.cash_price ?? editItem.unit_price ?? 0)}
                   />
                 </div>
                 <div>
@@ -690,19 +576,14 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="insurance_price"
-                    defaultValue={Number(
-                      editItem.insurance_price ?? 0,
-                    )}
+                    defaultValue={Number(editItem.insurance_price ?? 0)}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label>Unit</Label>
-                  <Input
-                    name="unit"
-                    defaultValue={editItem.unit ?? "pcs"}
-                  />
+                  <Input name="unit" defaultValue={editItem.unit ?? "pcs"} />
                 </div>
                 <div>
                   <Label>On hand</Label>
@@ -710,9 +591,7 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="current_quantity"
-                    defaultValue={Number(
-                      editItem.current_quantity ?? 0,
-                    )}
+                    defaultValue={Number(editItem.current_quantity ?? 0)}
                   />
                 </div>
                 <div>
@@ -721,30 +600,19 @@ function StockPage() {
                     type="number"
                     step="0.01"
                     name="reorder_level"
-                    defaultValue={Number(
-                      editItem.reorder_level ?? 0,
-                    )}
+                    defaultValue={Number(editItem.reorder_level ?? 0)}
                   />
                 </div>
               </div>
               <div>
                 <Label>Notes</Label>
-                <Textarea
-                  name="notes"
-                  defaultValue={editItem.notes ?? ""}
-                />
+                <Textarea name="notes" defaultValue={editItem.notes ?? ""} />
               </div>
               <DialogFooter className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setEditItem(null)}
-                >
+                <Button variant="outline" onClick={() => setEditItem(null)}>
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={updateItem.isPending}
-                >
+                <Button type="submit" disabled={updateItem.isPending}>
                   Save
                 </Button>
               </DialogFooter>

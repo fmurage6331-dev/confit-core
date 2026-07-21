@@ -12,14 +12,16 @@ function supabaseForUser(ctx: ToolContext) {
 export default defineTool({
   name: "list_patients",
   title: "List patients",
-  description: "List recent patient registrations visible to the signed-in user. Supports an optional name search and limit.",
+  description:
+    "List recent patient registrations visible to the signed-in user. Supports an optional name search and limit.",
   inputSchema: {
     search: z.string().trim().min(1).optional().describe("Optional name substring to filter by."),
     limit: z.number().int().min(1).max(100).default(25),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ search, limit }, ctx) => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     let q = supabaseForUser(ctx)
       .from("patient_registrations")
       .select("id, file_number, patient_name, age, gender, phone, payment_status, created_at")

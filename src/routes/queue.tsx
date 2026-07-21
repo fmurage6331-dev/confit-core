@@ -11,12 +11,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { PaymentBadge } from "@/routes/register-patient";
 
 export const Route = createFileRoute("/queue")({
-  component: () => <AppShell><PermGuard perm="view_queue"><Queue /></PermGuard></AppShell>,
+  component: () => (
+    <AppShell>
+      <PermGuard perm="view_queue">
+        <Queue />
+      </PermGuard>
+    </AppShell>
+  ),
 });
 
 type Reg = {
@@ -43,29 +55,49 @@ function Queue() {
 
   async function load() {
     setLoading(true);
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const { data, error } = await supabase
       .from("patient_registrations")
-      .select("id,patient_name,phone,file_number,from_room,payment_mode,insurance_coverage_percentage,tests,subtotal,insurance_covered,patient_due,payment_status,amount_paid,status,created_at")
+      .select(
+        "id,patient_name,phone,file_number,from_room,payment_mode,insurance_coverage_percentage,tests,subtotal,insurance_covered,patient_due,payment_status,amount_paid,status,created_at",
+      )
       .gte("created_at", today.toISOString())
       .order("created_at", { ascending: false });
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setRows((data ?? []) as unknown as Reg[]);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function setStatus(id: string, status: Reg["status"]) {
     const row = rows.find((r) => r.id === id);
     // Block progression past "waiting" until payment is settled
-    if (row && (status === "in_progress" || status === "done")
-        && row.payment_status !== "paid" && row.payment_status !== "waived") {
-      toast.error("Payment must be processed before proceeding. Open Accounting to record payment.");
+    if (
+      row &&
+      (status === "in_progress" || status === "done") &&
+      row.payment_status !== "paid" &&
+      row.payment_status !== "waived"
+    ) {
+      toast.error(
+        "Payment must be processed before proceeding. Open Accounting to record payment.",
+      );
       return;
     }
-    const { error } = await supabase.from("patient_registrations").update({ status } as never).eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    setRows((rs) => rs.map((r) => r.id === id ? { ...r, status } : r));
+    const { error } = await supabase
+      .from("patient_registrations")
+      .update({ status } as never)
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
   }
 
   return (
@@ -75,7 +107,9 @@ function Queue() {
           <h1 className="text-3xl font-bold">Today's queue</h1>
           <p className="mt-1 text-sm text-muted-foreground">Patients registered today.</p>
         </div>
-        <Button variant="outline" onClick={load}>Refresh</Button>
+        <Button variant="outline" onClick={load}>
+          Refresh
+        </Button>
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card">
@@ -94,8 +128,20 @@ function Queue() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
-            {!loading && rows.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No patients registered today.</td></tr>}
+            {loading && (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                  Loading…
+                </td>
+              </tr>
+            )}
+            {!loading && rows.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                  No patients registered today.
+                </td>
+              </tr>
+            )}
             {rows.map((r) => (
               <tr key={r.id} className="border-t">
                 <td className="px-4 py-3">
@@ -106,36 +152,59 @@ function Queue() {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant="outline" className="font-normal">{r.from_room || "—"}</Badge>
+                  <Badge variant="outline" className="font-normal">
+                    {r.from_room || "—"}
+                  </Badge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {r.tests.map((t) => (
-                      <Badge key={t.id} variant="secondary" className="font-normal">{t.name}</Badge>
+                      <Badge key={t.id} variant="secondary" className="font-normal">
+                        {t.name}
+                      </Badge>
                     ))}
                   </div>
                 </td>
-                <td className="px-4 py-3"><PaymentBadge mode={r.payment_mode} /></td>
-                <td className="px-4 py-3 text-right tabular-nums">KSh {Number(r.subtotal).toFixed(2)}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                  {r.payment_mode === "insurance" ? `-KSh ${Number(r.insurance_covered).toFixed(2)}` : "—"}
+                <td className="px-4 py-3">
+                  <PaymentBadge mode={r.payment_mode} />
                 </td>
-                <td className="px-4 py-3 text-right font-semibold tabular-nums">KSh {Number(r.patient_due).toFixed(2)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  KSh {Number(r.subtotal).toFixed(2)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                  {r.payment_mode === "insurance"
+                    ? `-KSh ${Number(r.insurance_covered).toFixed(2)}`
+                    : "—"}
+                </td>
+                <td className="px-4 py-3 text-right font-semibold tabular-nums">
+                  KSh {Number(r.patient_due).toFixed(2)}
+                </td>
                 <td className="px-4 py-3">
                   {(() => {
                     const settled = r.payment_status === "paid" || r.payment_status === "waived";
                     const cls = settled
                       ? "bg-emerald-100 text-emerald-700"
-                      : r.payment_status === "partial" ? "bg-blue-100 text-blue-700"
-                      : "bg-rose-100 text-rose-700";
-                    const label = settled ? (r.payment_status === "waived" ? "Waived" : "Paid")
-                      : r.payment_status === "partial" ? "Partial" : "Unpaid";
+                      : r.payment_status === "partial"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-rose-100 text-rose-700";
+                    const label = settled
+                      ? r.payment_status === "waived"
+                        ? "Waived"
+                        : "Paid"
+                      : r.payment_status === "partial"
+                        ? "Partial"
+                        : "Unpaid";
                     return <Badge className={`${cls} hover:${cls}`}>{label}</Badge>;
                   })()}
                 </td>
                 <td className="px-4 py-3">
-                  <Select value={r.status} onValueChange={(v) => setStatus(r.id, v as Reg["status"])}>
-                    <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
+                  <Select
+                    value={r.status}
+                    onValueChange={(v) => setStatus(r.id, v as Reg["status"])}
+                  >
+                    <SelectTrigger className="h-8 w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="waiting">Waiting</SelectItem>
                       <SelectItem value="in_progress">In progress</SelectItem>

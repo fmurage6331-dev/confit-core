@@ -25,7 +25,13 @@ import {
 } from "@/lib/test-parameters";
 
 export const Route = createFileRoute("/records/$id")({
-  component: () => <AppShell><PermGuard perm="records_view"><RecordDetail /></PermGuard></AppShell>,
+  component: () => (
+    <AppShell>
+      <PermGuard perm="records_view">
+        <RecordDetail />
+      </PermGuard>
+    </AppShell>
+  ),
 });
 
 function RecordDetail() {
@@ -57,9 +63,13 @@ function RecordDetail() {
   const save = useMutation({
     mutationFn: async () => {
       const next = structured ? JSON.stringify(structured) : result.trim() || null;
-      const { error } = await supabase.from("lab_tests").update({
-        result: next, notes: notes.trim() || null,
-      }).eq("id", id);
+      const { error } = await supabase
+        .from("lab_tests")
+        .update({
+          result: next,
+          notes: notes.trim() || null,
+        })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -76,13 +86,17 @@ function RecordDetail() {
       const { error } = await supabase.from("lab_tests").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Record deleted"); navigate({ to: "/records" }); },
+    onSuccess: () => {
+      toast.success("Record deleted");
+      navigate({ to: "/records" });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const sendBack = useMutation({
     mutationFn: async (room: string) => {
-      const { error } = await supabase.from("lab_tests")
+      const { error } = await supabase
+        .from("lab_tests")
         .update({ sent_to_room: room, sent_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
@@ -102,7 +116,10 @@ function RecordDetail() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="no-print">
-        <Link to="/records" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/records"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Back to records
         </Link>
       </div>
@@ -110,7 +127,9 @@ function RecordDetail() {
       <div className="flex flex-wrap items-end justify-between gap-3 no-print">
         <div>
           <h1 className="text-3xl font-bold">{record.patient_name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Lab #{record.lab_number} · {record.test_name}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Lab #{record.lab_number} · {record.test_name}
+          </p>
         </div>
         <div className="flex gap-2">
           {record.sent_to_room && (
@@ -126,16 +145,26 @@ function RecordDetail() {
                 : `Send results to ${record.sent_to_room}`}
             </Button>
           )}
-          <Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print result</Button>
-          <Button variant="destructive" onClick={() => { if (confirm("Delete this record?")) remove.mutate(); }}>
-            <Trash2 className="mr-2 h-4 w-4" />Delete
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print result
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (confirm("Delete this record?")) remove.mutate();
+            }}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
           </Button>
         </div>
       </div>
 
       {record.sent_at && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 no-print">
-          Results sent to <span className="font-semibold">{record.sent_to_room}</span> on {format(new Date(record.sent_at), "dd MMM yyyy, HH:mm")}.
+          Results sent to <span className="font-semibold">{record.sent_to_room}</span> on{" "}
+          {format(new Date(record.sent_at), "dd MMM yyyy, HH:mm")}.
         </div>
       )}
 
@@ -153,7 +182,9 @@ function RecordDetail() {
           </div>
           <div className="text-right text-xs text-muted-foreground">
             <div>Issued: {format(new Date(), "dd MMM yyyy, HH:mm")}</div>
-            <div>Lab #: <span className="font-mono">{record.lab_number}</span></div>
+            <div>
+              Lab #: <span className="font-mono">{record.lab_number}</span>
+            </div>
           </div>
         </div>
 
@@ -167,7 +198,9 @@ function RecordDetail() {
         </dl>
 
         <div className="mt-8">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Result</div>
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Result
+          </div>
           {structured ? (
             <PrintableParameters s={structured} />
           ) : (
@@ -179,8 +212,12 @@ function RecordDetail() {
 
         {record.notes && (
           <div className="mt-6">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Notes</div>
-            <div className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-4 text-sm">{record.notes}</div>
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Notes
+            </div>
+            <div className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-4 text-sm">
+              {record.notes}
+            </div>
           </div>
         )}
 
@@ -204,7 +241,12 @@ function RecordDetail() {
         ) : (
           <div>
             <Label htmlFor="result">Result</Label>
-            <Textarea id="result" rows={4} value={result} onChange={(e) => setResult(e.target.value)} />
+            <Textarea
+              id="result"
+              rows={4}
+              value={result}
+              onChange={(e) => setResult(e.target.value)}
+            />
           </div>
         )}
         <div>
@@ -234,9 +276,7 @@ function PrintableParameters({ s }: { s: StructuredResult }) {
   const rows = s.parameters.filter((p) => p.value.trim() !== "" || p.name.trim() !== "");
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-        Pending
-      </div>
+      <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">Pending</div>
     );
   }
   return (
@@ -276,7 +316,9 @@ function PrintableParameters({ s }: { s: StructuredResult }) {
         </table>
       </div>
       {s.summary?.trim() && (
-        <div className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-4 text-sm">{s.summary}</div>
+        <div className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-4 text-sm">
+          {s.summary}
+        </div>
       )}
       {/* Plain-text fallback for environments without table styles */}
       <div className="sr-only">{formatStructuredForPrint(s)}</div>

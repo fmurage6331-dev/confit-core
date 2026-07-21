@@ -23,9 +23,7 @@ export function getDefaultTemplates(): TestTemplate[] {
 
 /** Fetch all templates, merging DB overrides on top of built-in defaults. */
 export async function fetchMergedTemplates(): Promise<TestTemplate[]> {
-  const { data, error } = await supabase
-    .from("test_templates")
-    .select("id, test_name, parameters");
+  const { data, error } = await supabase.from("test_templates").select("id, test_name, parameters");
   if (error) throw error;
 
   const byName = new Map<string, TestTemplate>();
@@ -37,9 +35,7 @@ export async function fetchMergedTemplates(): Promise<TestTemplate[]> {
       parameters: (row.parameters as Parameter[]) ?? [],
     });
   }
-  return Array.from(byName.values()).sort((a, b) =>
-    a.test_name.localeCompare(b.test_name),
-  );
+  return Array.from(byName.values()).sort((a, b) => a.test_name.localeCompare(b.test_name));
 }
 
 export async function fetchTemplateFor(testName: string): Promise<Parameter[] | null> {

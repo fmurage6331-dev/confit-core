@@ -28,7 +28,10 @@ function ChangePasswordPage() {
   const [pw2, setPw2] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (!loading && !user) { navigate({ to: "/login" }); return null; }
+  if (!loading && !user) {
+    navigate({ to: "/login" });
+    return null;
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -74,9 +77,17 @@ function ChangePasswordPage() {
             </div>
           </div>
           <form onSubmit={onSubmit} className="space-y-4">
-            <div><Label>New password</Label><Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} /></div>
-            <div><Label>Confirm password</Label><Input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
-            <Button type="submit" className="w-full" disabled={submitting}>{submitting ? "Saving…" : "Update password"}</Button>
+            <div>
+              <Label>New password</Label>
+              <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
+            </div>
+            <div>
+              <Label>Confirm password</Label>
+              <Input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+            </div>
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? "Saving…" : "Update password"}
+            </Button>
           </form>
         </div>
       </div>

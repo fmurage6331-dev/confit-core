@@ -18,10 +18,15 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
-const schema = z.object({
-  password: z.string().min(8, "Min 8 characters").max(72),
-  confirm: z.string(),
-}).refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
+const schema = z
+  .object({
+    password: z.string().min(8, "Min 8 characters").max(72),
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    message: "Passwords do not match",
+    path: ["confirm"],
+  });
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -35,14 +40,19 @@ function ResetPasswordPage() {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
     });
-    supabase.auth.getSession().then(({ data }) => { if (data.session) setReady(true); });
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setReady(true);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const parsed = schema.safeParse({ password, confirm });
-    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
     setSubmitting(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
@@ -74,13 +84,25 @@ function ResetPasswordPage() {
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
               <Label htmlFor="password">New password</Label>
-              <Input id="password" type="password" autoComplete="new-password" required
-                value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <div>
               <Label htmlFor="confirm">Confirm password</Label>
-              <Input id="confirm" type="password" autoComplete="new-password" required
-                value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <Input
+                id="confirm"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
             </div>
             <Button type="submit" className="w-full" disabled={submitting || !ready}>
               {submitting ? "Updating…" : "Update password"}

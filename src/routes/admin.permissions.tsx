@@ -17,7 +17,13 @@ import { toast } from "sonner";
 import { ShieldCheck, Save } from "lucide-react";
 
 export const Route = createFileRoute("/admin/permissions")({
-  component: () => <AppShell><Guard allow={["admin"]}><PermissionsPage /></Guard></AppShell>,
+  component: () => (
+    <AppShell>
+      <Guard allow={["admin"]}>
+        <PermissionsPage />
+      </Guard>
+    </AppShell>
+  ),
 });
 
 type Role =
@@ -106,9 +112,7 @@ const PERMS: { group: string; items: { key: string; label: string }[] }[] = [
   },
   {
     group: "Accounting",
-    items: [
-      { key: "accounting", label: "Process bills & payments" },
-    ],
+    items: [{ key: "accounting", label: "Process bills & payments" }],
   },
   {
     group: "Reports (department scoped)",
@@ -121,7 +125,6 @@ const PERMS: { group: string; items: { key: string; label: string }[] }[] = [
   },
 ];
 
-
 function PermissionsPage() {
   const { refreshRoles, user } = useAuth();
   const [matrix, setMatrix] = useState<Record<string, Set<string>>>({});
@@ -131,7 +134,11 @@ function PermissionsPage() {
   async function load() {
     setLoading(true);
     const { data, error } = await supabase.from("role_permissions").select("role,permission");
-    if (error) { toast.error(error.message); setLoading(false); return; }
+    if (error) {
+      toast.error(error.message);
+      setLoading(false);
+      return;
+    }
     const m: Record<string, Set<string>> = {};
     for (const r of ROLES) m[r.key] = new Set();
     for (const row of data ?? []) {
@@ -142,12 +149,15 @@ function PermissionsPage() {
     setMatrix(m);
     setLoading(false);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   function toggle(role: string, perm: string) {
     setMatrix((prev) => {
       const next = { ...prev, [role]: new Set(prev[role]) };
-      if (next[role].has(perm)) next[role].delete(perm); else next[role].add(perm);
+      if (next[role].has(perm)) next[role].delete(perm);
+      else next[role].add(perm);
       return next;
     });
   }
@@ -156,8 +166,14 @@ function PermissionsPage() {
     setSaving(true);
     const allPerms = PERMS.flatMap((g) => g.items.map((i) => i.key));
     // Compute desired & current sets, diff per role.
-    const { data: current, error } = await supabase.from("role_permissions").select("role,permission");
-    if (error) { toast.error(error.message); setSaving(false); return; }
+    const { data: current, error } = await supabase
+      .from("role_permissions")
+      .select("role,permission");
+    if (error) {
+      toast.error(error.message);
+      setSaving(false);
+      return;
+    }
     const currentMap: Record<string, Set<string>> = {};
     for (const r of ROLES) currentMap[r.key] = new Set();
     for (const row of current ?? []) {
@@ -181,7 +197,11 @@ function PermissionsPage() {
 
     if (toInsert.length) {
       const { error: e1 } = await supabase.from("role_permissions").insert(toInsert);
-      if (e1) { toast.error(e1.message); setSaving(false); return; }
+      if (e1) {
+        toast.error(e1.message);
+        setSaving(false);
+        return;
+      }
     }
     for (const d of toDelete) {
       const { error: e2 } = await supabase
@@ -189,7 +209,11 @@ function PermissionsPage() {
         .delete()
         .eq("role", d.role)
         .eq("permission", d.permission);
-      if (e2) { toast.error(e2.message); setSaving(false); return; }
+      if (e2) {
+        toast.error(e2.message);
+        setSaving(false);
+        return;
+      }
     }
     setSaving(false);
     toast.success("Permissions saved");
@@ -214,7 +238,9 @@ function PermissionsPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">Loading…</div>
+        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+          Loading…
+        </div>
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card">
           <table className="w-full text-sm">
@@ -222,7 +248,9 @@ function PermissionsPage() {
               <tr>
                 <th className="px-4 py-3">Permission</th>
                 {ROLES.map((r) => (
-                  <th key={r.key} className="px-4 py-3 text-center">{r.label}</th>
+                  <th key={r.key} className="px-4 py-3 text-center">
+                    {r.label}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -230,7 +258,10 @@ function PermissionsPage() {
               {PERMS.map((group) => (
                 <Fragment key={group.group}>
                   <tr className="border-t bg-muted/20">
-                    <td colSpan={ROLES.length + 1} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <td
+                      colSpan={ROLES.length + 1}
+                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
                       {group.group}
                     </td>
                   </tr>

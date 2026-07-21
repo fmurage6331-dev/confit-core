@@ -44,7 +44,12 @@ type OrderRow = {
   patient_id: string | null;
   encounter_id: string | null;
   requested_by_room_id: string | null;
-  patients: { patient_name: string | null; file_number: string | null; sex: string | null; estimated_age: number | null } | null;
+  patients: {
+    patient_name: string | null;
+    file_number: string | null;
+    sex: string | null;
+    estimated_age: number | null;
+  } | null;
   lab_test_catalog: { name: string | null; category: string | null } | null;
   rooms: { name: string | null } | null;
 };
@@ -70,7 +75,9 @@ function LaboratoryDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lab_orders")
-        .select("id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,requested_by_room_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name)")
+        .select(
+          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,requested_by_room_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name)",
+        )
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -111,14 +118,30 @@ function LaboratoryDetail() {
     const testName = order?.lab_test_catalog?.name;
     if (!testName || result) return; // don't clobber an already-saved result
     let cancelled = false;
-    fetchTemplateFor(testName).then((tpl) => {
-      if (cancelled) return;
-      setTemplate(tpl);
-      if (tpl) {
-        setStructured({ version: 1, parameters: tpl.map((p) => ({ name: p.name, value: "", unit: p.unit, low: p.low, high: p.high })), summary: "" });
-      }
-    }).catch(() => { if (!cancelled) setTemplate(null); });
-    return () => { cancelled = true; };
+    fetchTemplateFor(testName)
+      .then((tpl) => {
+        if (cancelled) return;
+        setTemplate(tpl);
+        if (tpl) {
+          setStructured({
+            version: 1,
+            parameters: tpl.map((p) => ({
+              name: p.name,
+              value: "",
+              unit: p.unit,
+              low: p.low,
+              high: p.high,
+            })),
+            summary: "",
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTemplate(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [order?.lab_test_catalog?.name, result]);
 
   const updateStatus = useMutation({
@@ -137,7 +160,10 @@ function LaboratoryDetail() {
     mutationFn: async (opts?: { finalize?: boolean }) => {
       const payload = {
         order_id: id,
-        result: template && structured ? { ...structured, summary: freeText } : ({ version: 1, parameters: [], summary: freeText } as StructuredResult),
+        result:
+          template && structured
+            ? { ...structured, summary: freeText }
+            : ({ version: 1, parameters: [], summary: freeText } as StructuredResult),
         performed_by: performedBy.trim() || null,
         reported_at: opts?.finalize ? new Date().toISOString() : (result?.reported_at ?? null),
       };
@@ -149,7 +175,10 @@ function LaboratoryDetail() {
         if (error) throw error;
       }
       if (opts?.finalize) {
-        const { error } = await supabase.from("lab_orders").update({ status: "completed" }).eq("id", id);
+        const { error } = await supabase
+          .from("lab_orders")
+          .update({ status: "completed" })
+          .eq("id", id);
         if (error) throw error;
 
         // Same "route patient back once every requested test for this visit
@@ -166,9 +195,17 @@ function LaboratoryDetail() {
           const stillPending = (openOrders ?? []).length > 0;
           if (!stillPending) {
             const { error: routeError } = order.requested_by_room_id
-              ? await supabase.rpc("send_lab_result_to_room", { p_encounter_id: order.encounter_id, p_room_id: order.requested_by_room_id })
-              : await supabase.rpc("send_lab_results_to_requesting_room", { p_encounter_id: order.encounter_id });
-            if (routeError) toast.error(`Result saved, but couldn't route patient back automatically: ${routeError.message}`);
+              ? await supabase.rpc("send_lab_result_to_room", {
+                  p_encounter_id: order.encounter_id,
+                  p_room_id: order.requested_by_room_id,
+                })
+              : await supabase.rpc("send_lab_results_to_requesting_room", {
+                  p_encounter_id: order.encounter_id,
+                });
+            if (routeError)
+              toast.error(
+                `Result saved, but couldn't route patient back automatically: ${routeError.message}`,
+              );
           }
         }
       }
@@ -184,7 +221,10 @@ function LaboratoryDetail() {
 
   const decline = useMutation({
     mutationFn: async (reason: string) => {
-      const { error } = await supabase.from("lab_orders").update({ status: "declined", decline_reason: reason || null }).eq("id", id);
+      const { error } = await supabase
+        .from("lab_orders")
+        .update({ status: "declined", decline_reason: reason || null })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -201,7 +241,10 @@ function LaboratoryDetail() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Link to="/laboratory" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/laboratory"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to worklist
       </Link>
 
@@ -209,13 +252,16 @@ function LaboratoryDetail() {
         <div>
           <h1 className="text-3xl font-bold">{order.lab_test_catalog?.name ?? "Lab order"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {order.order_number ?? ""} · Ordered {format(new Date(order.ordered_at), "dd MMM yyyy, HH:mm")}
+            {order.order_number ?? ""} · Ordered{" "}
+            {format(new Date(order.ordered_at), "dd MMM yyyy, HH:mm")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <StatusPill status={order.status} />
           {canUpdateStatus && order.status === "ordered" && (
-            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("in_progress")}>Pick up</Button>
+            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("in_progress")}>
+              Pick up
+            </Button>
           )}
         </div>
       </div>
@@ -224,19 +270,33 @@ function LaboratoryDetail() {
         <div className="grid gap-4 text-sm sm:grid-cols-2">
           <Field label="Patient">
             {order.patient_id ? (
-              <Link to="/patients/$id" params={{ id: order.patient_id }} className="text-primary hover:underline">
+              <Link
+                to="/patients/$id"
+                params={{ id: order.patient_id }}
+                className="text-primary hover:underline"
+              >
                 {order.patients?.patient_name ?? "—"}
               </Link>
-            ) : (order.patients?.patient_name ?? "—")}
-            <div className="text-xs text-muted-foreground">File #{order.patients?.file_number ?? "—"}</div>
+            ) : (
+              (order.patients?.patient_name ?? "—")
+            )}
+            <div className="text-xs text-muted-foreground">
+              File #{order.patients?.file_number ?? "—"}
+            </div>
           </Field>
-          <Field label="Sex / Age">{(order.patients?.sex ?? "—")} · {order.patients?.estimated_age ?? "—"}</Field>
+          <Field label="Sex / Age">
+            {order.patients?.sex ?? "—"} · {order.patients?.estimated_age ?? "—"}
+          </Field>
           <Field label="Urgency">{order.priority ?? "routine"}</Field>
           <Field label="Category">{order.lab_test_catalog?.category ?? "—"}</Field>
           <Field label="Ordered by">{order.rooms?.name ?? "—"}</Field>
           <div className="sm:col-span-2">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Instructions</div>
-            <div className="mt-1 whitespace-pre-wrap">{order.instructions || <span className="text-muted-foreground">None</span>}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Instructions
+            </div>
+            <div className="mt-1 whitespace-pre-wrap">
+              {order.instructions || <span className="text-muted-foreground">None</span>}
+            </div>
           </div>
         </div>
       </div>
@@ -260,18 +320,36 @@ function LaboratoryDetail() {
           ) : (
             <div>
               <Label htmlFor="result">Result</Label>
-              <Textarea id="result" rows={5} value={freeText} onChange={(e) => setFreeText(e.target.value)} disabled={!canWrite} placeholder="e.g. Negative / Hb: 12.4 g/dL …" />
+              <Textarea
+                id="result"
+                rows={5}
+                value={freeText}
+                onChange={(e) => setFreeText(e.target.value)}
+                disabled={!canWrite}
+                placeholder="e.g. Negative / Hb: 12.4 g/dL …"
+              />
             </div>
           )}
           {template && structured && (
             <div>
               <Label htmlFor="summary">Summary / comment</Label>
-              <Textarea id="summary" rows={2} value={freeText} onChange={(e) => setFreeText(e.target.value)} disabled={!canWrite} />
+              <Textarea
+                id="summary"
+                rows={2}
+                value={freeText}
+                onChange={(e) => setFreeText(e.target.value)}
+                disabled={!canWrite}
+              />
             </div>
           )}
           <div>
             <Label htmlFor="performed_by">Performed by</Label>
-            <Input id="performed_by" value={performedBy} onChange={(e) => setPerformedBy(e.target.value)} disabled={!canWrite} />
+            <Input
+              id="performed_by"
+              value={performedBy}
+              onChange={(e) => setPerformedBy(e.target.value)}
+              disabled={!canWrite}
+            />
           </div>
 
           {canWrite && (
@@ -285,7 +363,11 @@ function LaboratoryDetail() {
               >
                 Reject lab request
               </button>
-              <Button variant="outline" onClick={() => saveResult.mutate(undefined)} disabled={saveResult.isPending}>
+              <Button
+                variant="outline"
+                onClick={() => saveResult.mutate(undefined)}
+                disabled={saveResult.isPending}
+              >
                 {saveResult.isPending ? "Saving…" : "Save draft"}
               </Button>
               <Button
@@ -324,9 +406,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function StatusPill({ status }: { status: string | null }) {
   const cls =
-    status === "completed" ? "bg-emerald-100 text-emerald-700"
-    : status === "in_progress" ? "bg-blue-100 text-blue-700"
-    : status === "declined" ? "bg-rose-100 text-rose-700"
-    : "bg-amber-100 text-amber-700";
+    status === "completed"
+      ? "bg-emerald-100 text-emerald-700"
+      : status === "in_progress"
+        ? "bg-blue-100 text-blue-700"
+        : status === "declined"
+          ? "bg-rose-100 text-rose-700"
+          : "bg-amber-100 text-amber-700";
   return <Badge className={`${cls} hover:${cls}`}>{(status ?? "ordered").replace("_", " ")}</Badge>;
 }
