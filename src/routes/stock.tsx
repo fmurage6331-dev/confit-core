@@ -36,7 +36,7 @@ function kindLabel(k: string) {
 function StockPage() {
   const qc = useQueryClient();
   const [openItem, setOpenItem] = useState(false);
-  const [openMove, setOpenMove] = useState<{ id: string; name: string } | null>(null);
+  const [openMove, setOpenMove] = useState<any | null>(null);
   const [editItem, setEditItem] = useState<any | null>(null);
   const [tab, setTab] = useState<"all" | typeof KINDS[number]["value"]>("all");
 
@@ -61,9 +61,16 @@ function StockPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const addMove = useMutation({
-    mutationFn: async (m: Record<string, unknown>) => { const { error } = await supabase.from("stock_movements").insert(m as never); if (error) throw error; },
-    onSuccess: () => { toast.success("Movement recorded"); qc.invalidateQueries({ queryKey: ["stock_items"] }); setOpenMove(null); },
+  const adjustProduct = useMutation({
+    mutationFn: async (args: { itemId: string; prices: Record<string, unknown>; move: Record<string, unknown> | null }) => {
+      const { error: priceError } = await supabase.from("stock_items").update(args.prices as never).eq("id", args.itemId);
+      if (priceError) throw priceError;
+      if (args.move) {
+        const { error: moveError } = await supabase.from("stock_movements").insert(args.move as never);
+        if (moveError) throw moveError;
+      }
+    },
+    onSuccess: () => { toast.success("Product updated"); qc.invalidateQueries({ queryKey: ["stock_items"] }); setOpenMove(null); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -169,7 +176,7 @@ function StockPage() {
             {filtered.map((i) => {
               const low = Number(i.current_quantity) <= Number(i.reorder_level);
               return (
-                <tr key={i.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenMove({ id: i.id, name: i.name })}>
+                <tr key={i.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenMove(i)}>
                   <td className="px-4 py-2 font-medium">{i.name}</td>
                   <td className="px-4 py-2"><span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">{kindLabel(i.kind ?? "consumable")}</span></td>
                   <td className="px-4 py-2 text-muted-foreground">{i.category}</td>
@@ -189,7 +196,7 @@ function StockPage() {
                       <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditItem(i); }}>
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpenMove({ id: i.id, name: i.name }); }}>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpenMove(i); }}>
                         <ClipboardCheck className="mr-1 h-3 w-3" />Adjust
                       </Button>
                     </div>
@@ -205,31 +212,51 @@ function StockPage() {
       <Dialog open={!!openMove} onOpenChange={(v) => !v && setOpenMove(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Adjust: {openMove?.name}</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            addMove.mutate({
-              item_id: openMove!.id,
-              change: Number(f.get("change")),
-              reason: f.get("reason"),
-              notes: f.get("notes"),
-            });
-          }} className="space-y-3">
-            <div><Label>Reason *</Label>
-              <Select name="reason" defaultValue="usage">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="usage">Usage (subtract)</SelectItem>
-                  <SelectItem value="adjustment">Adjustment</SelectItem>
-                  <SelectItem value="stock_take">Stock take correction</SelectItem>
-                  <SelectItem value="delivery">Delivery (manual)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>Change *</Label><Input type="number" step="0.01" name="change" required placeholder="Positive to add, negative to remove" /></div>
-            <div><Label>Notes</Label><Textarea name="notes" /></div>
-            <DialogFooter><Button type="submit" disabled={addMove.isPending}>Save</Button></DialogFooter>
-          </form>
+          {openMove && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              const change = Number(f.get("change") || 0);
+              adjustProduct.mutate({
+                itemId: openMove.id,
+                prices: {
+                  buy_price: Number(f.get("buy_price") || 0),
+                  cash_price: Number(f.get("cash_price") || 0),
+                  insurance_price: Number(f.get("insurance_price") || 0),
+                  unit_price: Number(f.get("cash_price") || 0),
+                },
+                move: change !== 0 ? {
+                  item_id: openMove.id,
+                  change,
+                  reason: f.get("reason"),
+                  notes: f.get("notes"),
+                } : null,
+              });
+            }} className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label>Buy price (KES)</Label><Input type="number" step="0.01" name="buy_price" defaultValue={Number(openMove.buy_price ?? 0)} /></div>
+                <div><Label>Cash price (KES)</Label><Input type="number" step="0.01" name="cash_price" defaultValue={Number(openMove.cash_price ?? openMove.unit_price ?? 0)} /></div>
+                <div><Label>Insurance price (KES)</Label><Input type="number" step="0.01" name="insurance_price" defaultValue={Number(openMove.insurance_price ?? 0)} /></div>
+              </div>
+              <div className="space-y-3 border-t pt-3">
+                <p className="text-xs uppercase text-muted-foreground">Stock quantity change (optional)</p>
+                <div><Label>Reason</Label>
+                  <Select name="reason" defaultValue="usage">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="usage">Usage (subtract)</SelectItem>
+                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                      <SelectItem value="stock_take">Stock take correction</SelectItem>
+                      <SelectItem value="delivery">Delivery (manual)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Change</Label><Input type="number" step="0.01" name="change" defaultValue={0} placeholder="Positive to add, negative to remove — leave 0 to skip" /></div>
+                <div><Label>Notes</Label><Textarea name="notes" /></div>
+              </div>
+              <DialogFooter><Button type="submit" disabled={adjustProduct.isPending}>Save</Button></DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
