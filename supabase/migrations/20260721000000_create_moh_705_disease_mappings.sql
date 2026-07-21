@@ -1,6 +1,8 @@
 -- Migration: Create MOH 705 Disease Mapping Table and Initial Seed Data
 -- Location: supabase/migrations/20260721000000_create_moh_705_disease_mappings.sql
 
+BEGIN;
+
 CREATE TABLE IF NOT EXISTS public.moh_705_disease_mappings (
     row_number INT PRIMARY KEY,
     disease_name TEXT NOT NULL,
@@ -13,11 +15,20 @@ CREATE TABLE IF NOT EXISTS public.moh_705_disease_mappings (
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.moh_705_disease_mappings ENABLE ROW LEVEL SECURITY;
 
--- Allow authenticated users to read the mapping data
-CREATE POLICY "Allow public read access to MOH 705 disease mappings" 
-ON public.moh_705_disease_mappings 
-FOR SELECT 
-USING (true);
+-- Allow authenticated/public read access safely
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'moh_705_disease_mappings' 
+        AND policyname = 'Allow public read access to MOH 705 disease mappings'
+    ) THEN
+        CREATE POLICY "Allow public read access to MOH 705 disease mappings" 
+        ON public.moh_705_disease_mappings 
+        FOR SELECT 
+        USING (true);
+    END IF;
+END $$;
 
 -- Insert/Upsert the 69 Form Rows
 INSERT INTO public.moh_705_disease_mappings (row_number, disease_name, icd11_chapter_block, keyword_pattern, requires_lab_confirmation, requires_deceased_status) VALUES
@@ -96,3 +107,5 @@ ON CONFLICT (row_number) DO UPDATE SET
     keyword_pattern = EXCLUDED.keyword_pattern,
     requires_lab_confirmation = EXCLUDED.requires_lab_confirmation,
     requires_deceased_status = EXCLUDED.requires_deceased_status;
+
+COMMIT;
