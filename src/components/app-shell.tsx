@@ -93,6 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
     { to: "/records", label: "Records", icon: ClipboardList, show: hasPerm("records_view") },
     { to: "/encounter-records", label: "Encounter records", icon: FolderOpen, show: hasPerm("records_view") },
+    { to: "/laboratory", label: "Laboratory", icon: FlaskConical, show: hasPerm("lab_view") || hasPerm("lab_results_create") || hasPerm("lab_update") },
     { to: "/radiology", label: "Radiology", icon: ScanLine, show: hasPerm("radiology_view") || hasPerm("radiology_results_create") || hasPerm("radiology_update") },
     { to: "/inpatient", label: "Inpatient", icon: BedDouble, show: hasPerm("admissions_view") || hasPerm("admit_patient") || hasPerm("bed_management") },
     { to: "/reports", label: "Reports", icon: BarChart3, show: canAnyReport },
