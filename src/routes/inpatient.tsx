@@ -217,8 +217,11 @@ function Inpatient() {
                     {admission.admission_reason && <div className="text-xs">Reason: {admission.admission_reason}</div>}
                     {admission.expected_discharge_date && <div className="text-xs">Expected discharge: {admission.expected_discharge_date}</div>}
                     {canDischarge && (
-                      <div className="pt-2">
+                      <div className="pt-2 flex gap-2">
                         <DischargeButton admissionId={admission.id} encounterId={admission.encounter_id} onDone={() => { setSelectedBed(null); refreshAll(); }} />
+                        {admission.encounter_id && (
+                          <ReferOutButton encounterId={admission.encounter_id} onDone={() => { setSelectedBed(null); refreshAll(); }} />
+                        )}
                       </div>
                     )}
                   </div>
@@ -353,6 +356,62 @@ export function DischargeButton({ admissionId, encounterId, onDone }: { admissio
   );
 }
 
+export function ReferOutButton({ encounterId, currentFacility, currentReason, onDone }: { encounterId: string; currentFacility?: string | null; currentReason?: string | null; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [facility, setFacility] = useState(currentFacility ?? "");
+  const [reason, setReason] = useState(currentReason ?? "");
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    const fac = facility.trim();
+    if (!fac) { toast.error("Destination hospital/facility is required."); return; }
+    if (!reason.trim()) { toast.error("Reason for referral is required."); return; }
+    setBusy(true);
+    const { error } = await supabase.from("patient_registrations").update({
+      referral_direction: "out",
+      referral_out_facility: fac,
+      referral_out_reason: reason.trim(),
+    } as never).eq("id", encounterId);
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Patient marked as referred out");
+    setOpen(false);
+    onDone();
+  }
+
+  const alreadyReferred = !!currentFacility;
+
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        {alreadyReferred ? "Referred out ✓" : "Refer out"}
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!busy) setOpen(o); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Refer patient out</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Destination hospital / facility <span className="text-rose-600">*</span></Label>
+              <Input value={facility} onChange={(e) => setFacility(e.target.value)} placeholder="e.g. Kenyatta National Hospital" />
+            </div>
+            <div>
+              <Label>Reason for referral <span className="text-rose-600">*</span></Label>
+              <Textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)}
+                placeholder="Why is this patient being referred out?" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
+            <Button onClick={submit} disabled={busy || !facility.trim() || !reason.trim()}>
+              {busy ? "Saving…" : "Confirm referral"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function CurrentInpatients({ rows, loading, canDischarge, onDischarged }: {
   rows: AdmissionRow[]; loading: boolean; canDischarge: boolean; onDischarged: () => void;
 }) {
@@ -388,7 +447,10 @@ function CurrentInpatients({ rows, loading, canDischarge, onDischarged }: {
               <td className="p-3 capitalize">{a.admission_type ?? "—"}</td>
               {canDischarge && (
                 <td className="p-3 text-right">
-                  <DischargeButton admissionId={a.id} encounterId={a.encounter_id} onDone={onDischarged} />
+                  <div className="flex justify-end gap-2">
+                    <DischargeButton admissionId={a.id} encounterId={a.encounter_id} onDone={onDischarged} />
+                    {a.encounter_id && <ReferOutButton encounterId={a.encounter_id} onDone={onDischarged} />}
+                  </div>
                 </td>
               )}
             </tr>
