@@ -92,7 +92,10 @@ function StockPage() {
                   unit: f.get("unit") || "pcs",
                   current_quantity: Number(f.get("current_quantity") || 0),
                   reorder_level: Number(f.get("reorder_level") || 0),
-                  unit_price: Number(f.get("unit_price") || 0),
+                  buy_price: Number(f.get("buy_price") || 0),
+                  cash_price: Number(f.get("cash_price") || 0),
+                  insurance_price: Number(f.get("insurance_price") || 0),
+                  unit_price: Number(f.get("cash_price") || 0),
                   notes: f.get("notes"),
                 });
               }} className="space-y-3">
@@ -109,7 +112,11 @@ function StockPage() {
                   </div>
                   <div><Label>Category</Label><Input name="category" placeholder="e.g. Antibiotics" /></div>
                 </div>
-                <div><Label>Unit price (KES)</Label><Input type="number" step="0.01" name="unit_price" defaultValue={0} /></div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div><Label>Buy price (KES)</Label><Input type="number" step="0.01" name="buy_price" defaultValue={0} /></div>
+                  <div><Label>Cash price (KES)</Label><Input type="number" step="0.01" name="cash_price" defaultValue={0} /></div>
+                  <div><Label>Insurance price (KES)</Label><Input type="number" step="0.01" name="insurance_price" defaultValue={0} /></div>
+                </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div><Label>Unit</Label><Input name="unit" defaultValue="pcs" /></div>
                   <div><Label>Starting qty</Label><Input type="number" step="0.01" name="current_quantity" defaultValue={0} /></div>
@@ -150,13 +157,15 @@ function StockPage() {
               <th className="px-4 py-2">Unit</th>
               <th className="px-4 py-2">On hand</th>
               <th className="px-4 py-2">Reorder ≤</th>
-              <th className="px-4 py-2 text-right">Price</th>
+              <th className="px-4 py-2 text-right">Buy</th>
+              <th className="px-4 py-2 text-right">Cash</th>
+              <th className="px-4 py-2 text-right">Insurance</th>
               <th className="px-4 py-2">Status</th>
               <th className="px-4 py-2">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
+            {isLoading && <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
             {filtered.map((i) => {
               const low = Number(i.current_quantity) <= Number(i.reorder_level);
               return (
@@ -167,7 +176,9 @@ function StockPage() {
                   <td className="px-4 py-2">{i.unit}</td>
                   <td className={`px-4 py-2 font-mono ${low ? "text-destructive font-semibold" : ""}`}>{i.current_quantity}</td>
                   <td className="px-4 py-2 text-muted-foreground">{i.reorder_level}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">KES {Number(i.unit_price ?? 0).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">KES {Number(i.buy_price ?? 0).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">KES {Number(i.cash_price ?? i.unit_price ?? 0).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">KES {Number(i.insurance_price ?? 0).toFixed(2)}</td>
                   <td className="px-4 py-2">
                     {low
                       ? <span className="inline-flex rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive">Low</span>
@@ -186,7 +197,7 @@ function StockPage() {
                 </tr>
               );
             })}
-            {!isLoading && filtered.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No items in this category.</td></tr>}
+            {!isLoading && filtered.length === 0 && <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">No items in this category.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -237,7 +248,10 @@ function StockPage() {
                 unit: f.get("unit") || "pcs",
                 current_quantity: Number(f.get("current_quantity") || 0),
                 reorder_level: Number(f.get("reorder_level") || 0),
-                unit_price: Number(f.get("unit_price") || 0),
+                buy_price: Number(f.get("buy_price") || 0),
+                cash_price: Number(f.get("cash_price") || 0),
+                insurance_price: Number(f.get("insurance_price") || 0),
+                unit_price: Number(f.get("cash_price") || 0),
                 notes: f.get("notes"),
               });
             }} className="space-y-3">
@@ -254,7 +268,11 @@ function StockPage() {
                 </div>
                 <div><Label>Category</Label><Input name="category" defaultValue={editItem.category ?? ""} placeholder="e.g. Antibiotics" /></div>
               </div>
-              <div><Label>Unit price (KES)</Label><Input type="number" step="0.01" name="unit_price" defaultValue={Number(editItem.unit_price ?? 0)} /></div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label>Buy price (KES)</Label><Input type="number" step="0.01" name="buy_price" defaultValue={Number(editItem.buy_price ?? 0)} /></div>
+                <div><Label>Cash price (KES)</Label><Input type="number" step="0.01" name="cash_price" defaultValue={Number(editItem.cash_price ?? editItem.unit_price ?? 0)} /></div>
+                <div><Label>Insurance price (KES)</Label><Input type="number" step="0.01" name="insurance_price" defaultValue={Number(editItem.insurance_price ?? 0)} /></div>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div><Label>Unit</Label><Input name="unit" defaultValue={editItem.unit ?? "pcs"} /></div>
                 <div><Label>On hand</Label><Input type="number" step="0.01" name="current_quantity" defaultValue={Number(editItem.current_quantity ?? 0)} /></div>
