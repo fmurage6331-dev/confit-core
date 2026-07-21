@@ -92,6 +92,8 @@ function RegisterPatient() {
   const [sendToRoomId, setSendToRoomId] = useState("");
   const [mode, setMode] = useState<PaymentMode>("cash");
   const [insurerId, setInsurerId] = useState("");
+  const [isEmergency, setIsEmergency] = useState(false);
+  const [referralDirection, setReferralDirection] = useState<"" | "in" | "out">("");
   const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
@@ -168,6 +170,8 @@ function RegisterPatient() {
       payment_mode: mode,
       insurance_provider_id: mode === "insurance" ? insurer!.id : null,
       insurance_coverage_percentage: mode === "insurance" ? coveragePct : null,
+      is_emergency: isEmergency,
+      referral_direction: referralDirection || null,
       tests: selectedTests.map((t) => ({ id: t.id, name: t.name, price: priceFor(t) })),
       subtotal, insurance_covered: insuranceCovered, patient_due: patientDue,
       payment_status: mode === "free" || !hasTests ? "waived" : "unpaid",
@@ -387,6 +391,23 @@ function RegisterPatient() {
                         {r.name}{r.kind === "lab" ? " (Lab)" : ""}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </Group>
+
+            <Group title="Case type">
+              <div className="space-y-2">
+                <Label>Emergency case?</Label>
+                <YesNo value={isEmergency} onChange={setIsEmergency} />
+              </div>
+              <Field label="Referral">
+                <Select value={referralDirection || "none"} onValueChange={(v) => setReferralDirection(v === "none" ? "" : (v as "in" | "out"))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not a referral</SelectItem>
+                    <SelectItem value="in">Referred IN (from another facility)</SelectItem>
+                    <SelectItem value="out">Referred OUT (to another facility)</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
