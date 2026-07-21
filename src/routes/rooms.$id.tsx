@@ -22,7 +22,7 @@ import {
   Activity, Stethoscope, Pill, Plus, Trash2, Check, X, Receipt, BedDouble,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DischargeButton } from "@/routes/inpatient";
+import { DischargeButton, ReferOutButton } from "@/routes/inpatient";
 
 export const Route = createFileRoute("/rooms/$id")({
   component: () => <AppShell><RoomPage /></AppShell>,
@@ -448,6 +448,7 @@ function ConsultationDialog({ reg, roomId, onClose, onSaved }: { reg: Reg; roomI
                 onDone={() => { loadAdmission(); onSaved(); }}
               />
             )}
+            <ReferOutButton encounterId={reg.id} onDone={() => onSaved()} />
           </div>
         )}
 
@@ -746,10 +747,6 @@ function PharmacyDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => vo
   async function finish() {
     const anyPending = rxs.some((r) => r.status === "pending");
     if (anyPending) { toast.error("Dispense or cancel all pending prescriptions first."); return; }
-    if (reg.payment_status === "unpaid" || reg.payment_status === "partial") {
-      toast.error("Patient has an outstanding balance. Please clear payment before closing the visit.");
-      return;
-    }
     const { error } = await supabase.from("patient_registrations").update({ status: "done" } as never).eq("id", reg.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Patient visit closed");
