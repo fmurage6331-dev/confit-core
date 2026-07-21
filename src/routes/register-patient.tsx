@@ -130,7 +130,12 @@ function RegisterPatient() {
     e.preventDefault();
     if (!firstName.trim() || !familyName.trim()) { toast.error("First and Family name are required"); scrollTo("basic"); return; }
     if (!sex) { toast.error("Please select sex"); scrollTo("basic"); return; }
-    
+    if (dobKnown && !dob) { toast.error("Date of birth is required"); scrollTo("basic"); return; }
+    if (!dobKnown && !estimatedAge) { toast.error("Estimated age is required"); scrollTo("basic"); return; }
+    if (!phone.trim()) { toast.error("Phone number is required"); scrollTo("contact"); return; }
+    if (!addr1.trim() || !city.trim() || !county.trim()) { toast.error("Address (line 1, city, county) is required"); scrollTo("contact"); return; }
+    if (!kinName.trim() || !kinRelation.trim() || !kinPhone.trim()) { toast.error("Next of kin name, relationship, and phone are required"); scrollTo("nextofkin"); return; }
+
     if (!sendToRoomId) { toast.error("Select the consultation/triage room to send patient to"); scrollTo("visit"); return; }
     if (mode === "insurance" && !insurer) { toast.error("Select an insurance provider"); scrollTo("visit"); return; }
 
@@ -266,9 +271,9 @@ function RegisterPatient() {
                 <YesNo value={dobKnown} onChange={setDobKnown} />
               </div>
               {dobKnown ? (
-                <Field label="Date of birth"><Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} /></Field>
+                <Field label="Date of birth" required><Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} /></Field>
               ) : (
-                <Field label="Estimated age (years)"><Input type="number" min={0} value={estimatedAge} onChange={(e) => setEstimatedAge(e.target.value)} /></Field>
+                <Field label="Estimated age (years)" required><Input type="number" min={0} value={estimatedAge} onChange={(e) => setEstimatedAge(e.target.value)} /></Field>
               )}
               <Field label="File number">
                 <Input value={fileNumber} readOnly disabled placeholder="Auto-generated on save (e.g. P001234)" />
@@ -279,14 +284,14 @@ function RegisterPatient() {
           {/* Contact */}
           <Section id="contact" number="2" title="Contact Details">
             <Group title="Reach">
-              <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+              <Field label="Phone" required><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
               <Field label="Email"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             </Group>
             <Group title="Address">
-              <Field label="Address line 1"><Input value={addr1} onChange={(e) => setAddr1(e.target.value)} /></Field>
+              <Field label="Address line 1" required><Input value={addr1} onChange={(e) => setAddr1(e.target.value)} /></Field>
               <Field label="Address line 2 (optional)"><Input value={addr2} onChange={(e) => setAddr2(e.target.value)} /></Field>
-              <Field label="City / Town"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
-              <Field label="County"><Input value={county} onChange={(e) => setCounty(e.target.value)} /></Field>
+              <Field label="City / Town" required><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
+              <Field label="County" required><Input value={county} onChange={(e) => setCounty(e.target.value)} /></Field>
               <Field label="Postal code (optional)"><Input value={postal} onChange={(e) => setPostal(e.target.value)} /></Field>
               <Field label="Country"><Input value={country} onChange={(e) => setCountry(e.target.value)} /></Field>
             </Group>
@@ -363,9 +368,9 @@ function RegisterPatient() {
           {/* Next of kin */}
           <Section id="nextofkin" number="6" title="Next of Kin">
             <Group title="Primary contact">
-              <Field label="Full name"><Input value={kinName} onChange={(e) => setKinName(e.target.value)} /></Field>
-              <Field label="Relationship"><Input value={kinRelation} onChange={(e) => setKinRelation(e.target.value)} /></Field>
-              <Field label="Phone"><Input value={kinPhone} onChange={(e) => setKinPhone(e.target.value)} /></Field>
+              <Field label="Full name" required><Input value={kinName} onChange={(e) => setKinName(e.target.value)} /></Field>
+              <Field label="Relationship" required><Input value={kinRelation} onChange={(e) => setKinRelation(e.target.value)} /></Field>
+              <Field label="Phone" required><Input value={kinPhone} onChange={(e) => setKinPhone(e.target.value)} /></Field>
               <Field label="Address (optional)"><Input value={kinAddress} onChange={(e) => setKinAddress(e.target.value)} /></Field>
             </Group>
           </Section>
