@@ -65,6 +65,7 @@ type Prescription = {
   drug_name: string; dosage: string | null; frequency: string | null; duration: string | null;
   quantity: number; notes: string | null;
   status: "pending" | "dispensed" | "cancelled";
+  prescribed_by_name: string | null; dispensed_by_name: string | null;
   created_at: string; dispensed_at: string | null;
 };
 
@@ -104,6 +105,7 @@ function RoomPage() {
   const [rows, setRows] = useState<Reg[]>([]);
   const [loading, setLoading] = useState(true);
   const [openReg, setOpenReg] = useState<Reg | null>(null);
+  const [rxByReg, setRxByReg] = useState<Map<string, Prescription[]>>(new Map());
 
   useEffect(() => {
     (async () => {
@@ -130,13 +132,32 @@ function RoomPage() {
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) { toast.error(error.message); return; }
-    setRows(((data ?? []) as unknown as Reg[]).map((r) => ({
+    const regs = ((data ?? []) as unknown as Reg[]).map((r) => ({
       ...r,
       tests: (r.tests ?? []) as TestItem[],
       vitals: (r.vitals ?? {}) as Vitals,
       history: (r.history ?? {}) as History,
       diagnoses: (r.diagnoses ?? []) as Diagnosis[],
-    })));
+    }));
+    setRows(regs);
+
+    if (room?.kind === "pharmacy" && regs.length > 0) {
+      const { data: rxData, error: rxError } = await supabase
+        .from("prescriptions")
+        .select("*")
+        .in("registration_id", regs.map((r) => r.id))
+        .order("created_at", { ascending: true });
+      if (rxError) { toast.error(rxError.message); return; }
+      const map = new Map<string, Prescription[]>();
+      for (const rx of (rxData ?? []) as Prescription[]) {
+        const arr = map.get(rx.registration_id) ?? [];
+        arr.push(rx);
+        map.set(rx.registration_id, arr);
+      }
+      setRxByReg(map);
+    } else {
+      setRxByReg(new Map());
+    }
   }
   useEffect(() => { if (allowed && room) loadRequests(); }, [allowed, room]);
 
@@ -151,6 +172,32 @@ function RoomPage() {
       return;
     }
     navigate({ to: "/records/new", search: { reg: reg.file_number ?? "" } as never });
+  }
+
+  function pharmacyPrescriber(rxs: Prescription[]): string {
+    const names = Array.from(new Set(rxs.map((r) => r.prescribed_by_name).filter((n): n is string => !!n)));
+    return names.length > 0 ? names.join(", ") : "—";
+  }
+  function pharmacyLastDispenser(rxs: Prescription[]): string {
+    const dispensed = rxs.filter((r) => r.dispensed_by_name).sort((a, b) => (a.dispensed_at ?? "").localeCompare(b.dispensed_at ?? ""));
+    return dispensed.length > 0 ? dispensed[dispensed.length - 1].dispensed_by_name! : "—";
+  }
+  function pharmacyStatus(rxs: Prescription[]): { label: string; cls: string } {
+    if (rxs.length === 0) return { label: "No prescriptions", cls: "bg-muted text-muted-foreground" };
+    if (rxs.some((r) => r.status === "pending")) return { label: "Pending", cls: "bg-amber-100 text-amber-700" };
+    if (rxs.every((r) => r.status === "cancelled")) return { label: "Cancelled", cls: "bg-muted text-muted-foreground" };
+    return { label: "Dispensed", cls: "bg-emerald-100 text-emerald-700" };
+  }
+  async function closeVisit(reg: Reg) {
+    const rxs = rxByReg.get(reg.id) ?? [];
+    if (rxs.some((r) => r.status === "pending")) {
+      toast.error("Dispense or cancel all pending prescriptions first.");
+      return;
+    }
+    const { error } = await supabase.from("patient_registrations").update({ status: "done" } as never).eq("id", reg.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Patient visit closed");
+    loadRequests();
   }
 
   function actionLabel(): string {
@@ -174,13 +221,65 @@ function RoomPage() {
         <Button variant="outline" onClick={loadRequests}>Refresh</Button>
       </div>
 
+      {kind === "pharmacy" ? (
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3">Patient name</th>
+                <th className="px-4 py-3">Prescriber</th>
+                <th className="px-4 py-3">Drugs</th>
+                <th className="px-4 py-3">Last dispenser</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
+              {!loading && rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No active patients.</td></tr>}
+              {rows.map((r) => {
+                const rxs = rxByReg.get(r.id) ?? [];
+                const created = rxs.length > 0 ? rxs[0].created_at : r.created_at;
+                const status = pharmacyStatus(rxs);
+                const anyPending = rxs.some((x) => x.status === "pending");
+                return (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(created).toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{r.patient_name}</div>
+                      <div className="text-xs text-muted-foreground">{r.file_number ? `#${r.file_number}` : "—"}</div>
+                    </td>
+                    <td className="px-4 py-3">{pharmacyPrescriber(rxs)}</td>
+                    <td className="px-4 py-3">
+                      {rxs.length > 0
+                        ? <div className="flex flex-wrap gap-1">{rxs.map((rx) => <Badge key={rx.id} variant="secondary" className="text-xs">{rx.drug_name}</Badge>)}</div>
+                        : <span className="text-xs text-muted-foreground">No prescriptions</span>}
+                    </td>
+                    <td className="px-4 py-3">{pharmacyLastDispenser(rxs)}</td>
+                    <td className="px-4 py-3"><Badge className={`${status.cls} hover:${status.cls}`}>{status.label}</Badge></td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setOpenReg(r)}>
+                          <ClipboardPlus className="mr-1 h-3.5 w-3.5" />Dispense
+                        </Button>
+                        <Button size="sm" disabled={anyPending} onClick={() => closeVisit(r)}>Close visit</Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <div className="overflow-hidden rounded-xl border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Patient</th>
               <th className="px-4 py-3">From</th>
-              <th className="px-4 py-3">{kind === "pharmacy" ? "Diagnoses" : "Requested"}</th>
+              <th className="px-4 py-3">Requested</th>
               <th className="px-4 py-3">Payment</th>
               <th className="px-4 py-3 text-right">Action</th>
             </tr>
@@ -199,11 +298,7 @@ function RoomPage() {
                   </td>
                   <td className="px-4 py-3">{r.from_room ?? <span className="text-muted-foreground">—</span>}</td>
                   <td className="px-4 py-3">
-                    {kind === "pharmacy" ? (
-                      r.diagnoses.length > 0
-                        ? <div className="flex flex-wrap gap-1">{r.diagnoses.slice(0,3).map((d,i) => <Badge key={i} variant="secondary" className="text-xs">{d.icd11_code || "—"} {d.description}</Badge>)}</div>
-                        : <span className="text-xs text-muted-foreground">—</span>
-                    ) : hasTests ? (
+                    {hasTests ? (
                       <div className="flex flex-wrap gap-1">
                         {r.tests.map((t) => <Badge key={t.id} variant="secondary" className="text-xs">{t.name}</Badge>)}
                       </div>
@@ -238,6 +333,7 @@ function RoomPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       {openReg && kind === "triage" && (
         <TriageDialog reg={openReg} onClose={() => setOpenReg(null)} onSaved={() => { setOpenReg(null); loadRequests(); }} />
@@ -395,9 +491,9 @@ function ConsultationDialog({ reg, roomId, onClose, onSaved }: { reg: Reg; roomI
     toast.success("Consultation saved");
   }
 
-  async function addRx(rx: Omit<Prescription, "id" | "registration_id" | "status" | "created_at" | "dispensed_at">) {
+  async function addRx(rx: Omit<Prescription, "id" | "registration_id" | "status" | "created_at" | "dispensed_at" | "prescribed_by_name" | "dispensed_by_name">) {
     const { data, error } = await supabase.from("prescriptions").insert({
-      registration_id: reg.id, ...rx, created_by: user?.id,
+      registration_id: reg.id, ...rx, created_by: user?.id, prescribed_by_name: user?.email ?? null,
     }).select("*").single();
     if (error) { toast.error(error.message); return; }
     setRxs((p) => [data as Prescription, ...p]);
@@ -649,7 +745,7 @@ function PrescriptionEditor({
   rxs, stock, onAdd, onCancel,
 }: {
   rxs: Prescription[]; stock: StockItem[];
-  onAdd: (rx: Omit<Prescription, "id" | "registration_id" | "status" | "created_at" | "dispensed_at">) => void | Promise<void>;
+  onAdd: (rx: Omit<Prescription, "id" | "registration_id" | "status" | "created_at" | "dispensed_at" | "prescribed_by_name" | "dispensed_by_name">) => void | Promise<void>;
   onCancel: (id: string) => void;
 }) {
   const [stockId, setStockId] = useState<string>("");
@@ -733,7 +829,7 @@ function PharmacyDialog({ reg, onClose, onSaved }: { reg: Reg; onClose: () => vo
 
   async function dispense(rx: Prescription) {
     const { error } = await supabase.from("prescriptions").update({
-      status: "dispensed", dispensed_by: user?.id, dispensed_at: new Date().toISOString(),
+      status: "dispensed", dispensed_by: user?.id, dispensed_by_name: user?.email ?? null, dispensed_at: new Date().toISOString(),
     }).eq("id", rx.id);
     if (error) { toast.error(error.message); return; }
     toast.success(`Dispensed ${rx.drug_name}`);
