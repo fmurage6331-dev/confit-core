@@ -2372,6 +2372,22 @@ export type Database = {
         Args: { _room: string; _user: string }
         Returns: boolean
       }
+      dashboard_admitted_opd_trend: {
+        Args: { p_start: string; p_end: string }
+        Returns: { day: string; admitted_count: number; opd_count: number }[]
+      }
+      dashboard_emergency_referrals: {
+        Args: { p_start: string; p_end: string }
+        Returns: { emergency_count: number; referrals_in: number; referrals_out: number }[]
+      }
+      dashboard_opd_attendance: {
+        Args: { p_start: string; p_end: string }
+        Returns: { age_band: string; attendance_count: number }[]
+      }
+      dashboard_top_diseases: {
+        Args: { p_start: string; p_end: string }
+        Returns: { age_band: string; icd11_title: string; disease_count: number }[]
+      }
       get_return_room: { Args: { p_encounter_id: string }; Returns: string }
       has_role:
         | {
