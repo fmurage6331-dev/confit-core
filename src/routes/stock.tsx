@@ -169,7 +169,7 @@ function StockPage() {
             {filtered.map((i) => {
               const low = Number(i.current_quantity) <= Number(i.reorder_level);
               return (
-                <tr key={i.id}>
+                <tr key={i.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenMove({ id: i.id, name: i.name })}>
                   <td className="px-4 py-2 font-medium">{i.name}</td>
                   <td className="px-4 py-2"><span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">{kindLabel(i.kind ?? "consumable")}</span></td>
                   <td className="px-4 py-2 text-muted-foreground">{i.category}</td>
@@ -186,10 +186,10 @@ function StockPage() {
                   </td>
                   <td className="px-4 py-2 no-print">
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setEditItem(i)}>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditItem(i); }}>
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setOpenMove({ id: i.id, name: i.name })}>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpenMove({ id: i.id, name: i.name }); }}>
                         <ClipboardCheck className="mr-1 h-3 w-3" />Adjust
                       </Button>
                     </div>
