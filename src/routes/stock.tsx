@@ -29,7 +29,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Package, Printer, ClipboardCheck } from "lucide-react";
+import { Plus, Package, Printer, ClipboardCheck, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
@@ -73,6 +73,7 @@ function StockPage() {
   const [openMove, setOpenMove] = useState<StockItem | null>(null);
   const [editItem, setEditItem] = useState<StockItem | null>(null);
   const [tab, setTab] = useState<"all" | (typeof KINDS)[number]["value"]>("all");
+  const [createMohIndicator, setCreateMohIndicator] = useState(false);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["stock_items"],
@@ -165,25 +166,30 @@ function StockPage() {
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
-          <Dialog open={openItem} onOpenChange={setOpenItem}>
+          <Dialog open={openItem} onOpenChange={(v) => { setOpenItem(v); if (!v) setCreateMohIndicator(false); }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 Add product
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add product / stock item</DialogTitle>
               </DialogHeader>
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   const f = new FormData(e.currentTarget);
+                  const name = f.get("name") as string;
+                  const category = f.get("category") as string;
+                  const kind = f.get("kind") as string;
+                  const createIndicator = f.get("create_moh_indicator") === "on";
+
                   addItem.mutate({
-                    name: f.get("name"),
-                    kind: f.get("kind") || "consumable",
-                    category: f.get("category"),
+                    name,
+                    kind: kind || "consumable",
+                    category,
                     unit: f.get("unit") || "pcs",
                     current_quantity: Number(f.get("current_quantity") || 0),
                     reorder_level: Number(f.get("reorder_level") || 0),
@@ -193,6 +199,34 @@ function StockPage() {
                     unit_price: Number(f.get("cash_price") || 0),
                     notes: f.get("notes"),
                   });
+
+                  // Create MOH indicator definition if checked
+                  if (createIndicator && category) {
+                    const indicatorCode = (f.get("moh_indicator_code") as string) || 
+                      name.toUpperCase().replace(/[^A-Z0-9]/g, "_").substring(0, 20);
+                    const description = (f.get("moh_description") as string) || name;
+                    const formNumber = (f.get("moh_form_number") as string) || "MOH_PHARM";
+                    
+                    // Determine criteria type based on category
+                    let criteriaType = "drug_class";
+                    if (category.includes("Contraceptive") || category.includes("FP")) {
+                      criteriaType = "fp_method";
+                    }
+
+                    const { error } = await supabase.from("moh_indicator_definitions").insert({
+                      form_number: formNumber,
+                      indicator_code: indicatorCode,
+                      description: description,
+                      criteria_type: criteriaType,
+                      criteria_value: category,
+                    });
+
+                    if (error) {
+                      toast.error("Product saved, but failed to create MOH indicator: " + error.message);
+                    } else {
+                      toast.success("MOH indicator created: " + indicatorCode);
+                    }
+                  }
                 }}
                 className="space-y-3"
               >
@@ -217,8 +251,8 @@ function StockPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label>Category</Label>
-                    <Input name="category" placeholder="e.g. Antibiotics" />
+                    <Label>Category (for MOH tracking)</Label>
+                    <Input name="category" placeholder="e.g. Antibiotics, FP, etc." />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -253,6 +287,62 @@ function StockPage() {
                   <Label>Notes</Label>
                   <Textarea name="notes" />
                 </div>
+
+                {/* MOH Indicator Section */}
+                <div className="border rounded-lg p-3 bg-muted/30">
+                  <button
+                    type="button"
+                    onClick={() => setCreateMohIndicator(!createMohIndicator)}
+                    className="flex items-center gap-2 text-sm font-medium w-full"
+                  >
+                    {createMohIndicator ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                    MOH Indicator (auto-tracking)
+                  </button>
+
+                  {createMohIndicator && (
+                    <div className="mt-3 space-y-3 pl-6">
+                      <p className="text-xs text-muted-foreground">
+                        Automatically create an indicator definition so this item is tracked in MOH reports.
+                      </p>
+                      <input type="checkbox" name="create_moh_indicator" defaultChecked={true} hidden />
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Form Number</Label>
+                          <Select name="moh_form_number" defaultValue="MOH_PHARM">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="MOH_PHARM">MOH Pharmacy</SelectItem>
+                              <SelectItem value="MOH_FP">MOH Family Planning</SelectItem>
+                              <SelectItem value="MOH_717">MOH 717</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Indicator Code</Label>
+                          <Input
+                            name="moh_indicator_code"
+                            placeholder="Auto-generated"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Input
+                          name="moh_description"
+                          placeholder="Description for this indicator"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <DialogFooter>
                   <Button type="submit" disabled={addItem.isPending}>
                     Save
