@@ -275,9 +275,78 @@ export function AppShell({ children }: { children: ReactNode }) {
                           : "text-muted-foreground hover:bg-sidebar-accent"
                       }`}
                     >
-                      MOH 705 Report
+                      MOH 705 — Outpatient
                     </Link>
-                    {/* Add more MOH reports here */}
+                    <Link
+                      to="/moh/706"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/706"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MOH 706 — Laboratory
+                    </Link>
+                    <Link
+                      to="/moh/707"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/707"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MOH 707 — Pharmacy
+                    </Link>
+                    <Link
+                      to="/moh/505"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/505"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      IDSR (Weekly)
+                    </Link>
+                    <Link
+                      to="/moh/642"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/642"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MOH 642 — Lab Commodities
+                    </Link>
+                    <Link
+                      to="/moh/fp"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/fp"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MOH FP — Family Planning
+                    </Link>
+                    <Link
+                      to="/moh/mch"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/mch"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MCH — Maternal & Child
+                    </Link>
+                    <Link
+                      to="/moh/717"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/717"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MOH 717 — Monthly Summary
+                    </Link>
                   </CollapsibleContent>
                 </Collapsible>
               );
@@ -354,14 +423,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm hover:bg-accent ${location.pathname === "/moh" ? "bg-accent font-medium" : ""}`}
                   >
                     <Icon className="h-4 w-4" />
-                    MOH Dashboard
-                  </Link>
-                  <Link
-                    to="/moh/705"
-                    className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm hover:bg-accent ${location.pathname === "/moh/705" ? "bg-accent font-medium" : ""}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    MOH 705
+                    MOH
                   </Link>
                 </Fragment>
               );
