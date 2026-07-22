@@ -72,18 +72,20 @@ function DeliveriesPage() {
     },
   });
 
-  const add = useMutation({
-    mutationFn: async (d: any) => {
-      const { error } = await supabase.from("deliveries").insert(d);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Delivery recorded");
-      qc.invalidateQueries({ queryKey: ["deliveries"] });
-      setOpen(false);
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
+ const add = useMutation({
+-    mutationFn: async (d: any) => {
+-      const { error } = await supabase.from("deliveries").insert(d);
++    mutationFn: async (d: Record<string, unknown>) => {
++      const { error } = await supabase.from("deliveries").insert(d as never);
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       toast.success("Delivery recorded");
+       qc.invalidateQueries({ queryKey: ["deliveries"] });
+       setOpen(false);
+     },
+-    onError: (e: any) => toast.error(e.message),
++    onError: (e: Error) => toast.error(e.message),
 
   return (
     <div className="space-y-6">
