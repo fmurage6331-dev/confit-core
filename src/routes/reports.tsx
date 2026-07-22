@@ -158,20 +158,19 @@ function ReportsPage() {
   });
 
   // Aggregate per test type per month
- const summary = useMemo(() => {
-+    type SummaryRow = {
-+      name: string;
-+      total: number;
-+      positive: number;
-+      camp: number;
-+      monthly: [number, number, number];
-+    };
-     if (!tests)
--      return { rows: [] as any[], totals: { total: 0, positive: 0, camp: 0, monthly: [0, 0, 0] } };
-+      return {
-+        rows: [] as SummaryRow[],
-+        totals: { total: 0, positive: 0, camp: 0, monthly: [0, 0, 0] },
-+      };
+const summary = useMemo(() => {
+    type SummaryRow = {
+      name: string;
+      total: number;
+      positive: number;
+      camp: number;
+      monthly: [number, number, number];
+    };
+    if (!tests)
+      return {
+        rows: [] as SummaryRow[],
+        totals: { total: 0, positive: 0, camp: 0, monthly: [0, 0, 0] },
+      };
     for (const t of tests) {
       const m = new Date(t.test_date).getMonth();
       const idx = q.months.indexOf(m);
