@@ -158,7 +158,7 @@ function ReportsPage() {
   });
 
   // Aggregate per test type per month
-const summary = useMemo(() => {
+  const summary = useMemo(() => {
     type SummaryRow = {
       name: string;
       total: number;
