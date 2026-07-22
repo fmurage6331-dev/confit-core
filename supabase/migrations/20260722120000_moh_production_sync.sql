@@ -26,8 +26,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS encounter_indicator_tags_encounter_indicator_u
     ON public.encounter_indicator_tags (encounter_id, indicator_code);
 
 -- moh_indicator_definitions needs a PRIMARY KEY (id column is uuid but no PK was declared)
-ALTER TABLE public.moh_indicator_definitions
-    ADD CONSTRAINT moh_indicator_definitions_pkey PRIMARY KEY (id);
+-- Use DO block to avoid "already exists" error if PK was added manually on production
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'moh_indicator_definitions_pkey' 
+        AND conrelid = 'public.moh_indicator_definitions'::regclass
+    ) THEN
+        ALTER TABLE public.moh_indicator_definitions
+            ADD CONSTRAINT moh_indicator_definitions_pkey PRIMARY KEY (id);
+    END IF;
+END $$;
 
 -- room_indicator_map needs a primary key or unique constraint for ON CONFLICT
 CREATE UNIQUE INDEX IF NOT EXISTS room_indicator_map_room_indicator_uniq
