@@ -9,7 +9,13 @@ import { AppShell } from "@/components/app-shell";
 import { PermGuard } from "@/lib/require-access";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ScanLine, Search } from "lucide-react";
 import { format } from "date-fns";
 
@@ -37,10 +43,13 @@ type Row = {
 
 function StatusBadge({ s }: { s: string | null }) {
   const cls =
-    s === "completed" ? "bg-emerald-100 text-emerald-700"
-    : s === "in_progress" ? "bg-blue-100 text-blue-700"
-    : s === "ordered" ? "bg-amber-100 text-amber-700"
-    : "bg-muted text-muted-foreground";
+    s === "completed"
+      ? "bg-emerald-100 text-emerald-700"
+      : s === "in_progress"
+        ? "bg-blue-100 text-blue-700"
+        : s === "ordered"
+          ? "bg-amber-100 text-amber-700"
+          : "bg-muted text-muted-foreground";
   return <Badge className={`${cls} hover:${cls}`}>{(s ?? "ordered").replace("_", " ")}</Badge>;
 }
 
@@ -52,14 +61,18 @@ function PriorityBadge({ p }: { p: string | null }) {
 
 function RadiologyWorklist() {
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"active" | "all" | "ordered" | "in_progress" | "completed">("active");
+  const [status, setStatus] = useState<"active" | "all" | "ordered" | "in_progress" | "completed">(
+    "active",
+  );
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["radiology-orders"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("radiology_orders")
-        .select("id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,patients(patient_name,file_number),lab_test_catalog(name,category)")
+        .select(
+          "id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,patients(patient_name,file_number),lab_test_catalog(name,category)",
+        )
         .order("ordered_at", { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -75,9 +88,9 @@ function RadiologyWorklist() {
       if (status !== "active" && status !== "all" && r.status !== status) return false;
       if (!ql) return true;
       return (
-        (r.patients?.patient_name ?? "").toLowerCase().includes(ql)
-        || (r.patients?.file_number ?? "").toLowerCase().includes(ql)
-        || (r.lab_test_catalog?.name ?? "").toLowerCase().includes(ql)
+        (r.patients?.patient_name ?? "").toLowerCase().includes(ql) ||
+        (r.patients?.file_number ?? "").toLowerCase().includes(ql) ||
+        (r.lab_test_catalog?.name ?? "").toLowerCase().includes(ql)
       );
     });
   }, [data, q, status]);
@@ -112,10 +125,17 @@ function RadiologyWorklist() {
       <div className="flex flex-wrap gap-3">
         <div className="relative min-w-[240px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search patient, file # or scan…" className="pl-9" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search patient, file # or scan…"
+            className="pl-9"
+          />
         </div>
         <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="active">Active (open)</SelectItem>
             <SelectItem value="ordered">Ordered</SelectItem>
@@ -139,33 +159,57 @@ function RadiologyWorklist() {
           </thead>
           <tbody className="divide-y">
             {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">Loading…</td></tr>
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                  Loading…
+                </td>
+              </tr>
             )}
             {error && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-rose-600">{(error as Error).message}</td></tr>
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-rose-600">
+                  {(error as Error).message}
+                </td>
+              </tr>
             )}
             {!isLoading && filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">No radiology orders match.</td></tr>
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                  No radiology orders match.
+                </td>
+              </tr>
             )}
             {filtered.map((r) => (
               <tr key={r.id} className="hover:bg-accent/40">
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Link to="/radiology/$id" params={{ id: r.id }} className="text-primary hover:underline">
+                  <Link
+                    to="/radiology/$id"
+                    params={{ id: r.id }}
+                    className="text-primary hover:underline"
+                  >
                     {format(new Date(r.ordered_at), "dd MMM, HH:mm")}
                   </Link>
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-medium">{r.patients?.patient_name ?? "—"}</div>
-                  <div className="text-xs text-muted-foreground">{r.patients?.file_number ?? ""}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {r.patients?.file_number ?? ""}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div>{r.lab_test_catalog?.name ?? "—"}</div>
                   {r.clinical_indication && (
-                    <div className="text-xs text-muted-foreground line-clamp-1">{r.clinical_indication}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-1">
+                      {r.clinical_indication}
+                    </div>
                   )}
                 </td>
-                <td className="px-4 py-3"><PriorityBadge p={r.priority} /></td>
-                <td className="px-4 py-3"><StatusBadge s={r.status} /></td>
+                <td className="px-4 py-3">
+                  <PriorityBadge p={r.priority} />
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge s={r.status} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -175,11 +219,21 @@ function RadiologyWorklist() {
   );
 }
 
-function StatCard({ label, value, tone }: { label: string; value: number; tone: "amber" | "blue" | "emerald" }) {
+function StatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "amber" | "blue" | "emerald";
+}) {
   const cls =
-    tone === "emerald" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-    : tone === "blue" ? "bg-blue-50 text-blue-700 border-blue-200"
-    : "bg-amber-50 text-amber-700 border-amber-200";
+    tone === "emerald"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : tone === "blue"
+        ? "bg-blue-50 text-blue-700 border-blue-200"
+        : "bg-amber-50 text-amber-700 border-amber-200";
   return (
     <div className={`rounded-xl border p-4 ${cls}`}>
       <div className="text-xs uppercase tracking-wide">{label}</div>

@@ -25,7 +25,9 @@ function SettingsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { setName(appName); }, [appName]);
+  useEffect(() => {
+    setName(appName);
+  }, [appName]);
   useEffect(() => {
     if (!rolesLoading && !isAdmin) navigate({ to: "/dashboard" });
   }, [isAdmin, rolesLoading, navigate]);
@@ -38,7 +40,9 @@ function SettingsPage() {
       if (file) {
         const ext = file.name.split(".").pop() || "png";
         const path = `logo-${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("branding").upload(path, file, { upsert: true });
+        const { error: upErr } = await supabase.storage
+          .from("branding")
+          .upload(path, file, { upsert: true });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("branding").getPublicUrl(path);
         newLogoUrl = pub.publicUrl;
@@ -61,12 +65,19 @@ function SettingsPage() {
     <AppShell>
       <div className="max-w-2xl">
         <h1 className="text-2xl font-bold">Customization</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Set the application name and logo shown across the app.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Set the application name and logo shown across the app.
+        </p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-6 rounded-2xl border bg-card p-6">
           <div>
             <Label htmlFor="name">Application name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={60}
+            />
           </div>
 
           <div>
@@ -82,11 +93,17 @@ function SettingsPage() {
 
           <div>
             <Label htmlFor="logo">Upload new logo (PNG/JPG/SVG)</Label>
-            <Input id="logo" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <Input
+              id="logo"
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
           </div>
 
-          <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
         </form>
       </div>
     </AppShell>

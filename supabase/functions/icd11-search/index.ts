@@ -60,8 +60,16 @@ serve(async (req) => {
 
     if (!query || typeof query !== "string" || query.trim().length < 2) {
       return new Response(
-        JSON.stringify({ error: "Query must be at least 2 characters" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Query must be at least 2 characters",
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        },
       );
     }
 
@@ -70,8 +78,16 @@ serve(async (req) => {
 
     if (!clientId || !clientSecret) {
       return new Response(
-        JSON.stringify({ error: "ICD API credentials not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "ICD API credentials not configured",
+        }),
+        {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        },
       );
     }
 
@@ -99,20 +115,33 @@ serve(async (req) => {
     const searchData = await searchResp.json();
 
     // Normalize WHO's response into { code, title, uri } matching our icd11_codes table.
-    const results = (searchData.destinationEntities || []).map((entity: any) => ({
-      code: entity.theCode || null,
-      title: (entity.title || "").replace(/<[^>]*>/g, ""), // strip highlight markup
-      uri: entity.id || null,
-    })).filter((r: any) => r.code); // only keep entities that actually have a code
+    const results = (searchData.destinationEntities || [])
+      .map((entity: Record<string, unknown>) => ({
+        code: (entity.theCode as string) || null,
+        title: ((entity.title as string) || "").replace(/<[^>]*>/g, ""), // strip highlight markup
+        uri: (entity.id as string) || null,
+      }))
+      .filter((r: { code: string | null }) => r.code); // only keep entities that actually have a code
 
     return new Response(JSON.stringify({ results }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
     });
   } catch (err) {
     console.error("icd11-search error:", err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: err instanceof Error ? err.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      },
     );
   }
-}); 
+});

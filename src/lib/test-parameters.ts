@@ -56,7 +56,7 @@ export const TEST_PARAMETERS: Record<string, Parameter[]> = {
     { name: "LDL", unit: "mg/dL", low: 0, high: 100 },
     { name: "VLDL", unit: "mg/dL", low: 2, high: 30 },
   ],
-  "Urinalysis": [
+  Urinalysis: [
     { name: "Color", unit: "", low: null, high: null },
     { name: "Appearance", unit: "", low: null, high: null },
     { name: "pH", unit: "", low: 4.5, high: 8.0 },
@@ -72,9 +72,7 @@ export const TEST_PARAMETERS: Record<string, Parameter[]> = {
     { name: "Fasting Blood Sugar", unit: "mg/dL", low: 70, high: 100 },
     { name: "Random Blood Sugar", unit: "mg/dL", low: 70, high: 140 },
   ],
-  "Erythrocyte Sedimentation Rate (ESR)": [
-    { name: "ESR", unit: "mm/hr", low: 0, high: 20 },
-  ],
+  "Erythrocyte Sedimentation Rate (ESR)": [{ name: "ESR", unit: "mm/hr", low: 0, high: 20 }],
 };
 
 export type ParameterResult = {
@@ -95,7 +93,11 @@ export function getParametersFor(testName: string): Parameter[] | null {
   return TEST_PARAMETERS[testName] ?? null;
 }
 
-export function computeFlag(value: string, low: number | null, high: number | null): "Low" | "Normal" | "High" | "" {
+export function computeFlag(
+  value: string,
+  low: number | null,
+  high: number | null,
+): "Low" | "Normal" | "High" | "" {
   const n = parseFloat(value);
   if (!Number.isFinite(n)) return "";
   if (low !== null && n < low) return "Low";

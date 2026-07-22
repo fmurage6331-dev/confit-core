@@ -20,13 +20,15 @@ export const Route = createFileRoute("/account")({
   component: AccountPage,
 });
 
-const emailSchema = z.object({
-  newEmail: z.string().trim().email("Enter a valid email").max(255),
-  confirmEmail: z.string().trim().email("Enter a valid email").max(255),
-}).refine((d) => d.newEmail.toLowerCase() === d.confirmEmail.toLowerCase(), {
-  message: "Emails do not match",
-  path: ["confirmEmail"],
-});
+const emailSchema = z
+  .object({
+    newEmail: z.string().trim().email("Enter a valid email").max(255),
+    confirmEmail: z.string().trim().email("Enter a valid email").max(255),
+  })
+  .refine((d) => d.newEmail.toLowerCase() === d.confirmEmail.toLowerCase(), {
+    message: "Emails do not match",
+    path: ["confirmEmail"],
+  });
 
 function AccountPage() {
   const { user, loading } = useAuth();
@@ -36,13 +38,19 @@ function AccountPage() {
   const [submitting, setSubmitting] = useState(false);
   const [pendingNotice, setPendingNotice] = useState<string | null>(null);
 
-  if (!loading && !user) { navigate({ to: "/login" }); return null; }
+  if (!loading && !user) {
+    navigate({ to: "/login" });
+    return null;
+  }
   if (!user) return null;
 
   async function onChangeEmail(e: FormEvent) {
     e.preventDefault();
     const parsed = emailSchema.safeParse({ newEmail, confirmEmail });
-    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
     if (parsed.data.newEmail.toLowerCase() === user!.email?.toLowerCase()) {
       toast.error("That is already your current email.");
       return;
@@ -78,7 +86,9 @@ function AccountPage() {
       <div className="mx-auto max-w-2xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Account settings</h1>
-          <p className="text-sm text-muted-foreground">Manage the email and password for your account.</p>
+          <p className="text-sm text-muted-foreground">
+            Manage the email and password for your account.
+          </p>
         </div>
 
         <section className="rounded-2xl border bg-card p-6 shadow-sm">
@@ -96,20 +106,33 @@ function AccountPage() {
 
           {pendingNotice && (
             <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
-              A confirmation link has been sent to <strong>{pendingNotice}</strong>. Please check your inbox to confirm the change. Your current email stays active until you confirm.
+              A confirmation link has been sent to <strong>{pendingNotice}</strong>. Please check
+              your inbox to confirm the change. Your current email stays active until you confirm.
             </div>
           )}
 
           <form onSubmit={onChangeEmail} className="space-y-4">
             <div>
               <Label htmlFor="newEmail">New email</Label>
-              <Input id="newEmail" type="email" autoComplete="email" required
-                value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+              <Input
+                id="newEmail"
+                type="email"
+                autoComplete="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
             </div>
             <div>
               <Label htmlFor="confirmEmail">Confirm new email</Label>
-              <Input id="confirmEmail" type="email" autoComplete="email" required
-                value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} />
+              <Input
+                id="confirmEmail"
+                type="email"
+                autoComplete="email"
+                required
+                value={confirmEmail}
+                onChange={(e) => setConfirmEmail(e.target.value)}
+              />
             </div>
             <Button type="submit" disabled={submitting}>
               {submitting ? "Sending…" : "Send confirmation link"}

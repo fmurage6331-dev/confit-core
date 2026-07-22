@@ -35,14 +35,16 @@ const signinSchema = z.object({
   password: z.string().min(1, "Enter your password").max(72),
 });
 
-const signupSchema = z.object({
-  email: z.string().trim().email("Enter a valid email").max(255),
-  password: z.string().min(8, "Password must be at least 8 characters").max(72),
-  confirm: z.string(),
-}).refine((d) => d.password === d.confirm, {
-  message: "Passwords do not match",
-  path: ["confirm"],
-});
+const signupSchema = z
+  .object({
+    email: z.string().trim().email("Enter a valid email").max(255),
+    password: z.string().min(8, "Password must be at least 8 characters").max(72),
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    message: "Passwords do not match",
+    path: ["confirm"],
+  });
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -77,7 +79,11 @@ function LoginPage() {
         const { data, error } = await supabase.auth.signUp({
           email: parsed.data.email,
           password: parsed.data.password,
-          options: { emailRedirectTo: next ? `${window.location.origin}${next}` : `${window.location.origin}/dashboard` },
+          options: {
+            emailRedirectTo: next
+              ? `${window.location.origin}${next}`
+              : `${window.location.origin}/dashboard`,
+          },
         });
         if (error) throw error;
         if (data.session) {
@@ -106,7 +112,9 @@ function LoginPage() {
         goNext();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : isSignup ? "Sign up failed" : "Sign in failed");
+      toast.error(
+        err instanceof Error ? err.message : isSignup ? "Sign up failed" : "Sign in failed",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +140,14 @@ function LoginPage() {
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
@@ -165,7 +180,9 @@ function LoginPage() {
 
           {!isSignup && (
             <p className="mt-4 text-center text-sm">
-              <Link to="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
+              <Link to="/forgot-password" className="text-primary hover:underline">
+                Forgot password?
+              </Link>
             </p>
           )}
 
@@ -173,14 +190,22 @@ function LoginPage() {
             {isSignup ? (
               <>
                 Already have an account?{" "}
-                <Link to="/login" search={{ mode: "signin" }} className="font-medium text-primary hover:underline">
+                <Link
+                  to="/login"
+                  search={{ mode: "signin" }}
+                  className="font-medium text-primary hover:underline"
+                >
                   Sign in
                 </Link>
               </>
             ) : (
               <>
                 Need an account?{" "}
-                <Link to="/login" search={{ mode: "signup" }} className="font-medium text-primary hover:underline">
+                <Link
+                  to="/login"
+                  search={{ mode: "signup" }}
+                  className="font-medium text-primary hover:underline"
+                >
                   Create one
                 </Link>
               </>

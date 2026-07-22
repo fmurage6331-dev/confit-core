@@ -10,16 +10,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { RefreshCw, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export const Route = createFileRoute("/moh")({
-  component: () => <AppShell><MohDashboard /></AppShell>,
+  component: () => (
+    <AppShell>
+      <MohDashboard />
+    </AppShell>
+  ),
 });
 
-type AggRow = { indicator_code: string; value: number; period_month: string; computed_at: string | null };
+type AggRow = {
+  indicator_code: string;
+  value: number;
+  period_month: string;
+  computed_at: string | null;
+};
 
 type Category = "OPD" | "LAB" | "PHARM" | "FP" | "OTHER";
 
@@ -28,7 +44,13 @@ function categoryOf(code: string): Category {
   if (c.startsWith("LAB_")) return "LAB";
   if (c.startsWith("PHARM_")) return "PHARM";
   if (c.startsWith("FP_") || c === "MCH_FP") return "FP";
-  if (c.startsWith("OPD_") || c.startsWith("A3_") || c.startsWith("MCH_") || c.startsWith("DENTAL_")) return "OPD";
+  if (
+    c.startsWith("OPD_") ||
+    c.startsWith("A3_") ||
+    c.startsWith("MCH_") ||
+    c.startsWith("DENTAL_")
+  )
+    return "OPD";
   return "OTHER";
 }
 
@@ -69,13 +91,17 @@ function MohDashboard() {
     }
   }
 
-  useEffect(() => { load(month); }, [month]);
+  useEffect(() => {
+    load(month);
+  }, [month]);
 
   async function onRefresh() {
     setRefreshing(true);
     const t = toast.loading("Calculating MOH totals…");
     try {
-      const { error } = await supabase.rpc("refresh_moh_aggregates", { target_month: `${month}-01` });
+      const { error } = await supabase.rpc("refresh_moh_aggregates", {
+        target_month: `${month}-01`,
+      });
       if (error) throw error;
       await load(month);
       toast.success("MOH aggregates refreshed", { id: t });
@@ -93,11 +119,12 @@ function MohDashboard() {
   }, [rows]);
 
   const chartData = useMemo(
-    () => CATEGORY_META.map((c) => ({
-      name: c.key,
-      total: grouped[c.key].reduce((s, r) => s + Number(r.value || 0), 0),
-      color: c.color,
-    })),
+    () =>
+      CATEGORY_META.map((c) => ({
+        name: c.key,
+        total: grouped[c.key].reduce((s, r) => s + Number(r.value || 0), 0),
+        color: c.color,
+      })),
     [grouped],
   );
 
@@ -110,8 +137,16 @@ function MohDashboard() {
         </div>
         <div className="flex items-end gap-2">
           <div>
-            <Label htmlFor="month" className="text-xs">Reporting month</Label>
-            <Input id="month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-48" />
+            <Label htmlFor="month" className="text-xs">
+              Reporting month
+            </Label>
+            <Input
+              id="month"
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="w-48"
+            />
           </div>
           <Button onClick={onRefresh} disabled={refreshing || loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -155,7 +190,9 @@ function MohDashboard() {
                 {loading ? (
                   <p className="text-sm text-muted-foreground">Loading…</p>
                 ) : items.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No data for this month. Click "Refresh Data" to compute.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No data for this month. Click "Refresh Data" to compute.
+                  </p>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -182,10 +219,17 @@ function MohDashboard() {
 
       {grouped.OTHER.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Other</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Other</CardTitle>
+          </CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead>Indicator</TableHead><TableHead className="text-right">Value</TableHead></TableRow></TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Indicator</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                </TableRow>
+              </TableHeader>
               <TableBody>
                 {grouped.OTHER.map((r) => (
                   <TableRow key={r.indicator_code}>

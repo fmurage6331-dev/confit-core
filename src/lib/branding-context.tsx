@@ -7,8 +7,14 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface Branding { appName: string; logoUrl: string | null; }
-interface Ctx extends Branding { loading: boolean; refresh: () => Promise<void>; }
+interface Branding {
+  appName: string;
+  logoUrl: string | null;
+}
+interface Ctx extends Branding {
+  loading: boolean;
+  refresh: () => Promise<void>;
+}
 
 const BrandingContext = createContext<Ctx | undefined>(undefined);
 
@@ -18,7 +24,11 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data } = await supabase.from("app_settings").select("app_name, logo_url").eq("id", "global").maybeSingle();
+    const { data } = await supabase
+      .from("app_settings")
+      .select("app_name, logo_url")
+      .eq("id", "global")
+      .maybeSingle();
     if (data) {
       setAppName(data.app_name || "Aegiscare");
       setLogoUrl(data.logo_url || null);
@@ -26,7 +36,9 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     if (typeof document !== "undefined") document.title = appName;

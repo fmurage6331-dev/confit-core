@@ -39,16 +39,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [rolesLoading, setRolesLoading] = useState(false);
 
   async function loadRoles(userId: string | undefined) {
-    if (!userId) { setRoles([]); setPermissions(new Set()); return; }
+    if (!userId) {
+      setRoles([]);
+      setPermissions(new Set());
+      return;
+    }
     setRolesLoading(true);
-    const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
     const userRoles = (roleRows ?? []).map((r) => r.role as string);
     setRoles(userRoles);
-    if (userRoles.length === 0) { setPermissions(new Set()); setRolesLoading(false); return; }
+    if (userRoles.length === 0) {
+      setPermissions(new Set());
+      setRolesLoading(false);
+      return;
+    }
     const { data: permRows } = await supabase
       .from("role_permissions")
       .select("permission")
-      .in("role", userRoles as ("admin"|"staff"|"accountant"|"lab_tech"|"records_officer"|"doctor"|"clinical_officer"|"nurse"|"radiologist"|"pharmacist"|"mortician")[]);
+      .in(
+        "role",
+        userRoles as (
+          | "admin"
+          | "staff"
+          | "accountant"
+          | "lab_tech"
+          | "records_officer"
+          | "doctor"
+          | "clinical_officer"
+          | "nurse"
+          | "radiologist"
+          | "pharmacist"
+          | "mortician"
+        )[],
+      );
     setPermissions(new Set((permRows ?? []).map((r) => r.permission as string)));
     setRolesLoading(false);
   }
@@ -57,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
       setLoading(false);
-      setTimeout(() => { loadRoles(s?.user?.id); }, 0);
+      setTimeout(() => {
+        loadRoles(s?.user?.id);
+      }, 0);
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -93,7 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         rolesLoading,
         refreshRoles: () => loadRoles(session?.user?.id),
-        signOut: async () => { await supabase.auth.signOut(); setRoles([]); setPermissions(new Set()); },
+        signOut: async () => {
+          await supabase.auth.signOut();
+          setRoles([]);
+          setPermissions(new Set());
+        },
       }}
     >
       {children}

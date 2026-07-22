@@ -24,8 +24,14 @@ function Landing() {
             <span className="text-lg font-semibold">Aegiscare</span>
           </div>
           <div className="flex gap-2">
-            <Button asChild variant="ghost"><Link to="/login">Sign in</Link></Button>
-            <Button asChild><Link to="/login" search={{ mode: "signup" }}>Get started</Link></Button>
+            <Button asChild variant="ghost">
+              <Link to="/login">Sign in</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/login" search={{ mode: "signup" }}>
+                Get started
+              </Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -36,24 +42,44 @@ function Landing() {
             <ShieldCheck className="h-3.5 w-3.5" /> Secure hospital management
           </span>
           <h1 className="mt-6 text-5xl font-bold tracking-tight md:text-6xl">
-            Hospital operations,<br />done simply.
+            Hospital operations,
+            <br />
+            done simply.
           </h1>
           <p className="mt-6 text-lg text-muted-foreground">
-            Register patients, run encounters across rooms, and manage billing, pharmacy,
-            lab and radiology from one place. Search the archive instantly and print clean
-            documents for patients and clinicians.
+            Register patients, run encounters across rooms, and manage billing, pharmacy, lab and
+            radiology from one place. Search the archive instantly and print clean documents for
+            patients and clinicians.
           </p>
           <div className="mt-8 flex gap-3">
-            <Button asChild size="lg"><Link to="/login" search={{ mode: "signup" }}>Create account</Link></Button>
-            <Button asChild size="lg" variant="outline"><Link to="/login">Sign in</Link></Button>
+            <Button asChild size="lg">
+              <Link to="/login" search={{ mode: "signup" }}>
+                Create account
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/login">Sign in</Link>
+            </Button>
           </div>
         </div>
 
         <div className="mt-20 grid gap-6 md:grid-cols-3">
           {[
-            { icon: FlaskConical, title: "Test catalog", body: "Pick from common tests like CBC, Malaria, Urinalysis, LFT and more." },
-            { icon: Search, title: "Instant search", body: "Find any record by patient name, lab number or registration number." },
-            { icon: FileText, title: "Printable slips", body: "Generate a clean result slip ready for the patient or doctor." },
+            {
+              icon: FlaskConical,
+              title: "Test catalog",
+              body: "Pick from common tests like CBC, Malaria, Urinalysis, LFT and more.",
+            },
+            {
+              icon: Search,
+              title: "Instant search",
+              body: "Find any record by patient name, lab number or registration number.",
+            },
+            {
+              icon: FileText,
+              title: "Printable slips",
+              body: "Generate a clean result slip ready for the patient or doctor.",
+            },
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="rounded-xl border bg-card p-6 shadow-[var(--shadow-card)]">
               <Icon className="h-6 w-6 text-primary" />

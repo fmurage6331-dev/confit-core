@@ -12,7 +12,13 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Trash2, Plus, Pencil, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { fetchMergedTemplates, type TestTemplate } from "@/lib/test-templates";
@@ -20,7 +26,11 @@ import type { Parameter } from "@/lib/test-parameters";
 import { TEST_PARAMETERS } from "@/lib/test-parameters";
 
 export const Route = createFileRoute("/admin/test-templates")({
-  component: () => <AppShell><TestTemplatesAdmin /></AppShell>,
+  component: () => (
+    <AppShell>
+      <TestTemplatesAdmin />
+    </AppShell>
+  ),
 });
 
 function emptyParam(): Parameter {
@@ -50,7 +60,9 @@ function TestTemplatesAdmin() {
       setLoading(false);
     }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, []);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -83,14 +95,20 @@ function TestTemplatesAdmin() {
   async function remove(t: TestTemplate) {
     if (!confirm(`Delete template "${t.test_name}"?`)) return;
     const { error } = await supabase.from("test_templates").delete().eq("test_name", t.test_name);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Template deleted");
     await load();
   }
 
   async function resetToDefault(t: TestTemplate) {
     const defaults = TEST_PARAMETERS[t.test_name];
-    if (!defaults) { toast.error("No built-in defaults for this test"); return; }
+    if (!defaults) {
+      toast.error("No built-in defaults for this test");
+      return;
+    }
     await save({ test_name: t.test_name, parameters: defaults });
   }
 
@@ -125,9 +143,19 @@ function TestTemplatesAdmin() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {loading && <tr><td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>}
+            {loading && (
+              <tr>
+                <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
+                  Loading…
+                </td>
+              </tr>
+            )}
             {!loading && visible.length === 0 && (
-              <tr><td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">No templates.</td></tr>
+              <tr>
+                <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
+                  No templates.
+                </td>
+              </tr>
             )}
             {visible.map((t) => (
               <tr key={t.test_name}>
@@ -137,11 +165,22 @@ function TestTemplatesAdmin() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => setEditing({ ...t, parameters: t.parameters.map((p) => ({ ...p })) })}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setEditing({ ...t, parameters: t.parameters.map((p) => ({ ...p })) })
+                      }
+                    >
                       <Pencil className="mr-1 h-4 w-4" /> Edit
                     </Button>
                     {TEST_PARAMETERS[t.test_name] && (
-                      <Button size="sm" variant="ghost" onClick={() => resetToDefault(t)} title="Reset to built-in defaults">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => resetToDefault(t)}
+                        title="Reset to built-in defaults"
+                      >
                         <RotateCcw className="h-4 w-4" />
                       </Button>
                     )}
@@ -187,7 +226,9 @@ function TestTemplatesAdmin() {
                   <tbody className="divide-y">
                     {editing.parameters.map((p, i) => {
                       const upd = (patch: Partial<Parameter>) => {
-                        const next = editing.parameters.map((x, idx) => idx === i ? { ...x, ...patch } : x);
+                        const next = editing.parameters.map((x, idx) =>
+                          idx === i ? { ...x, ...patch } : x,
+                        );
                         setEditing({ ...editing, parameters: next });
                       };
                       const parseNum = (v: string): number | null => {
@@ -198,20 +239,48 @@ function TestTemplatesAdmin() {
                       return (
                         <tr key={i}>
                           <td className="px-3 py-2">
-                            <Input value={p.name} onChange={(e) => upd({ name: e.target.value })} className="h-8" />
+                            <Input
+                              value={p.name}
+                              onChange={(e) => upd({ name: e.target.value })}
+                              className="h-8"
+                            />
                           </td>
                           <td className="px-3 py-2">
-                            <Input value={p.unit} onChange={(e) => upd({ unit: e.target.value })} className="h-8" />
+                            <Input
+                              value={p.unit}
+                              onChange={(e) => upd({ unit: e.target.value })}
+                              className="h-8"
+                            />
                           </td>
                           <td className="px-3 py-2">
-                            <Input inputMode="decimal" value={p.low ?? ""} onChange={(e) => upd({ low: parseNum(e.target.value) })} className="h-8 font-mono" />
+                            <Input
+                              inputMode="decimal"
+                              value={p.low ?? ""}
+                              onChange={(e) => upd({ low: parseNum(e.target.value) })}
+                              className="h-8 font-mono"
+                            />
                           </td>
                           <td className="px-3 py-2">
-                            <Input inputMode="decimal" value={p.high ?? ""} onChange={(e) => upd({ high: parseNum(e.target.value) })} className="h-8 font-mono" />
+                            <Input
+                              inputMode="decimal"
+                              value={p.high ?? ""}
+                              onChange={(e) => upd({ high: parseNum(e.target.value) })}
+                              className="h-8 font-mono"
+                            />
                           </td>
                           <td className="px-2 py-2">
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8"
-                              onClick={() => setEditing({ ...editing, parameters: editing.parameters.filter((_, idx) => idx !== i) })}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() =>
+                                setEditing({
+                                  ...editing,
+                                  parameters: editing.parameters.filter((_, idx) => idx !== i),
+                                })
+                              }
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </td>
@@ -221,14 +290,22 @@ function TestTemplatesAdmin() {
                   </tbody>
                 </table>
               </div>
-              <Button type="button" variant="outline" size="sm"
-                onClick={() => setEditing({ ...editing, parameters: [...editing.parameters, emptyParam()] })}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setEditing({ ...editing, parameters: [...editing.parameters, emptyParam()] })
+                }
+              >
                 <Plus className="mr-1 h-4 w-4" /> Add parameter
               </Button>
             </div>
           )}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
             <Button
               disabled={saving || !editing?.test_name.trim()}
               onClick={() => editing && save(editing)}

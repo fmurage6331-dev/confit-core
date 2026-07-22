@@ -30,7 +30,11 @@ export const Route = createFileRoute("/encounter-records/$id")({
 
 function fmt(d?: string | null) {
   if (!d) return "—";
-  try { return format(new Date(d), "dd MMM yyyy, HH:mm"); } catch { return "—"; }
+  try {
+    return format(new Date(d), "dd MMM yyyy, HH:mm");
+  } catch {
+    return "—";
+  }
 }
 
 function EncounterRecordDetail() {
@@ -44,8 +48,16 @@ function EncounterRecordDetail() {
   const canLab = hasPerm("records_view") || hasPerm("lab_results_entry");
   const canRad = hasPerm("radiology_view") || hasPerm("order_radiology");
 
-  const canAddDoctorNote = hasPerm("clinical_notes_create") || hasPerm("doctor_note_create") || hasPerm("prescribe") || isAdmin;
-  const canAddDischargeNote = hasPerm("clinical_notes_create") || hasPerm("discharge_patient") || hasPerm("admit_patient") || isAdmin;
+  const canAddDoctorNote =
+    hasPerm("clinical_notes_create") ||
+    hasPerm("doctor_note_create") ||
+    hasPerm("prescribe") ||
+    isAdmin;
+  const canAddDischargeNote =
+    hasPerm("clinical_notes_create") ||
+    hasPerm("discharge_patient") ||
+    hasPerm("admit_patient") ||
+    isAdmin;
 
   const tabs: { key: string; label: string; show: boolean }[] = [
     { key: "encounter", label: "Encounter", show: true },
@@ -72,12 +84,17 @@ function EncounterRecordDetail() {
     },
   });
 
-  const patientName = (enc.data as { patients?: { patient_name?: string } } | null)?.patients?.patient_name ?? "Encounter";
+  const patientName =
+    (enc.data as { patients?: { patient_name?: string } } | null)?.patients?.patient_name ??
+    "Encounter";
 
   return (
     <div className="space-y-6">
       <div>
-        <Link to={"/encounter-records" as never} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to={"/encounter-records" as never}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Back to encounter records
         </Link>
       </div>
@@ -95,7 +112,9 @@ function EncounterRecordDetail() {
       <Tabs value={active} onValueChange={setActive}>
         <TabsList className="flex-wrap h-auto">
           {tabs.map((t) => (
-            <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
+            <TabsTrigger key={t.key} value={t.key}>
+              {t.label}
+            </TabsTrigger>
           ))}
         </TabsList>
 
@@ -104,26 +123,44 @@ function EncounterRecordDetail() {
         </TabsContent>
 
         {canBill && (
-          <TabsContent value="bill" className="mt-4"><BillSection encounterId={id} /></TabsContent>
+          <TabsContent value="bill" className="mt-4">
+            <BillSection encounterId={id} />
+          </TabsContent>
         )}
         {canDoctorNote && (
           <TabsContent value="doctor" className="mt-4">
-            <NotesSection encounterId={id} noteType="doctor_note" title="Doctor notes" canAdd={canAddDoctorNote} />
+            <NotesSection
+              encounterId={id}
+              noteType="doctor_note"
+              title="Doctor notes"
+              canAdd={canAddDoctorNote}
+            />
           </TabsContent>
         )}
         {canDischargeNote && (
           <TabsContent value="discharge" className="mt-4">
-            <NotesSection encounterId={id} noteType="discharge_note" title="Discharge notes" canAdd={canAddDischargeNote} />
+            <NotesSection
+              encounterId={id}
+              noteType="discharge_note"
+              title="Discharge notes"
+              canAdd={canAddDischargeNote}
+            />
           </TabsContent>
         )}
         {canRx && (
-          <TabsContent value="rx" className="mt-4"><PrescriptionsSection encounterId={id} /></TabsContent>
+          <TabsContent value="rx" className="mt-4">
+            <PrescriptionsSection encounterId={id} />
+          </TabsContent>
         )}
         {canLab && (
-          <TabsContent value="lab" className="mt-4"><LabSection encounterId={id} /></TabsContent>
+          <TabsContent value="lab" className="mt-4">
+            <LabSection encounterId={id} />
+          </TabsContent>
         )}
         {canRad && (
-          <TabsContent value="rad" className="mt-4"><RadiologySection encounterId={id} /></TabsContent>
+          <TabsContent value="rad" className="mt-4">
+            <RadiologySection encounterId={id} />
+          </TabsContent>
         )}
       </Tabs>
     </div>
@@ -131,11 +168,17 @@ function EncounterRecordDetail() {
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">{children}</div>;
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">{children}</div>
+  );
 }
 
 function Empty({ label }: { label: string }) {
-  return <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">{label}</div>;
+  return (
+    <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+      {label}
+    </div>
+  );
 }
 
 // ---------- Encounter ----------
@@ -161,7 +204,9 @@ function EncounterSection({ data, loading }: { data: unknown; loading: boolean }
       {typeof e.notes === "string" && e.notes && (
         <div className="mt-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Notes</div>
-          <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">{e.notes}</div>
+          <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+            {e.notes}
+          </div>
         </div>
       )}
     </Card>
@@ -184,7 +229,9 @@ function BillSection({ encounterId }: { encounterId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
-        .select("id,invoice_number,status,subtotal,discount,insurance_covered,total_due,amount_paid,balance,created_at,invoice_line_items(id,description,item_type,quantity,unit_price,amount)")
+        .select(
+          "id,invoice_number,status,subtotal,discount,insurance_covered,total_due,amount_paid,balance,created_at,invoice_line_items(id,description,item_type,quantity,unit_price,amount)",
+        )
         .eq("encounter_id", encounterId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -202,7 +249,9 @@ function BillSection({ encounterId }: { encounterId: string }) {
         <Card key={inv.id}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="font-semibold">Invoice {inv.invoice_number ?? inv.id.slice(0, 8)}</div>
+              <div className="font-semibold">
+                Invoice {inv.invoice_number ?? inv.id.slice(0, 8)}
+              </div>
               <div className="text-xs text-muted-foreground">{fmt(inv.created_at)}</div>
             </div>
             <Badge variant="outline">{inv.status ?? "draft"}</Badge>
@@ -220,17 +269,32 @@ function BillSection({ encounterId }: { encounterId: string }) {
               </thead>
               <tbody className="divide-y">
                 {(inv.invoice_line_items ?? []).length === 0 && (
-                  <tr><td colSpan={5} className="px-3 py-4 text-center text-muted-foreground">No line items.</td></tr>
-                )}
-                {(inv.invoice_line_items ?? []).map((li: { id: string; description: string | null; item_type: string | null; quantity: number | null; unit_price: number | null; amount: number | null }) => (
-                  <tr key={li.id}>
-                    <td className="px-3 py-2">{li.description ?? "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{li.item_type ?? "—"}</td>
-                    <td className="px-3 py-2 text-right">{li.quantity ?? 1}</td>
-                    <td className="px-3 py-2 text-right">{Number(li.unit_price ?? 0).toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right">{Number(li.amount ?? 0).toFixed(2)}</td>
+                  <tr>
+                    <td colSpan={5} className="px-3 py-4 text-center text-muted-foreground">
+                      No line items.
+                    </td>
                   </tr>
-                ))}
+                )}
+                {(inv.invoice_line_items ?? []).map(
+                  (li: {
+                    id: string;
+                    description: string | null;
+                    item_type: string | null;
+                    quantity: number | null;
+                    unit_price: number | null;
+                    amount: number | null;
+                  }) => (
+                    <tr key={li.id}>
+                      <td className="px-3 py-2">{li.description ?? "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{li.item_type ?? "—"}</td>
+                      <td className="px-3 py-2 text-right">{li.quantity ?? 1}</td>
+                      <td className="px-3 py-2 text-right">
+                        {Number(li.unit_price ?? 0).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 text-right">{Number(li.amount ?? 0).toFixed(2)}</td>
+                    </tr>
+                  ),
+                )}
               </tbody>
             </table>
           </div>
@@ -247,7 +311,17 @@ function BillSection({ encounterId }: { encounterId: string }) {
 }
 
 // ---------- Notes (doctor / discharge) ----------
-function NotesSection({ encounterId, noteType, title, canAdd }: { encounterId: string; noteType: "doctor_note" | "discharge_note"; title: string; canAdd: boolean }) {
+function NotesSection({
+  encounterId,
+  noteType,
+  title,
+  canAdd,
+}: {
+  encounterId: string;
+  noteType: "doctor_note" | "discharge_note";
+  title: string;
+  canAdd: boolean;
+}) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [content, setContent] = useState("");
@@ -291,8 +365,15 @@ function NotesSection({ encounterId, noteType, title, canAdd }: { encounterId: s
     <div className="space-y-4">
       {canAdd && (
         <Card>
-          <div className="mb-2 text-sm font-semibold">Add {title.toLowerCase().replace(/s$/, "")}</div>
-          <Textarea rows={4} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Type note…" />
+          <div className="mb-2 text-sm font-semibold">
+            Add {title.toLowerCase().replace(/s$/, "")}
+          </div>
+          <Textarea
+            rows={4}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Type note…"
+          />
           <div className="mt-3 flex justify-end">
             <Button onClick={() => add.mutate()} disabled={add.isPending || !content.trim()}>
               {add.isPending ? "Saving…" : "Save note"}
@@ -302,10 +383,14 @@ function NotesSection({ encounterId, noteType, title, canAdd }: { encounterId: s
       )}
 
       {notesQ.isLoading && <Empty label="Loading…" />}
-      {!notesQ.isLoading && (notesQ.data ?? []).length === 0 && <Empty label={`No ${title.toLowerCase()} yet.`} />}
+      {!notesQ.isLoading && (notesQ.data ?? []).length === 0 && (
+        <Empty label={`No ${title.toLowerCase()} yet.`} />
+      )}
       {(notesQ.data ?? []).map((n) => (
         <Card key={n.id}>
-          <div className="mb-2 text-xs text-muted-foreground">{fmt(n.authored_at ?? n.created_at)}</div>
+          <div className="mb-2 text-xs text-muted-foreground">
+            {fmt(n.authored_at ?? n.created_at)}
+          </div>
           <div className="whitespace-pre-wrap text-sm">{n.content}</div>
         </Card>
       ))}
@@ -320,7 +405,9 @@ function PrescriptionsSection({ encounterId }: { encounterId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prescriptions")
-        .select("id,drug_name,dosage,frequency,duration,quantity,status,notes,created_at,dispensed_at")
+        .select(
+          "id,drug_name,dosage,frequency,duration,quantity,status,notes,created_at,dispensed_at",
+        )
         .eq("registration_id", encounterId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -355,7 +442,9 @@ function PrescriptionsSection({ encounterId }: { encounterId: string }) {
                 <td className="px-3 py-2">{r.frequency ?? "—"}</td>
                 <td className="px-3 py-2">{r.duration ?? "—"}</td>
                 <td className="px-3 py-2 text-right">{r.quantity}</td>
-                <td className="px-3 py-2"><Badge variant="outline">{r.status}</Badge></td>
+                <td className="px-3 py-2">
+                  <Badge variant="outline">{r.status}</Badge>
+                </td>
                 <td className="px-3 py-2 text-muted-foreground">{fmt(r.created_at)}</td>
               </tr>
             ))}
@@ -392,20 +481,26 @@ function LabSection({ encounterId }: { encounterId: string }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="font-semibold">{t.test_name}</div>
-              <div className="text-xs text-muted-foreground">Lab #{t.lab_number} · {fmt(t.test_date)}</div>
+              <div className="text-xs text-muted-foreground">
+                Lab #{t.lab_number} · {fmt(t.test_date)}
+              </div>
             </div>
             <Badge variant="outline">{t.result ? "Complete" : "Pending"}</Badge>
           </div>
           {t.result && (
             <div className="mt-3">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Result</div>
-              <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">{t.result}</div>
+              <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+                {t.result}
+              </div>
             </div>
           )}
           {t.notes && (
             <div className="mt-3">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Notes</div>
-              <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">{t.notes}</div>
+              <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+                {t.notes}
+              </div>
             </div>
           )}
         </Card>
@@ -446,10 +541,16 @@ function RadiologySection({ encounterId }: { encounterId: string }) {
 
   if (ordersQ.isLoading) return <Empty label="Loading…" />;
   if (ordersQ.error) return <Empty label={(ordersQ.error as Error).message} />;
-  if ((ordersQ.data ?? []).length === 0) return <Empty label="No radiology orders for this encounter." />;
+  if ((ordersQ.data ?? []).length === 0)
+    return <Empty label="No radiology orders for this encounter." />;
 
-  const resultsByOrder = new Map<string, typeof resultsQ.data extends (infer U)[] | undefined ? U : never>();
-  (resultsQ.data ?? []).forEach((r) => { if (r.order_id) resultsByOrder.set(r.order_id, r); });
+  const resultsByOrder = new Map<
+    string,
+    typeof resultsQ.data extends (infer U)[] | undefined ? U : never
+  >();
+  (resultsQ.data ?? []).forEach((r) => {
+    if (r.order_id) resultsByOrder.set(r.order_id, r);
+  });
 
   return (
     <div className="space-y-3">
@@ -471,21 +572,32 @@ function RadiologySection({ encounterId }: { encounterId: string }) {
               <div className="mt-3 space-y-2">
                 {res.findings && (
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Findings</div>
-                    <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">{res.findings}</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Findings
+                    </div>
+                    <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+                      {res.findings}
+                    </div>
                   </div>
                 )}
                 {res.impression && (
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Impression</div>
-                    <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">{res.impression}</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Impression
+                    </div>
+                    <div className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+                      {res.impression}
+                    </div>
                   </div>
                 )}
                 <div className="text-xs text-muted-foreground">
-                  {res.radiologist ? `Reported by ${res.radiologist}` : "Reported"} · {fmt(res.reported_at)}
+                  {res.radiologist ? `Reported by ${res.radiologist}` : "Reported"} ·{" "}
+                  {fmt(res.reported_at)}
                 </div>
                 {Array.isArray(res.image_paths) && res.image_paths.length > 0 && (
-                  <div className="text-xs text-muted-foreground">{res.image_paths.length} image(s) attached</div>
+                  <div className="text-xs text-muted-foreground">
+                    {res.image_paths.length} image(s) attached
+                  </div>
                 )}
               </div>
             )}
