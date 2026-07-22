@@ -1055,7 +1055,8 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
           .or(`title.ilike.%${q}%,code.ilike.${q}%`)
           .limit(10);
 
-        let results = (local ?? []) as { code: string; title: string; uri: string | null }[];
+        -        let results = (local ?? []) as { code: string; title: string; uri: string | null }[];
++        const results = (local ?? []) as { code: string; title: string; uri: string | null }[];
 
         if (results.length < 5) {
           const { data: liveData, error: liveError } = await supabase.functions.invoke(
