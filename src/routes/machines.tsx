@@ -74,41 +74,22 @@ function MachinesPage() {
     },
   });
 
- const addMachine = useMutation({
--    mutationFn: async (m: any) => {
--      const { error } = await supabase.from("machines").insert(m);
-+    mutationFn: async (m: Record<string, unknown>) => {
-+      const { error } = await supabase.from("machines").insert(m as never);
-       if (error) throw error;
-     },
-     onSuccess: () => {
-       toast.success("Machine added");
-       qc.invalidateQueries({ queryKey: ["machines"] });
-       setOpenMachine(false);
-     },
--    onError: (e: any) => toast.error(e.message),
-+    onError: (e: Error) => toast.error(e.message),
-   });
-
-   const addLog = useMutation({
--    mutationFn: async (l: any) => {
--      const { error } = await supabase.from("machine_logs").insert(l);
-+    mutationFn: async (l: Record<string, unknown>) => {
-+      const { error } = await supabase.from("machine_logs").insert(l as never);
-       if (error) throw error;
-     },
-     onSuccess: () => {
-       toast.success("Log added");
-       qc.invalidateQueries({ queryKey: ["machine_logs"] });
-       setOpenLog(null);
-     },
--    onError: (e: any) => toast.error(e.message),
-+    onError: (e: Error) => toast.error(e.message),
-   });
+const addMachine = useMutation({
+    mutationFn: async (m: Record<string, unknown>) => {
+      const { error } = await supabase.from("machines").insert(m as never);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Machine added");
+      qc.invalidateQueries({ queryKey: ["machines"] });
+      setOpenMachine(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const addLog = useMutation({
-    mutationFn: async (l: any) => {
-      const { error } = await supabase.from("machine_logs").insert(l);
+    mutationFn: async (l: Record<string, unknown>) => {
+      const { error } = await supabase.from("machine_logs").insert(l as never);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -116,7 +97,7 @@ function MachinesPage() {
       qc.invalidateQueries({ queryKey: ["machine_logs"] });
       setOpenLog(null);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return (
@@ -355,47 +336,32 @@ function MachinesPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-          -            {logs?.map((l: any) => (
--              <tr key={l.id}>
--                <td className="px-4 py-2">{format(new Date(l.log_date), "dd MMM yyyy")}</td>
--                <td className="px-4 py-2">{l.machines?.name}</td>
--                <td className="px-4 py-2">
--                  <Badge variant="outline">{l.log_type}</Badge>
--                </td>
--                <td className="px-4 py-2">{l.performed_by}</td>
--                <td className="px-4 py-2 max-w-xs truncate">{l.description}</td>
--                <td className="px-4 py-2">{l.cost ? `$${l.cost}` : "—"}</td>
--                <td className="px-4 py-2">
--                  {l.next_due_date ? format(new Date(l.next_due_date), "dd MMM yyyy") : "—"}
--                </td>
--              </tr>
--            ))}
-+            {logs?.map(
-+              (l: {
-+                id: string;
-+                log_date: string;
-+                machines?: { name?: string } | null;
-+                log_type?: string;
-+                performed_by?: string;
-+                description?: string;
-+                cost?: number;
-+                next_due_date?: string | null;
-+              }) => (
-+                <tr key={l.id}>
-+                  <td className="px-4 py-2">{format(new Date(l.log_date), "dd MMM yyyy")}</td>
-+                  <td className="px-4 py-2">{l.machines?.name}</td>
-+                  <td className="px-4 py-2">
-+                    <Badge variant="outline">{l.log_type}</Badge>
-+                  </td>
-+                  <td className="px-4 py-2">{l.performed_by}</td>
-+                  <td className="px-4 py-2 max-w-xs truncate">{l.description}</td>
-+                  <td className="px-4 py-2">{l.cost ? `$${l.cost}` : "—"}</td>
-+                  <td className="px-4 py-2">
-+                    {l.next_due_date ? format(new Date(l.next_due_date), "dd MMM yyyy") : "—"}
-+                  </td>
-+                </tr>
-+              ),
-+            )}
+{logs?.map(
+              (l: {
+                id: string;
+                log_date: string;
+                machines?: { name?: string } | null;
+                log_type?: string;
+                performed_by?: string;
+                description?: string;
+                cost?: number;
+                next_due_date?: string | null;
+              }) => (
+                <tr key={l.id}>
+                  <td className="px-4 py-2">{format(new Date(l.log_date), "dd MMM yyyy")}</td>
+                  <td className="px-4 py-2">{l.machines?.name}</td>
+                  <td className="px-4 py-2">
+                    <Badge variant="outline">{l.log_type}</Badge>
+                  </td>
+                  <td className="px-4 py-2">{l.performed_by}</td>
+                  <td className="px-4 py-2 max-w-xs truncate">{l.description}</td>
+                  <td className="px-4 py-2">{l.cost ? `$${l.cost}` : "—"}</td>
+                  <td className="px-4 py-2">
+                    {l.next_due_date ? format(new Date(l.next_due_date), "dd MMM yyyy") : "—"}
+                  </td>
+                </tr>
+              ),
+            )}
           </tbody>
         </table>
       </div>
