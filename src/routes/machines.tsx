@@ -74,7 +74,7 @@ function MachinesPage() {
     },
   });
 
-const addMachine = useMutation({
+   const addMachine = useMutation({
     mutationFn: async (m: Record<string, unknown>) => {
       const { error } = await supabase.from("machines").insert(m as never);
       if (error) throw error;
