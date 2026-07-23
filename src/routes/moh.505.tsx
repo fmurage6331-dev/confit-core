@@ -6,7 +6,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, RefreshCw, RotateCcw } from "lucide-react";
+import { BarChart3, RefreshCw, RotateCcw, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/505")({
@@ -37,7 +37,7 @@ type WeeklyAggregateRow = {
   computed_at?: string | null;
 };
 
-const IDSR_INDICATOR_LABELS: Record<string, string> = {
+const IDSR_LABELS: Record<string, string> = {
   IDSR_CHOLERA: "Cholera Cases",
   IDSR_MALARIA: "Malaria Cases Confirmed",
   IDSR_MEASLES: "Measles Cases",
@@ -51,14 +51,14 @@ const IDSR_INDICATOR_LABELS: Record<string, string> = {
   IDSR_TETANUS: "Neonatal Tetanus",
 };
 
-const IDSR_INDICATORS = Object.keys(IDSR_INDICATOR_LABELS);
+const IDSR_INDICATORS = Object.keys(IDSR_LABELS);
 
 function getCurrentWeekStart() {
   const d = new Date();
 
   /**
    * Sunday as week start.
-   * If you want Monday as week start, replace with:
+   * If you want Monday as week start, replace below with:
    *
    * const day = d.getDay();
    * const diff = day === 0 ? -6 : 1 - day;
@@ -88,10 +88,25 @@ function Moh505() {
         .order("indicator_code", { ascending: true });
 
       if (error) throw error;
-
       return (data ?? []) as WeeklyAggregateRow[];
     },
   });
+
+  const rows = useMemo(() => {
+    return IDSR_INDICATORS.map((code) => {
+      const found = idsrData?.find((row) => row.indicator_code === code);
+
+      return {
+        indicator_code: code,
+        description: IDSR_LABELS[code] ?? code,
+        value: found?.value ?? 0,
+      };
+    });
+  }, [idsrData]);
+
+  const total = useMemo(() => {
+    return rows.reduce((sum, row) => sum + Number(row.value ?? 0), 0);
+  }, [rows]);
 
   const handleRecalculate = async () => {
     try {
@@ -111,26 +126,19 @@ function Moh505() {
     }
   };
 
-  const rows = IDSR_INDICATORS.map((code) => {
-    const found = idsrData?.find((row) => row.indicator_code === code);
-
-    return {
-      indicator_code: code,
-      label: IDSR_INDICATOR_LABELS[code] ?? code,
-      value: found?.value ?? 0,
-    };
-  });
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
+            <ShieldAlert className="h-6 w-6" />
             MOH 505 — IDSR Weekly Report
           </h1>
           <p className="text-sm text-muted-foreground">
             Integrated Disease Surveillance and Response, weekly.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Source: IDSR indicator tags aggregated weekly.
           </p>
         </div>
 
@@ -162,7 +170,22 @@ function Moh505() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Weekly Disease Surveillance</CardTitle>
+          <CardTitle>Total IDSR Cases / Events</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-semibold">{total}</div>
+          <p className="text-sm text-muted-foreground">
+            Total counted IDSR disease surveillance events for the selected week.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Weekly Disease Surveillance
+          </CardTitle>
         </CardHeader>
 
         <CardContent>
@@ -184,7 +207,7 @@ function Moh505() {
                     <TableCell className="font-mono text-xs">
                       {row.indicator_code}
                     </TableCell>
-                    <TableCell>{row.label}</TableCell>
+                    <TableCell>{row.description}</TableCell>
                     <TableCell className="text-right">{row.value}</TableCell>
                   </TableRow>
                 ))}
@@ -192,11 +215,14 @@ function Moh505() {
             </Table>
           )}
 
-          {!isLoading && !isFetching && rows.every((row) => Number(row.value) === 0) && (
-            <p className="text-muted-foreground text-center pt-6">
-              No IDSR data found for this week.
-            </p>
-          )}
+          {!isLoading &&
+            !isFetching &&
+            rows.every((row) => Number(row.value) === 0) && (
+              <p className="text-muted-foreground text-center pt-6">
+                No IDSR data found for this week. Click Recalculate after IDSR
+                indicators have been tagged.
+              </p>
+            )}
         </CardContent>
       </Card>
     </div>
