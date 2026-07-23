@@ -5,7 +5,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,14 +38,11 @@ type AggregateRow = {
 };
 
 const INDICATOR_LABELS: Record<string, string> = {
-  // MOH 705 / OPD
   OPD_UNDER5_M: "OPD Under 5 Male",
   OPD_UNDER5_F: "OPD Under 5 Female",
   OPD_OVER5_M: "OPD Over 5 Male",
   OPD_OVER5_F: "OPD Over 5 Female",
   OPD_OVER60: "OPD Over 60",
-
-  // MOH 706 / Laboratory
   LAB_TB: "TB Screening",
   LAB_SYPHILIS: "Syphilis Test",
   LAB_HEPB: "Hepatitis B Test",
@@ -63,8 +60,6 @@ const INDICATOR_LABELS: Record<string, string> = {
   LAB_MALARIA_SMEAR: "Malaria Blood Smear",
   LAB_MICROSCOPY: "Gram Stain / Microscopy",
   LAB_CULTURE: "Culture & Sensitivity",
-
-  // MOH 707 / Pharmacy
   PHARM_ANTIBIOTICS: "Antibiotics Dispensed",
   PHARM_ANALGESICS: "Analgesics Dispensed",
   PHARM_NSAIDS: "NSAIDs Dispensed",
@@ -74,8 +69,6 @@ const INDICATOR_LABELS: Record<string, string> = {
   PHARM_PPI: "PPIs Dispensed",
   PHARM_REHYDRATION: "Rehydration Solutions Dispensed",
   PHARM_ORS: "ORS Dispensed",
-
-  // MOH 642 / Lab commodities
   LAB_HIV_KITS: "HIV Test Kits Used",
   LAB_MALARIA_RDT: "Malaria RDTs Used",
   LAB_SYPHILIS_RDT: "Syphilis RDTs Used",
@@ -83,8 +76,6 @@ const INDICATOR_LABELS: Record<string, string> = {
   LAB_URINE_STRIPS: "Urine Strips Used",
   LAB_SLIDES: "Microscope Slides Used",
   LAB_BLOOD_TUBES: "Blood Tubes / EDTA Tubes Used",
-
-  // FP
   FP_NEW: "New FP Acceptors",
   FP_REVISIT: "FP Revisits",
   FP_CONSULTATION: "FP Consultations",
@@ -95,8 +86,6 @@ const INDICATOR_LABELS: Record<string, string> = {
   FP_IMPLANT: "Implant Contraceptives",
   FP_IUCD: "IUCD",
   FP_CONDOMS: "Condoms",
-
-  // MCH
   MCH_ANC1: "First ANC Visits",
   MCH_ANC4: "ANC Visits 4th+",
   MCH_DELIVERY: "Deliveries Conducted",
@@ -107,38 +96,28 @@ const INDICATOR_LABELS: Record<string, string> = {
   MCH_KANGAROO: "Kangaroo Care",
 };
 
+const LAB_COMMODITY_CODES = [
+  "LAB_HIV_KITS",
+  "LAB_MALARIA_RDT",
+  "LAB_SYPHILIS_RDT",
+  "LAB_GLUCOSE_STRIPS",
+  "LAB_URINE_STRIPS",
+  "LAB_SLIDES",
+  "LAB_BLOOD_TUBES",
+];
+
 function getGroup(indicatorCode: string) {
   if (indicatorCode.startsWith("OPD_")) return "MOH 705 — Outpatient";
-  if (
-    indicatorCode.startsWith("LAB_") &&
-    ![
-      "LAB_HIV_KITS",
-      "LAB_MALARIA_RDT",
-      "LAB_SYPHILIS_RDT",
-      "LAB_GLUCOSE_STRIPS",
-      "LAB_URINE_STRIPS",
-      "LAB_SLIDES",
-      "LAB_BLOOD_TUBES",
-    ].includes(indicatorCode)
-  ) {
+
+  if (indicatorCode.startsWith("LAB_") && !LAB_COMMODITY_CODES.includes(indicatorCode)) {
     return "MOH 706 — Laboratory";
   }
+
   if (indicatorCode.startsWith("PHARM_")) return "MOH 707 — Pharmacy";
-  if (
-    [
-      "LAB_HIV_KITS",
-      "LAB_MALARIA_RDT",
-      "LAB_SYPHILIS_RDT",
-      "LAB_GLUCOSE_STRIPS",
-      "LAB_URINE_STRIPS",
-      "LAB_SLIDES",
-      "LAB_BLOOD_TUBES",
-    ].includes(indicatorCode)
-  ) {
-    return "MOH 642 — Lab Commodities";
-  }
+  if (LAB_COMMODITY_CODES.includes(indicatorCode)) return "MOH 642 — Lab Commodities";
   if (indicatorCode.startsWith("FP_")) return "MOH FP — Family Planning";
   if (indicatorCode.startsWith("MCH_")) return "MOH MCH — Maternal & Child Health";
+
   return "Other";
 }
 
@@ -158,13 +137,13 @@ function Moh717() {
   } = useQuery({
     queryKey: ["moh-717", monthStart],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("moh_monthly_aggregates")
         .select("*")
         .eq("period_month", monthStart)
         .order("indicator_code", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as AggregateRow[];
     },
   });
@@ -196,7 +175,9 @@ function Moh717() {
         });
       }
 
-      const entry = map.get(group)!;
+      const entry = map.get(group);
+      if (!entry) continue;
+
       entry.total += value;
       entry.rows.push({
         indicator_code: row.indicator_code,
@@ -217,7 +198,7 @@ function Moh717() {
     ];
 
     return Array.from(map.values()).sort(
-      (a, b) => order.indexOf(a.group) - order.indexOf(b.group)
+      (a, b) => order.indexOf(a.group) - order.indexOf(b.group),
     );
   }, [rows]);
 
@@ -227,28 +208,32 @@ function Moh717() {
 
   const handleRecalculateAll = async () => {
     try {
-      const monthly = await (supabase as any).rpc("refresh_moh_monthly_aggregates", {
+      const monthly = await db.rpc("refresh_moh_monthly_aggregates", {
         target_month: monthStart,
       });
 
-      if (monthly.error) throw monthly.error;
+      if (monthly.error) throw new Error(monthly.error.message);
 
-      const moh642 = await (supabase as any).rpc("refresh_moh_642_monthly_aggregates", {
+      const moh642 = await db.rpc("refresh_moh_642_monthly_aggregates", {
         target_month: monthStart,
       });
 
-      if (moh642.error) throw moh642.error;
+      if (moh642.error) throw new Error(moh642.error.message);
 
-      const moh707 = await (supabase as any).rpc("refresh_moh_707_monthly_aggregates", {
+      const moh707 = await db.rpc("refresh_moh_707_monthly_aggregates", {
         target_month: monthStart,
       });
 
-      if (moh707.error) throw moh707.error;
+      if (moh707.error) throw new Error(moh707.error.message);
 
       toast.success("MOH monthly summary recalculated.");
       await refetch();
-    } catch (error: any) {
-      toast.error(error?.message ?? "Failed to recalculate MOH monthly summary.");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to recalculate MOH monthly summary.",
+      );
     }
   };
 
