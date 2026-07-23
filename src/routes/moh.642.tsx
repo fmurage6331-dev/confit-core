@@ -4,12 +4,23 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, RefreshCw } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { BarChart3, RefreshCw, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/642")({
   component: () => (
@@ -19,11 +30,86 @@ export const Route = createFileRoute("/moh/642")({
   ),
 });
 
+type AggregateRow = {
+  indicator_code: string;
+  period_month: string;
+  value: number | string;
+  computed_at?: string | null;
+};
+
+const MOH_642_LABELS: Record<string, string> = {
+  LAB_HIV_KITS: "HIV Test Kits Used",
+  LAB_MALARIA_RDT: "Malaria RDTs Used",
+  LAB_SYPHILIS_RDT: "Syphilis RDTs Used",
+  LAB_GLUCOSE_STRIPS: "Glucose Strips Used",
+  LAB_URINE_STRIPS: "Urine Strips Used",
+  LAB_SLIDES: "Microscope Slides Used",
+  LAB_BLOOD_TUBES: "Blood Tubes / EDTA Tubes Used",
+};
+
+const MOH_642_INDICATORS = Object.keys(MOH_642_LABELS);
+
 function Moh642() {
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+
+  const monthStart = `${month}-01`;
+
+  const {
+    data: commodityData,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["moh-642", monthStart],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("moh_monthly_aggregates")
+        .select("*")
+        .in("indicator_code", MOH_642_INDICATORS)
+        .eq("period_month", monthStart)
+        .order("indicator_code", { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as AggregateRow[];
+    },
+  });
+
+  const rows = useMemo(() => {
+    return MOH_642_INDICATORS.map((code) => {
+      const found = commodityData?.find((row) => row.indicator_code === code);
+
+      return {
+        indicator_code: code,
+        description: MOH_642_LABELS[code] ?? code,
+        value: found?.value ?? 0,
+      };
+    });
+  }, [commodityData]);
+
+  const total = useMemo(() => {
+    return rows.reduce((sum, row) => sum + Number(row.value ?? 0), 0);
+  }, [rows]);
+
+  const handleRecalculate = async () => {
+    try {
+      const { error } = await (supabase as any).rpc(
+        "refresh_moh_642_monthly_aggregates",
+        {
+          target_month: monthStart,
+        }
+      );
+
+      if (error) throw error;
+
+      toast.success("MOH 642 aggregates refreshed from Lab Store usage.");
+      await refetch();
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to refresh MOH 642 aggregates.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -34,12 +120,18 @@ function Moh642() {
             MOH 642 — Laboratory Commodities
           </h1>
           <p className="text-sm text-muted-foreground">
-            Laboratory reagents and consumables consumption (monthly).
+            Laboratory reagents and consumables consumption, monthly.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Source: Laboratory Store manual usage records.
           </p>
         </div>
-        <div className="flex items-end gap-2">
+
+        <div className="flex items-end gap-2 flex-wrap">
           <div>
-            <Label htmlFor="month" className="text-xs">Reporting month</Label>
+            <Label htmlFor="month" className="text-xs">
+              Reporting month
+            </Label>
             <Input
               id="month"
               type="month"
@@ -48,21 +140,39 @@ function Moh642() {
               className="w-48"
             />
           </div>
+
+          <Button onClick={handleRecalculate} variant="default">
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Recalculate
+          </Button>
+
+          <Button onClick={() => refetch()} variant="outline">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Lab Commodities Consumption</CardTitle>
+          <CardTitle>Total Lab Commodities Used</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border bg-muted/50 p-8 text-center">
-            <p className="text-muted-foreground">
-              Lab commodities report coming soon. Track reagent and consumable usage.
-            </p>
-          </div>
+          <div className="text-3xl font-semibold">{total}</div>
+          <p className="text-sm text-muted-foreground">
+            Total counted commodities for this reporting month.
+          </p>
         </CardContent>
       </Card>
-    </div>
-  );
-}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lab Commodities Consumption</CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          {isLoading ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : (
+            <Table>
+              <TableHeader>
