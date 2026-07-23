@@ -5,8 +5,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { db } from "@/lib/supabase-untyped";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,7 @@ type AggregateRow = {
   computed_at?: string | null;
 };
 
-const LAB_INDICATOR_LABELS: Record<string, string> = {
+const LAB_LABELS: Record<string, string> = {
   LAB_TB: "TB Screening",
   LAB_SYPHILIS: "Syphilis Test",
   LAB_HEPB: "Hepatitis B Test",
@@ -57,7 +57,7 @@ const LAB_INDICATOR_LABELS: Record<string, string> = {
   LAB_CULTURE: "Culture & Sensitivity",
 };
 
-const LAB_INDICATORS = Object.keys(LAB_INDICATOR_LABELS);
+const LAB_INDICATORS = Object.keys(LAB_LABELS);
 
 function Moh706() {
   const [month, setMonth] = useState(() => {
@@ -75,46 +75,52 @@ function Moh706() {
   } = useQuery({
     queryKey: ["moh-706", monthStart],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("moh_monthly_aggregates")
         .select("*")
         .in("indicator_code", LAB_INDICATORS)
         .eq("period_month", monthStart)
         .order("indicator_code", { ascending: true });
 
-      if (error) throw error;
-
+      if (error) throw new Error(error.message);
       return (data ?? []) as AggregateRow[];
     },
   });
 
+  const rows = useMemo(() => {
+    return LAB_INDICATORS.map((code) => {
+      const found = labData?.find((row) => row.indicator_code === code);
+
+      return {
+        indicator_code: code,
+        description: LAB_LABELS[code] ?? code,
+        value: found?.value ?? 0,
+      };
+    });
+  }, [labData]);
+
+  const total = useMemo(() => {
+    return rows.reduce((sum, row) => sum + Number(row.value ?? 0), 0);
+  }, [rows]);
+
   const handleRecalculate = async () => {
     try {
-      const { error } = await (supabase as any).rpc(
-        "refresh_moh_monthly_aggregates",
-        {
-          target_month: monthStart,
-        }
-      );
+      const { error } = await db.rpc("refresh_moh_monthly_aggregates", {
+        target_month: monthStart,
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       toast.success("MOH 706 laboratory aggregates refreshed.");
       await refetch();
-    } catch (error: any) {
-      toast.error(error?.message ?? "Failed to refresh MOH 706 aggregates.");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh MOH 706 aggregates.",
+      );
     }
   };
-
-  const rows = LAB_INDICATORS.map((code) => {
-    const found = labData?.find((row) => row.indicator_code === code);
-
-    return {
-      indicator_code: code,
-      label: LAB_INDICATOR_LABELS[code] ?? code,
-      value: found?.value ?? 0,
-    };
-  });
 
   return (
     <div className="space-y-6">
@@ -157,6 +163,18 @@ function Moh706() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Total Laboratory Tests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-semibold">{total}</div>
+          <p className="text-sm text-muted-foreground">
+            Total counted lab indicators for this reporting month.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Lab Tests Summary</CardTitle>
         </CardHeader>
 
@@ -179,7 +197,7 @@ function Moh706() {
                     <TableCell className="font-mono text-xs">
                       {row.indicator_code}
                     </TableCell>
-                    <TableCell>{row.label}</TableCell>
+                    <TableCell>{row.description}</TableCell>
                     <TableCell className="text-right">{row.value}</TableCell>
                   </TableRow>
                 ))}
@@ -187,11 +205,13 @@ function Moh706() {
             </Table>
           )}
 
-          {!isLoading && !isFetching && rows.every((row) => Number(row.value) === 0) && (
-            <p className="text-muted-foreground text-center pt-6">
-              No laboratory data found for this month.
-            </p>
-          )}
+          {!isLoading &&
+            !isFetching &&
+            rows.every((row) => Number(row.value) === 0) && (
+              <p className="text-muted-foreground text-center pt-6">
+                No laboratory data found for this month.
+              </p>
+            )}
         </CardContent>
       </Card>
     </div>
