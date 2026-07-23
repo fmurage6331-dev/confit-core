@@ -4,7 +4,7 @@
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,13 +33,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
 } from "recharts";
 
 export const Route = createFileRoute("/moh")({
@@ -57,14 +57,7 @@ type AggRow = {
   computed_at: string | null;
 };
 
-type Category =
-  | "OPD"
-  | "LAB"
-  | "PHARM"
-  | "LAB_COMMODITIES"
-  | "FP"
-  | "MCH"
-  | "OTHER";
+type Category = "OPD" | "LAB" | "PHARM" | "LAB_COMMODITIES" | "FP" | "MCH" | "OTHER";
 
 function firstOfMonth(d = new Date()) {
   const yyyy = d.getFullYear();
@@ -90,7 +83,6 @@ function categoryOf(code: string): Category {
   }
 
   if (LAB_COMMODITY_CODES.includes(c)) return "LAB_COMMODITIES";
-
   if (c.startsWith("LAB_")) return "LAB";
   if (c.startsWith("PHARM_")) return "PHARM";
   if (c.startsWith("FP_")) return "FP";
@@ -222,17 +214,17 @@ function MohDashboard() {
     try {
       const period = `${targetMonth}-01`;
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("moh_monthly_aggregates")
         .select("indicator_code, value, period_month, computed_at")
         .eq("period_month", period)
         .order("indicator_code", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       setRows((data ?? []) as AggRow[]);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load aggregates");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to load aggregates");
     } finally {
       setLoading(false);
     }
@@ -247,31 +239,31 @@ function MohDashboard() {
     const t = toast.loading("Calculating MOH monthly totals…");
 
     try {
-      const target_month = `${month}-01`;
+      const targetMonth = `${month}-01`;
 
-      const monthly = await (supabase as any).rpc("refresh_moh_monthly_aggregates", {
-        target_month,
+      const monthly = await db.rpc("refresh_moh_monthly_aggregates", {
+        target_month: targetMonth,
       });
 
-      if (monthly.error) throw monthly.error;
+      if (monthly.error) throw new Error(monthly.error.message);
 
-      const moh642 = await (supabase as any).rpc("refresh_moh_642_monthly_aggregates", {
-        target_month,
+      const moh642 = await db.rpc("refresh_moh_642_monthly_aggregates", {
+        target_month: targetMonth,
       });
 
-      if (moh642.error) throw moh642.error;
+      if (moh642.error) throw new Error(moh642.error.message);
 
-      const moh707 = await (supabase as any).rpc("refresh_moh_707_monthly_aggregates", {
-        target_month,
+      const moh707 = await db.rpc("refresh_moh_707_monthly_aggregates", {
+        target_month: targetMonth,
       });
 
-      if (moh707.error) throw moh707.error;
+      if (moh707.error) throw new Error(moh707.error.message);
 
       await load(month);
 
       toast.success("MOH monthly aggregates refreshed", { id: t });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Refresh failed", { id: t });
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Refresh failed", { id: t });
     } finally {
       setRefreshing(false);
     }
