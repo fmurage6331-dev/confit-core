@@ -5,7 +5,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,14 +65,14 @@ function Moh642() {
   } = useQuery({
     queryKey: ["moh-642", monthStart],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("moh_monthly_aggregates")
         .select("*")
         .in("indicator_code", MOH_642_INDICATORS)
         .eq("period_month", monthStart)
         .order("indicator_code", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as AggregateRow[];
     },
   });
@@ -95,19 +95,20 @@ function Moh642() {
 
   const handleRecalculate = async () => {
     try {
-      const { error } = await (supabase as any).rpc(
-        "refresh_moh_642_monthly_aggregates",
-        {
-          target_month: monthStart,
-        }
-      );
+      const { error } = await db.rpc("refresh_moh_642_monthly_aggregates", {
+        target_month: monthStart,
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       toast.success("MOH 642 aggregates refreshed from Lab Store usage.");
       await refetch();
-    } catch (error: any) {
-      toast.error(error?.message ?? "Failed to refresh MOH 642 aggregates.");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh MOH 642 aggregates.",
+      );
     }
   };
 
@@ -176,3 +177,37 @@ function Moh642() {
           ) : (
             <Table>
               <TableHeader>
+                <TableRow>
+                  <TableHead>Indicator Code</TableHead>
+                  <TableHead>Commodity</TableHead>
+                  <TableHead className="text-right">Used</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.indicator_code}>
+                    <TableCell className="font-mono text-xs">
+                      {row.indicator_code}
+                    </TableCell>
+                    <TableCell>{row.description}</TableCell>
+                    <TableCell className="text-right">{row.value}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
+          {!isLoading &&
+            !isFetching &&
+            rows.every((row) => Number(row.value) === 0) && (
+              <p className="text-muted-foreground text-center pt-6">
+                No Lab Store usage found for this month. Record usage from the
+                Stores & Stock page, then click Recalculate.
+              </p>
+            )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
