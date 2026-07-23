@@ -112,6 +112,7 @@ function RegisterPatient() {
   const [sendToRoomId, setSendToRoomId] = useState("");
   const [mode, setMode] = useState<PaymentMode>("cash");
   const [insurerId, setInsurerId] = useState("");
+  const [insurancePolicyNumber, setInsurancePolicyNumber] = useState("");
   const [isEmergency, setIsEmergency] = useState(false);
   const [referralDirection, setReferralDirection] = useState<"" | "in" | "out">("");
   const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(new Set());
@@ -166,36 +167,43 @@ function RegisterPatient() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+
     if (!firstName.trim() || !familyName.trim()) {
       toast.error("First and Family name are required");
       scrollTo("basic");
       return;
     }
+
     if (!sex) {
       toast.error("Please select sex");
       scrollTo("basic");
       return;
     }
+
     if (dobKnown && !dob) {
       toast.error("Date of birth is required");
       scrollTo("basic");
       return;
     }
+
     if (!dobKnown && !estimatedAge) {
       toast.error("Estimated age is required");
       scrollTo("basic");
       return;
     }
+
     if (!phone.trim()) {
       toast.error("Phone number is required");
       scrollTo("contact");
       return;
     }
+
     if (!addr1.trim() || !city.trim() || !county.trim()) {
       toast.error("Address (line 1, city, county) is required");
       scrollTo("contact");
       return;
     }
+
     if (!kinName.trim() || !kinRelation.trim() || !kinPhone.trim()) {
       toast.error("Next of kin name, relationship, and phone are required");
       scrollTo("nextofkin");
@@ -207,15 +215,24 @@ function RegisterPatient() {
       scrollTo("visit");
       return;
     }
+
     if (mode === "insurance" && !insurer) {
       toast.error("Select an insurance provider");
       scrollTo("visit");
       return;
     }
 
+    if (mode === "insurance" && !insurancePolicyNumber.trim()) {
+      toast.error("Insurance policy number is required");
+      scrollTo("visit");
+      return;
+    }
+
     setSubmitting(true);
+
     const patientName = [firstName, middleName, familyName].filter(Boolean).join(" ").trim();
     const hasTests = selectedTests.length > 0;
+
     const { error } = await supabase.from("patient_registrations").insert({
       patient_name: patientName,
       first_name: firstName.trim(),
@@ -249,6 +266,7 @@ function RegisterPatient() {
       payment_mode: mode,
       insurance_provider_id: mode === "insurance" ? insurer!.id : null,
       insurance_coverage_percentage: mode === "insurance" ? coveragePct : null,
+      insurance_policy_number: mode === "insurance" ? insurancePolicyNumber.trim() : null,
       is_emergency: isEmergency,
       referral_direction: referralDirection || null,
       tests: selectedTests.map((t) => ({ id: t.id, name: t.name, price: priceFor(t) })),
@@ -259,11 +277,14 @@ function RegisterPatient() {
       amount_paid: 0,
       created_by: user!.id,
     } as never);
+
     setSubmitting(false);
+
     if (error) {
       toast.error(error.message);
       return;
     }
+
     toast.success(hasTests ? "Patient registered" : "Patient sent to consultation");
     navigate({ to: "/queue" });
   }
@@ -273,14 +294,18 @@ function RegisterPatient() {
       <button
         type="button"
         onClick={() => onChange(true)}
-        className={`px-4 py-1.5 text-sm ${value ? "bg-primary/10 text-primary border-primary" : "bg-background"}`}
+        className={`px-4 py-1.5 text-sm ${
+          value ? "bg-primary/10 text-primary border-primary" : "bg-background"
+        }`}
       >
         Yes
       </button>
       <button
         type="button"
         onClick={() => onChange(false)}
-        className={`px-4 py-1.5 text-sm border-l ${!value ? "bg-primary/10 text-primary border-primary" : "bg-background"}`}
+        className={`px-4 py-1.5 text-sm border-l ${
+          !value ? "bg-primary/10 text-primary border-primary" : "bg-background"
+        }`}
       >
         No
       </button>
@@ -289,7 +314,6 @@ function RegisterPatient() {
 
   return (
     <form onSubmit={onSubmit} className="relative">
-      {/* Sticky top bar */}
       <div className="sticky top-0 z-10 -mx-4 mb-6 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <h1 className="text-lg font-semibold">Register patient</h1>
         <Button
@@ -312,7 +336,6 @@ function RegisterPatient() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        {/* Left rail */}
         <aside className="lg:sticky lg:top-20 lg:h-fit">
           <h2 className="text-xl font-semibold">Create new patient</h2>
           <p className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">Jump to</p>
@@ -347,9 +370,7 @@ function RegisterPatient() {
           </div>
         </aside>
 
-        {/* Sections */}
         <div className="space-y-6">
-          {/* Basic Info */}
           <Section
             id="basic"
             number="1"
@@ -418,11 +439,15 @@ function RegisterPatient() {
             </Group>
           </Section>
 
-          {/* Contact */}
           <Section id="contact" number="2" title="Contact Details">
             <Group title="Reach">
               <Field label="Phone" required>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  placeholder="Patient phone number"
+                />
               </Field>
               <Field label="Email">
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -450,7 +475,6 @@ function RegisterPatient() {
             </Group>
           </Section>
 
-          {/* Demographics */}
           <Section id="demographics" number="3" title="Demographics">
             <Group title="Background">
               <Field label="Occupation">
@@ -493,7 +517,6 @@ function RegisterPatient() {
             </Group>
           </Section>
 
-          {/* Death */}
           <Section id="death" number="4" title="Death Info">
             <Group title="Deceased">
               <div className="space-y-2">
@@ -517,7 +540,6 @@ function RegisterPatient() {
             </Group>
           </Section>
 
-          {/* Relationships */}
           <Section id="relationships" number="5" title="Relationships">
             <Group title="Family / Contacts">
               <div className="space-y-3">
@@ -580,7 +602,6 @@ function RegisterPatient() {
             </Group>
           </Section>
 
-          {/* Next of kin */}
           <Section id="nextofkin" number="6" title="Next of Kin">
             <Group title="Primary contact">
               <Field label="Full name" required>
@@ -598,7 +619,6 @@ function RegisterPatient() {
             </Group>
           </Section>
 
-          {/* Visit & charges */}
           <Section id="visit" number="7" title="Visit & Charges">
             <Group title="Routing">
               <Field label="Sent from (optional)">
@@ -672,200 +692,3 @@ function RegisterPatient() {
                   cls="bg-emerald-600"
                 />
                 <ModeBtn
-                  value="insurance"
-                  label="Insurance"
-                  icon={Shield}
-                  active={mode === "insurance"}
-                  on={() => setMode("insurance")}
-                  cls="bg-blue-600"
-                />
-                <ModeBtn
-                  value="free"
-                  label="Free / Waived"
-                  icon={HeartHandshake}
-                  active={mode === "free"}
-                  on={() => setMode("free")}
-                  cls="bg-amber-500"
-                />
-              </div>
-              {mode === "insurance" && (
-                <Field label="Insurance provider">
-                  <Select value={insurerId} onValueChange={setInsurerId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select insurer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {insurers.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}{" "}
-                          <span className="text-xs text-muted-foreground">
-                            [{i.code}] · {i.coverage_percentage}%
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            </Group>
-
-            <Group title="Services / Tests (optional — can be added at consultation)">
-              <div className="col-span-full grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {tests.length === 0 && (
-                  <p className="col-span-full text-sm text-muted-foreground">
-                    No services or tests configured yet.
-                  </p>
-                )}
-                {tests.map((t) => {
-                  const active = selectedTestIds.has(t.id);
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => toggleTest(t.id)}
-                      className={`flex flex-col rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-accent"}`}
-                    >
-                      <span className="text-sm font-medium">{t.name}</span>
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {t.category || t.kind}
-                      </span>
-                      <span className="mt-1 text-xs text-muted-foreground">
-                        KSh {priceFor(t).toFixed(2)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Group>
-
-            <Group title="Summary">
-              <div className="col-span-full rounded-lg border bg-background p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">Charge summary</span>
-                  <PaymentBadge mode={mode} />
-                </div>
-                <div className="space-y-1 text-sm">
-                  <Row label="Subtotal" value={`KSh ${subtotal.toFixed(2)}`} />
-                  {mode === "insurance" && (
-                    <Row
-                      label={`Insurance (${coveragePct}%)`}
-                      value={`-KSh ${insuranceCovered.toFixed(2)}`}
-                      muted
-                    />
-                  )}
-                  {mode === "free" && (
-                    <Row label="Waived" value={`-KSh ${subtotal.toFixed(2)}`} muted />
-                  )}
-                  <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold">
-                    <span>Patient pays</span>
-                    <span className="tabular-nums">KSh {patientDue.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </Group>
-          </Section>
-        </div>
-      </div>
-    </form>
-  );
-}
-
-function Section({
-  id,
-  number,
-  title,
-  hint,
-  children,
-}: {
-  id: string;
-  number: string;
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section id={id} className="scroll-mt-24">
-      <div className="mb-3">
-        <h3 className="text-base font-semibold">
-          <span className="mr-1">{number}.</span>
-          {title}
-        </h3>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      </div>
-      <div className="space-y-5 rounded-lg border bg-muted/40 p-5">{children}</div>
-    </section>
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h4 className="mb-3 text-sm font-semibold">{title}</h4>
-      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-sm">
-        {label}
-        {required && <span className="text-destructive"> *</span>}
-      </Label>
-      {children}
-    </div>
-  );
-}
-
-function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
-  return (
-    <div className={`flex justify-between ${muted ? "text-muted-foreground" : ""}`}>
-      <span>{label}</span>
-      <span className="tabular-nums">{value}</span>
-    </div>
-  );
-}
-
-function ModeBtn({
-  label,
-  icon: Icon,
-  active,
-  on,
-  cls,
-}: {
-  value: PaymentMode;
-  label: string;
-  icon: typeof Banknote;
-  active: boolean;
-  on: () => void;
-  cls: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={on}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition ${
-        active ? `${cls} border-transparent text-white shadow-sm` : "bg-background hover:bg-accent"
-      }`}
-    >
-      <Icon className="h-4 w-4" /> {label}
-    </button>
-  );
-}
-
-export function PaymentBadge({ mode }: { mode: PaymentMode }) {
-  if (mode === "cash")
-    return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Cash</Badge>;
-  if (mode === "insurance")
-    return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Insurance</Badge>;
-  return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Free</Badge>;
-}
