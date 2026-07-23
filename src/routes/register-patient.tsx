@@ -6,7 +6,7 @@
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PermGuard } from "@/lib/require-access";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
@@ -23,7 +23,14 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Banknote, Shield, HeartHandshake, Trash2, Plus } from "lucide-react";
+import {
+  Banknote,
+  HeartHandshake,
+  Plus,
+  Shield,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 
 export const Route = createFileRoute("/register-patient")({
   component: () => (
@@ -35,7 +42,13 @@ export const Route = createFileRoute("/register-patient")({
   ),
 });
 
-type Insurer = { id: string; name: string; code: string; coverage_percentage: number };
+type Insurer = {
+  id: string;
+  name: string;
+  code: string;
+  coverage_percentage: number;
+};
+
 type TestRow = {
   id: string;
   name: string;
@@ -45,9 +58,20 @@ type TestRow = {
   kind: string;
   category: string | null;
 };
-type Room = { id: string; name: string; kind: string };
+
+type Room = {
+  id: string;
+  name: string;
+  kind: string;
+};
+
 type PaymentMode = "cash" | "insurance" | "free";
-type Relationship = { relation: string; name: string; contact: string };
+
+type Relationship = {
+  relation: string;
+  name: string;
+  contact: string;
+};
 
 const SECTIONS = [
   { id: "basic", label: "Basic Info" },
@@ -62,11 +86,11 @@ const SECTIONS = [
 function RegisterPatient() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [insurers, setInsurers] = useState<Insurer[]>([]);
   const [tests, setTests] = useState<TestRow[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
 
-  // Basic
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [familyName, setFamilyName] = useState("");
@@ -74,9 +98,8 @@ function RegisterPatient() {
   const [dobKnown, setDobKnown] = useState(true);
   const [dob, setDob] = useState("");
   const [estimatedAge, setEstimatedAge] = useState("");
-  const [fileNumber, setFileNumber] = useState("");
+  const [fileNumber] = useState("");
 
-  // Contact
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [addr1, setAddr1] = useState("");
@@ -86,28 +109,23 @@ function RegisterPatient() {
   const [postal, setPostal] = useState("");
   const [country, setCountry] = useState("Kenya");
 
-  // Demographics
   const [occupation, setOccupation] = useState("");
   const [marital, setMarital] = useState("");
   const [nationality, setNationality] = useState("");
   const [religion, setReligion] = useState("");
   const [education, setEducation] = useState("");
 
-  // Death
   const [isDeceased, setIsDeceased] = useState(false);
   const [dod, setDod] = useState("");
   const [causeOfDeath, setCauseOfDeath] = useState("");
 
-  // Relationships
   const [relationships, setRelationships] = useState<Relationship[]>([]);
 
-  // Next of kin
   const [kinName, setKinName] = useState("");
   const [kinRelation, setKinRelation] = useState("");
   const [kinPhone, setKinPhone] = useState("");
   const [kinAddress, setKinAddress] = useState("");
 
-  // Visit
   const [fromRoom, setFromRoom] = useState("");
   const [sendToRoomId, setSendToRoomId] = useState("");
   const [mode, setMode] = useState<PaymentMode>("cash");
@@ -125,12 +143,14 @@ function RegisterPatient() {
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => setInsurers(data ?? []));
+
     supabase
       .from("lab_test_catalog")
       .select("id,name,price,cash_price,insurance_price,kind,category")
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => setTests((data ?? []) as TestRow[]));
+
     supabase
       .from("rooms")
       .select("id,name,kind")
@@ -139,34 +159,50 @@ function RegisterPatient() {
       .then(({ data }) => setRooms((data ?? []) as Room[]));
   }, []);
 
-  const priceFor = (t: TestRow) => {
-    if (mode === "insurance") return Number(t.insurance_price ?? t.cash_price ?? t.price ?? 0);
-    return Number(t.cash_price ?? t.price ?? 0);
+  const priceFor = (test: TestRow) => {
+    if (mode === "insurance") {
+      return Number(test.insurance_price ?? test.cash_price ?? test.price ?? 0);
+    }
+
+    return Number(test.cash_price ?? test.price ?? 0);
   };
 
-  const insurer = insurers.find((i) => i.id === insurerId);
+  const insurer = insurers.find((item) => item.id === insurerId);
+
   const selectedTests = useMemo(
-    () => tests.filter((t) => selectedTestIds.has(t.id)),
+    () => tests.filter((test) => selectedTestIds.has(test.id)),
     [tests, selectedTestIds],
   );
-  const subtotal = selectedTests.reduce((s, t) => s + priceFor(t), 0);
+
+  const subtotal = selectedTests.reduce((sum, test) => sum + priceFor(test), 0);
   const coveragePct = mode === "insurance" && insurer ? Number(insurer.coverage_percentage) : 0;
-  const insuranceCovered = mode === "insurance" ? +((subtotal * coveragePct) / 100).toFixed(2) : 0;
+  const insuranceCovered =
+    mode === "insurance" ? +((subtotal * coveragePct) / 100).toFixed(2) : 0;
   const patientDue = mode === "free" ? 0 : +(subtotal - insuranceCovered).toFixed(2);
 
-  const toggleTest = (id: string) =>
-    setSelectedTestIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  const toggleTest = (id: string) => {
+    setSelectedTestIds((previous) => {
+      const next = new Set(previous);
+
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
       return next;
     });
+  };
 
-  const scrollTo = (id: string) =>
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
 
     if (!firstName.trim() || !familyName.trim()) {
       toast.error("First and Family name are required");
@@ -199,7 +235,7 @@ function RegisterPatient() {
     }
 
     if (!addr1.trim() || !city.trim() || !county.trim()) {
-      toast.error("Address (line 1, city, county) is required");
+      toast.error("Address line 1, city, and county are required");
       scrollTo("contact");
       return;
     }
@@ -233,7 +269,7 @@ function RegisterPatient() {
     const patientName = [firstName, middleName, familyName].filter(Boolean).join(" ").trim();
     const hasTests = selectedTests.length > 0;
 
-    const { error } = await supabase.from("patient_registrations").insert({
+    const payload: Record<string, unknown> = {
       patient_name: patientName,
       first_name: firstName.trim(),
       middle_name: middleName.trim() || null,
@@ -242,41 +278,51 @@ function RegisterPatient() {
       dob_known: dobKnown,
       date_of_birth: dobKnown && dob ? dob : null,
       estimated_age: !dobKnown && estimatedAge ? Number(estimatedAge) : null,
-      phone: phone || null,
-      email: email || null,
-      // file_number is auto-generated by a database trigger — do not send
-      address_line1: addr1 || null,
-      address_line2: addr2 || null,
-      city: city || null,
-      county: county || null,
-      postal_code: postal || null,
-      country: country || null,
-      occupation: occupation || null,
+      phone: phone.trim(),
+      email: email.trim() || null,
+      address_line1: addr1.trim() || null,
+      address_line2: addr2.trim() || null,
+      city: city.trim() || null,
+      county: county.trim() || null,
+      postal_code: postal.trim() || null,
+      country: country.trim() || null,
+      occupation: occupation.trim() || null,
       marital_status: marital || null,
-      nationality: nationality || null,
-      religion: religion || null,
+      nationality: nationality.trim() || null,
+      religion: religion.trim() || null,
       education_level: education || null,
       is_deceased: isDeceased,
       date_of_death: isDeceased && dod ? dod : null,
-      cause_of_death: isDeceased ? causeOfDeath || null : null,
+      cause_of_death: isDeceased ? causeOfDeath.trim() || null : null,
       relationships,
-      next_of_kin: { name: kinName, relation: kinRelation, phone: kinPhone, address: kinAddress },
+      next_of_kin: {
+        name: kinName.trim(),
+        relation: kinRelation.trim(),
+        phone: kinPhone.trim(),
+        address: kinAddress.trim(),
+      },
       from_room: fromRoom || "Reception",
       current_room_id: sendToRoomId,
       payment_mode: mode,
-      insurance_provider_id: mode === "insurance" ? insurer!.id : null,
+      insurance_provider_id: mode === "insurance" ? insurer?.id : null,
       insurance_coverage_percentage: mode === "insurance" ? coveragePct : null,
       insurance_policy_number: mode === "insurance" ? insurancePolicyNumber.trim() : null,
       is_emergency: isEmergency,
       referral_direction: referralDirection || null,
-      tests: selectedTests.map((t) => ({ id: t.id, name: t.name, price: priceFor(t) })),
+      tests: selectedTests.map((test) => ({
+        id: test.id,
+        name: test.name,
+        price: priceFor(test),
+      })),
       subtotal,
       insurance_covered: insuranceCovered,
       patient_due: patientDue,
       payment_status: mode === "free" || !hasTests ? "waived" : "unpaid",
       amount_paid: 0,
-      created_by: user!.id,
-    } as never);
+      created_by: user?.id,
+    };
+
+    const { error } = await supabase.from("patient_registrations").insert(payload as never);
 
     setSubmitting(false);
 
@@ -288,29 +334,6 @@ function RegisterPatient() {
     toast.success(hasTests ? "Patient registered" : "Patient sent to consultation");
     navigate({ to: "/queue" });
   }
-
-  const YesNo = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
-    <div className="inline-flex overflow-hidden rounded-md border">
-      <button
-        type="button"
-        onClick={() => onChange(true)}
-        className={`px-4 py-1.5 text-sm ${
-          value ? "bg-primary/10 text-primary border-primary" : "bg-background"
-        }`}
-      >
-        Yes
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(false)}
-        className={`px-4 py-1.5 text-sm border-l ${
-          !value ? "bg-primary/10 text-primary border-primary" : "bg-background"
-        }`}
-      >
-        No
-      </button>
-    </div>
-  );
 
   return (
     <form onSubmit={onSubmit} className="relative">
@@ -339,18 +362,21 @@ function RegisterPatient() {
         <aside className="lg:sticky lg:top-20 lg:h-fit">
           <h2 className="text-xl font-semibold">Create new patient</h2>
           <p className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">Jump to</p>
+
           <nav className="mt-2 space-y-1 text-sm">
-            {SECTIONS.map((s) => (
+            {SECTIONS.map((section) => (
               <button
-                key={s.id}
+                key={section.id}
                 type="button"
-                onClick={() => scrollTo(s.id)}
+                onClick={() => scrollTo(section.id)}
                 className="flex w-full items-center gap-2 rounded px-1 py-1 text-left text-emerald-700 hover:bg-emerald-50"
               >
-                <span className="text-muted-foreground">↳</span> {s.label}
+                <span className="text-muted-foreground">↳</span>
+                {section.label}
               </button>
             ))}
           </nav>
+
           <div className="mt-6 space-y-2">
             <Button
               type="submit"
@@ -379,13 +405,24 @@ function RegisterPatient() {
           >
             <Group title="Full Name">
               <Field label="First Name" required>
-                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                <Input
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  required
+                />
               </Field>
               <Field label="Middle Name (optional)">
-                <Input value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
+                <Input
+                  value={middleName}
+                  onChange={(event) => setMiddleName(event.target.value)}
+                />
               </Field>
               <Field label="Family Name" required>
-                <Input value={familyName} onChange={(e) => setFamilyName(e.target.value)} />
+                <Input
+                  value={familyName}
+                  onChange={(event) => setFamilyName(event.target.value)}
+                  required
+                />
               </Field>
             </Group>
 
@@ -393,16 +430,16 @@ function RegisterPatient() {
               <div className="space-y-2">
                 <Label>Sex</Label>
                 <div className="space-y-1">
-                  {(["male", "female"] as const).map((v) => (
-                    <label key={v} className="flex items-center gap-2 text-sm capitalize">
+                  {(["male", "female"] as const).map((value) => (
+                    <label key={value} className="flex items-center gap-2 text-sm capitalize">
                       <input
                         type="radio"
                         name="sex"
-                        value={v}
-                        checked={sex === v}
-                        onChange={() => setSex(v)}
+                        value={value}
+                        checked={sex === value}
+                        onChange={() => setSex(value)}
                       />
-                      {v}
+                      {value}
                     </label>
                   ))}
                 </div>
@@ -414,9 +451,15 @@ function RegisterPatient() {
                 <Label>Date of Birth Known?</Label>
                 <YesNo value={dobKnown} onChange={setDobKnown} />
               </div>
+
               {dobKnown ? (
                 <Field label="Date of birth" required>
-                  <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                  <Input
+                    type="date"
+                    value={dob}
+                    onChange={(event) => setDob(event.target.value)}
+                    required
+                  />
                 </Field>
               ) : (
                 <Field label="Estimated age (years)" required>
@@ -424,10 +467,12 @@ function RegisterPatient() {
                     type="number"
                     min={0}
                     value={estimatedAge}
-                    onChange={(e) => setEstimatedAge(e.target.value)}
+                    onChange={(event) => setEstimatedAge(event.target.value)}
+                    required
                   />
                 </Field>
               )}
+
               <Field label="File number">
                 <Input
                   value={fileNumber}
@@ -444,33 +489,50 @@ function RegisterPatient() {
               <Field label="Phone" required>
                 <Input
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(event) => setPhone(event.target.value)}
                   required
                   placeholder="Patient phone number"
                 />
               </Field>
               <Field label="Email">
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
               </Field>
             </Group>
+
             <Group title="Address">
               <Field label="Address line 1" required>
-                <Input value={addr1} onChange={(e) => setAddr1(e.target.value)} />
+                <Input
+                  value={addr1}
+                  onChange={(event) => setAddr1(event.target.value)}
+                  required
+                />
               </Field>
               <Field label="Address line 2 (optional)">
-                <Input value={addr2} onChange={(e) => setAddr2(e.target.value)} />
+                <Input value={addr2} onChange={(event) => setAddr2(event.target.value)} />
               </Field>
               <Field label="City / Town" required>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} />
+                <Input
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                  required
+                />
               </Field>
               <Field label="County" required>
-                <Input value={county} onChange={(e) => setCounty(e.target.value)} />
+                <Input
+                  value={county}
+                  onChange={(event) => setCounty(event.target.value)}
+                  required
+                />
               </Field>
               <Field label="Postal code (optional)">
-                <Input value={postal} onChange={(e) => setPostal(e.target.value)} />
+                <Input value={postal} onChange={(event) => setPostal(event.target.value)} />
               </Field>
               <Field label="Country">
-                <Input value={country} onChange={(e) => setCountry(e.target.value)} />
+                <Input value={country} onChange={(event) => setCountry(event.target.value)} />
               </Field>
             </Group>
           </Section>
@@ -478,7 +540,10 @@ function RegisterPatient() {
           <Section id="demographics" number="3" title="Demographics">
             <Group title="Background">
               <Field label="Occupation">
-                <Input value={occupation} onChange={(e) => setOccupation(e.target.value)} />
+                <Input
+                  value={occupation}
+                  onChange={(event) => setOccupation(event.target.value)}
+                />
               </Field>
               <Field label="Marital status">
                 <Select value={marital} onValueChange={setMarital}>
@@ -486,19 +551,22 @@ function RegisterPatient() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {["Single", "Married", "Divorced", "Widowed", "Separated"].map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                    {["Single", "Married", "Divorced", "Widowed", "Separated"].map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
               <Field label="Nationality">
-                <Input value={nationality} onChange={(e) => setNationality(e.target.value)} />
+                <Input
+                  value={nationality}
+                  onChange={(event) => setNationality(event.target.value)}
+                />
               </Field>
               <Field label="Religion (optional)">
-                <Input value={religion} onChange={(e) => setReligion(e.target.value)} />
+                <Input value={religion} onChange={(event) => setReligion(event.target.value)} />
               </Field>
               <Field label="Education level">
                 <Select value={education} onValueChange={setEducation}>
@@ -506,9 +574,9 @@ function RegisterPatient() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {["None", "Primary", "Secondary", "Tertiary", "University"].map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                    {["None", "Primary", "Secondary", "Tertiary", "University"].map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -523,15 +591,20 @@ function RegisterPatient() {
                 <Label>Is the patient deceased?</Label>
                 <YesNo value={isDeceased} onChange={setIsDeceased} />
               </div>
+
               {isDeceased && (
                 <>
                   <Field label="Date of death">
-                    <Input type="date" value={dod} onChange={(e) => setDod(e.target.value)} />
+                    <Input
+                      type="date"
+                      value={dod}
+                      onChange={(event) => setDod(event.target.value)}
+                    />
                   </Field>
                   <Field label="Cause of death">
                     <Textarea
                       value={causeOfDeath}
-                      onChange={(e) => setCauseOfDeath(e.target.value)}
+                      onChange={(event) => setCauseOfDeath(event.target.value)}
                       rows={2}
                     />
                   </Field>
@@ -546,35 +619,46 @@ function RegisterPatient() {
                 {relationships.length === 0 && (
                   <p className="text-sm text-muted-foreground">No relationships added.</p>
                 )}
-                {relationships.map((r, idx) => (
+
+                {relationships.map((relationship, index) => (
                   <div
-                    key={idx}
+                    key={`${relationship.relation}-${index}`}
                     className="grid gap-2 rounded-md border bg-background p-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
                   >
                     <Input
                       placeholder="Relation (e.g. Father)"
-                      value={r.relation}
-                      onChange={(e) =>
+                      value={relationship.relation}
+                      onChange={(event) =>
                         setRelationships((all) =>
-                          all.map((x, i) => (i === idx ? { ...x, relation: e.target.value } : x)),
+                          all.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, relation: event.target.value }
+                              : item,
+                          ),
                         )
                       }
                     />
                     <Input
                       placeholder="Name"
-                      value={r.name}
-                      onChange={(e) =>
+                      value={relationship.name}
+                      onChange={(event) =>
                         setRelationships((all) =>
-                          all.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
+                          all.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, name: event.target.value } : item,
+                          ),
                         )
                       }
                     />
                     <Input
                       placeholder="Contact"
-                      value={r.contact}
-                      onChange={(e) =>
+                      value={relationship.contact}
+                      onChange={(event) =>
                         setRelationships((all) =>
-                          all.map((x, i) => (i === idx ? { ...x, contact: e.target.value } : x)),
+                          all.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, contact: event.target.value }
+                              : item,
+                          ),
                         )
                       }
                     />
@@ -582,21 +666,30 @@ function RegisterPatient() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => setRelationships((all) => all.filter((_, i) => i !== idx))}
+                      onClick={() =>
+                        setRelationships((all) =>
+                          all.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 ))}
+
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    setRelationships((all) => [...all, { relation: "", name: "", contact: "" }])
+                    setRelationships((all) => [
+                      ...all,
+                      { relation: "", name: "", contact: "" },
+                    ])
                   }
                 >
-                  <Plus className="mr-1 h-4 w-4" /> Add relationship
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add relationship
                 </Button>
               </div>
             </Group>
@@ -605,16 +698,31 @@ function RegisterPatient() {
           <Section id="nextofkin" number="6" title="Next of Kin">
             <Group title="Primary contact">
               <Field label="Full name" required>
-                <Input value={kinName} onChange={(e) => setKinName(e.target.value)} />
+                <Input
+                  value={kinName}
+                  onChange={(event) => setKinName(event.target.value)}
+                  required
+                />
               </Field>
               <Field label="Relationship" required>
-                <Input value={kinRelation} onChange={(e) => setKinRelation(e.target.value)} />
+                <Input
+                  value={kinRelation}
+                  onChange={(event) => setKinRelation(event.target.value)}
+                  required
+                />
               </Field>
               <Field label="Phone" required>
-                <Input value={kinPhone} onChange={(e) => setKinPhone(e.target.value)} />
+                <Input
+                  value={kinPhone}
+                  onChange={(event) => setKinPhone(event.target.value)}
+                  required
+                />
               </Field>
               <Field label="Address (optional)">
-                <Input value={kinAddress} onChange={(e) => setKinAddress(e.target.value)} />
+                <Input
+                  value={kinAddress}
+                  onChange={(event) => setKinAddress(event.target.value)}
+                />
               </Field>
             </Group>
           </Section>
@@ -627,14 +735,15 @@ function RegisterPatient() {
                     <SelectValue placeholder="e.g. Reception" />
                   </SelectTrigger>
                   <SelectContent>
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.name}>
-                        {r.name}
+                    {rooms.map((room) => (
+                      <SelectItem key={room.id} value={room.name}>
+                        {room.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
+
               <Field label="Send to (consultation / triage)" required>
                 <Select value={sendToRoomId} onValueChange={setSendToRoomId}>
                   <SelectTrigger>
@@ -646,10 +755,10 @@ function RegisterPatient() {
                         No active rooms.
                       </div>
                     )}
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.name}
-                        {r.kind === "lab" ? " (Lab)" : ""}
+                    {rooms.map((room) => (
+                      <SelectItem key={room.id} value={room.id}>
+                        {room.name}
+                        {room.kind === "lab" ? " (Lab)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -662,11 +771,12 @@ function RegisterPatient() {
                 <Label>Emergency case?</Label>
                 <YesNo value={isEmergency} onChange={setIsEmergency} />
               </div>
+
               <Field label="Referral">
                 <Select
                   value={referralDirection || "none"}
-                  onValueChange={(v) =>
-                    setReferralDirection(v === "none" ? "" : (v as "in" | "out"))
+                  onValueChange={(value) =>
+                    setReferralDirection(value === "none" ? "" : (value as "in" | "out"))
                   }
                 >
                   <SelectTrigger>
@@ -692,3 +802,253 @@ function RegisterPatient() {
                   cls="bg-emerald-600"
                 />
                 <ModeBtn
+                  value="insurance"
+                  label="Insurance"
+                  icon={Shield}
+                  active={mode === "insurance"}
+                  on={() => setMode("insurance")}
+                  cls="bg-blue-600"
+                />
+                <ModeBtn
+                  value="free"
+                  label="Free / Waived"
+                  icon={HeartHandshake}
+                  active={mode === "free"}
+                  on={() => setMode("free")}
+                  cls="bg-amber-500"
+                />
+              </div>
+
+              {mode === "insurance" && (
+                <>
+                  <Field label="Insurance provider" required>
+                    <Select value={insurerId} onValueChange={setInsurerId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select insurer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {insurers.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name}{" "}
+                            <span className="text-xs text-muted-foreground">
+                              [{item.code}] · {item.coverage_percentage}%
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field label="Policy / member number" required>
+                    <Input
+                      value={insurancePolicyNumber}
+                      onChange={(event) => setInsurancePolicyNumber(event.target.value)}
+                      required
+                      placeholder="Enter insurance policy or member number"
+                    />
+                  </Field>
+                </>
+              )}
+            </Group>
+
+            <Group title="Services / Tests (optional — can be added at consultation)">
+              <div className="col-span-full grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {tests.length === 0 && (
+                  <p className="col-span-full text-sm text-muted-foreground">
+                    No services or tests configured yet.
+                  </p>
+                )}
+
+                {tests.map((test) => {
+                  const active = selectedTestIds.has(test.id);
+
+                  return (
+                    <button
+                      key={test.id}
+                      type="button"
+                      onClick={() => toggleTest(test.id)}
+                      className={`flex flex-col rounded-lg border p-3 text-left transition ${
+                        active
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "hover:bg-accent"
+                      }`}
+                    >
+                      <span className="text-sm font-medium">{test.name}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {test.category || test.kind}
+                      </span>
+                      <span className="mt-1 text-xs text-muted-foreground">
+                        KSh {priceFor(test).toFixed(2)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Group>
+
+            <Group title="Summary">
+              <div className="col-span-full rounded-lg border bg-background p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">Charge summary</span>
+                  <PaymentBadge mode={mode} />
+                </div>
+                <div className="space-y-1 text-sm">
+                  <Row label="Subtotal" value={`KSh ${subtotal.toFixed(2)}`} />
+                  {mode === "insurance" && (
+                    <Row
+                      label={`Insurance (${coveragePct}%)`}
+                      value={`-KSh ${insuranceCovered.toFixed(2)}`}
+                      muted
+                    />
+                  )}
+                  {mode === "free" && (
+                    <Row label="Waived" value={`-KSh ${subtotal.toFixed(2)}`} muted />
+                  )}
+                  <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold">
+                    <span>Patient pays</span>
+                    <span className="tabular-nums">KSh {patientDue.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </Group>
+          </Section>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+function YesNo({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="inline-flex overflow-hidden rounded-md border">
+      <button
+        type="button"
+        onClick={() => onChange(true)}
+        className={`px-4 py-1.5 text-sm ${
+          value ? "bg-primary/10 text-primary border-primary" : "bg-background"
+        }`}
+      >
+        Yes
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(false)}
+        className={`border-l px-4 py-1.5 text-sm ${
+          !value ? "bg-primary/10 text-primary border-primary" : "bg-background"
+        }`}
+      >
+        No
+      </button>
+    </div>
+  );
+}
+
+function Section({
+  id,
+  number,
+  title,
+  hint,
+  children,
+}: {
+  id: string;
+  number: string;
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-24">
+      <div className="mb-3">
+        <h3 className="text-base font-semibold">
+          <span className="mr-1">{number}.</span>
+          {title}
+        </h3>
+        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      </div>
+      <div className="space-y-5 rounded-lg border bg-muted/40 p-5">{children}</div>
+    </section>
+  );
+}
+
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <h4 className="mb-3 text-sm font-semibold">{title}</h4>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm">
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className={`flex justify-between ${muted ? "text-muted-foreground" : ""}`}>
+      <span>{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function ModeBtn({
+  label,
+  icon: Icon,
+  active,
+  on,
+  cls,
+}: {
+  value: PaymentMode;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  on: () => void;
+  cls: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={on}
+      className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition ${
+        active ? `${cls} border-transparent text-white shadow-sm` : "bg-background hover:bg-accent"
+      }`}
+    >
+      <Icon className="h-4 w-4" /> {label}
+    </button>
+  );
+}
+
+export function PaymentBadge({ mode }: { mode: PaymentMode }) {
+  if (mode === "cash") {
+    return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Cash</Badge>;
+  }
+
+  if (mode === "insurance") {
+    return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Insurance</Badge>;
+  }
+
+  return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Free</Badge>;
+}
