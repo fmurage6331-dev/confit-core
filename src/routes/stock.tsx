@@ -8,7 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PermGuard } from "@/lib/require-access";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,10 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   ArrowRightLeft,
@@ -124,9 +124,9 @@ type StoreUsage = {
   created_at: string;
 };
 
-function kindLabel(k: string | null | undefined) {
-  const value = k ?? "consumable";
-  return KINDS.find((x) => x.value === value)?.label ?? value;
+function kindLabel(value: string | null | undefined) {
+  const key = value ?? "consumable";
+  return KINDS.find((item) => item.value === key)?.label ?? key;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -134,12 +134,22 @@ function formatDate(value: string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
+function getFormString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+function getFormNumber(formData: FormData, key: string) {
+  const value = Number(formData.get(key) || 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
 function StockPage() {
   const qc = useQueryClient();
 
-  const [activeLocationId, setActiveLocationId] = useState<string>("");
+  const [activeLocationId, setActiveLocationId] = useState("");
   const [search, setSearch] = useState("");
-  const [kindFilter, setKindFilter] = useState<string>("all");
+  const [kindFilter, setKindFilter] = useState("all");
 
   const [openAddItem, setOpenAddItem] = useState(false);
   const [openReceive, setOpenReceive] = useState(false);
@@ -149,14 +159,14 @@ function StockPage() {
   const { data: locations, isLoading: locationsLoading } = useQuery({
     queryKey: ["stock-locations"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("stock_locations")
         .select("*")
         .eq("is_active", true)
         .order("is_main_store", { ascending: false })
         .order("name", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as StockLocation[];
     },
   });
@@ -164,14 +174,14 @@ function StockPage() {
   const { data: items, isLoading: itemsLoading } = useQuery({
     queryKey: ["stock-items"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("stock_items")
         .select("*")
         .order("kind", { ascending: true })
         .order("category", { ascending: true })
         .order("name", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as StockItem[];
     },
   });
@@ -179,13 +189,13 @@ function StockPage() {
   const { data: balances, isLoading: balancesLoading } = useQuery({
     queryKey: ["stock-store-balances"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("stock_store_balances_view")
         .select("*")
         .order("location_name", { ascending: true })
         .order("item_name", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as StoreBalance[];
     },
   });
@@ -193,13 +203,13 @@ function StockPage() {
   const { data: usageRows, isLoading: usageLoading } = useQuery({
     queryKey: ["stock-store-usage"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("stock_store_usage_view")
         .select("*")
         .order("used_at", { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as StoreUsage[];
     },
   });
@@ -211,11 +221,11 @@ function StockPage() {
   }, [activeLocationId, locations]);
 
   const activeLocation = useMemo(() => {
-    return locations?.find((l) => l.id === activeLocationId) ?? null;
+    return locations?.find((location) => location.id === activeLocationId) ?? null;
   }, [locations, activeLocationId]);
 
   const activeBalances = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const query = search.trim().toLowerCase();
 
     return (balances ?? [])
       .filter((row) => row.location_id === activeLocationId)
@@ -224,11 +234,12 @@ function StockPage() {
         return (row.kind ?? "consumable") === kindFilter;
       })
       .filter((row) => {
-        if (!q) return true;
+        if (!query) return true;
+
         return (
-          row.item_name.toLowerCase().includes(q) ||
-          (row.category ?? "").toLowerCase().includes(q) ||
-          (row.kind ?? "").toLowerCase().includes(q)
+          row.item_name.toLowerCase().includes(query) ||
+          (row.category ?? "").toLowerCase().includes(query) ||
+          (row.kind ?? "").toLowerCase().includes(query)
         );
       });
   }, [balances, activeLocationId, search, kindFilter]);
@@ -239,15 +250,15 @@ function StockPage() {
 
   const addItem = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
-      const { error } = await (supabase as any).from("stock_items").insert(payload);
-      if (error) throw error;
+      const { error } = await db.from("stock_items").insert(payload);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Stock item added.");
       setOpenAddItem(false);
       qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const receiveStock = useMutation({
@@ -257,14 +268,14 @@ function StockPage() {
       quantity: number;
       note: string | null;
     }) => {
-      const { error } = await (supabase as any).rpc("receive_stock_to_location", {
+      const { error } = await db.rpc("receive_stock_to_location", {
         target_location_id: payload.locationId,
         target_item_id: payload.itemId,
         received_quantity: payload.quantity,
         note: payload.note,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Stock received.");
@@ -272,7 +283,7 @@ function StockPage() {
       qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
       qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const transferStock = useMutation({
@@ -283,7 +294,7 @@ function StockPage() {
       quantity: number;
       note: string | null;
     }) => {
-      const { error } = await (supabase as any).rpc("transfer_stock_between_locations", {
+      const { error } = await db.rpc("transfer_stock_between_locations", {
         source_location_id: payload.fromLocationId,
         destination_location_id: payload.toLocationId,
         target_item_id: payload.itemId,
@@ -291,14 +302,14 @@ function StockPage() {
         note: payload.note,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Stock transferred.");
       setOpenTransfer(false);
       qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const recordUsage = useMutation({
@@ -309,7 +320,7 @@ function StockPage() {
       reason: string;
       note: string | null;
     }) => {
-      const { error } = await (supabase as any).rpc("record_stock_usage", {
+      const { error } = await db.rpc("record_stock_usage", {
         source_location_id: payload.locationId,
         target_item_id: payload.itemId,
         used_quantity: payload.quantity,
@@ -318,7 +329,7 @@ function StockPage() {
         note: payload.note,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Stock usage recorded.");
@@ -327,7 +338,7 @@ function StockPage() {
       qc.invalidateQueries({ queryKey: ["stock-store-usage"] });
       qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const pageLoading = locationsLoading || itemsLoading || balancesLoading;
@@ -341,7 +352,8 @@ function StockPage() {
             Stores & Stock
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Main Store and department stores for Lab, Pharmacy, Radiology, Reception, MCH and FP.
+            Main Store and department stores for Lab, Pharmacy, Radiology,
+            Reception, MCH and FP.
           </p>
         </div>
 
@@ -358,6 +370,7 @@ function StockPage() {
                 Add item
               </Button>
             </DialogTrigger>
+
             <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add stock item</DialogTitle>
@@ -365,22 +378,23 @@ function StockPage() {
 
               <form
                 className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
 
                   addItem.mutate({
-                    name: f.get("name"),
-                    kind: f.get("kind") || "consumable",
-                    category: f.get("category"),
-                    unit: f.get("unit") || "pcs",
-                    current_quantity: Number(f.get("current_quantity") || 0),
-                    reorder_level: Number(f.get("reorder_level") || 0),
-                    buy_price: Number(f.get("buy_price") || 0),
-                    cash_price: Number(f.get("cash_price") || 0),
-                    insurance_price: Number(f.get("insurance_price") || 0),
-                    unit_price: Number(f.get("cash_price") || 0),
-                    notes: f.get("notes"),
+                    name: getFormString(formData, "name"),
+                    kind: getFormString(formData, "kind") || "consumable",
+                    category: getFormString(formData, "category"),
+                    unit: getFormString(formData, "unit") || "pcs",
+                    current_quantity: getFormNumber(formData, "current_quantity"),
+                    reorder_level: getFormNumber(formData, "reorder_level"),
+                    buy_price: getFormNumber(formData, "buy_price"),
+                    cash_price: getFormNumber(formData, "cash_price"),
+                    insurance_price: getFormNumber(formData, "insurance_price"),
+                    unit_price: getFormNumber(formData, "cash_price"),
+                    notes: getFormString(formData, "notes"),
                   });
                 }}
               >
@@ -397,9 +411,9 @@ function StockPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {KINDS.map((k) => (
-                          <SelectItem key={k.value} value={k.value}>
-                            {k.label}
+                        {KINDS.map((kind) => (
+                          <SelectItem key={kind.value} value={kind.value}>
+                            {kind.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -419,26 +433,51 @@ function StockPage() {
                   </div>
                   <div>
                     <Label>Opening quantity</Label>
-                    <Input type="number" step="0.01" name="current_quantity" defaultValue={0} />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="current_quantity"
+                      defaultValue={0}
+                    />
                   </div>
                   <div>
                     <Label>Reorder level</Label>
-                    <Input type="number" step="0.01" name="reorder_level" defaultValue={0} />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="reorder_level"
+                      defaultValue={0}
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>Buy price</Label>
-                    <Input type="number" step="0.01" name="buy_price" defaultValue={0} />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="buy_price"
+                      defaultValue={0}
+                    />
                   </div>
                   <div>
                     <Label>Cash price</Label>
-                    <Input type="number" step="0.01" name="cash_price" defaultValue={0} />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="cash_price"
+                      defaultValue={0}
+                    />
                   </div>
                   <div>
                     <Label>Insurance price</Label>
-                    <Input type="number" step="0.01" name="insurance_price" defaultValue={0} />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="insurance_price"
+                      defaultValue={0}
+                    />
                   </div>
                 </div>
 
@@ -463,6 +502,7 @@ function StockPage() {
                 Receive stock
               </Button>
             </DialogTrigger>
+
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Receive stock into store</DialogTitle>
@@ -470,16 +510,16 @@ function StockPage() {
 
               <form
                 className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
-                  const quantity = Number(f.get("quantity") || 0);
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
 
                   receiveStock.mutate({
-                    locationId: String(f.get("location_id")),
-                    itemId: String(f.get("item_id")),
-                    quantity,
-                    note: String(f.get("note") || "") || null,
+                    locationId: getFormString(formData, "location_id"),
+                    itemId: getFormString(formData, "item_id"),
+                    quantity: getFormNumber(formData, "quantity"),
+                    note: getFormString(formData, "note") || null,
                   });
                 }}
               >
@@ -490,9 +530,9 @@ function StockPage() {
                       <SelectValue placeholder="Select store" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(locations ?? []).map((l) => (
-                        <SelectItem key={l.id} value={l.id}>
-                          {l.name}
+                      {(locations ?? []).map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -506,9 +546,9 @@ function StockPage() {
                       <SelectValue placeholder="Select item" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(items ?? []).map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
+                      {(items ?? []).map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -541,6 +581,7 @@ function StockPage() {
                 Transfer
               </Button>
             </DialogTrigger>
+
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Transfer stock between stores</DialogTitle>
@@ -548,16 +589,17 @@ function StockPage() {
 
               <form
                 className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
 
                   transferStock.mutate({
-                    fromLocationId: String(f.get("from_location_id")),
-                    toLocationId: String(f.get("to_location_id")),
-                    itemId: String(f.get("item_id")),
-                    quantity: Number(f.get("quantity") || 0),
-                    note: String(f.get("note") || "") || null,
+                    fromLocationId: getFormString(formData, "from_location_id"),
+                    toLocationId: getFormString(formData, "to_location_id"),
+                    itemId: getFormString(formData, "item_id"),
+                    quantity: getFormNumber(formData, "quantity"),
+                    note: getFormString(formData, "note") || null,
                   });
                 }}
               >
@@ -569,9 +611,9 @@ function StockPage() {
                         <SelectValue placeholder="From" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(locations ?? []).map((l) => (
-                          <SelectItem key={l.id} value={l.id}>
-                            {l.name}
+                        {(locations ?? []).map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -585,9 +627,9 @@ function StockPage() {
                         <SelectValue placeholder="To" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(locations ?? []).map((l) => (
-                          <SelectItem key={l.id} value={l.id}>
-                            {l.name}
+                        {(locations ?? []).map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -602,9 +644,9 @@ function StockPage() {
                       <SelectValue placeholder="Select item" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(items ?? []).map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
+                      {(items ?? []).map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -637,6 +679,7 @@ function StockPage() {
                 Record usage
               </Button>
             </DialogTrigger>
+
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Record manual stock usage</DialogTitle>
@@ -644,16 +687,17 @@ function StockPage() {
 
               <form
                 className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
 
                   recordUsage.mutate({
-                    locationId: String(f.get("location_id")),
-                    itemId: String(f.get("item_id")),
-                    quantity: Number(f.get("quantity") || 0),
-                    reason: String(f.get("reason") || "used"),
-                    note: String(f.get("note") || "") || null,
+                    locationId: getFormString(formData, "location_id"),
+                    itemId: getFormString(formData, "item_id"),
+                    quantity: getFormNumber(formData, "quantity"),
+                    reason: getFormString(formData, "reason") || "used",
+                    note: getFormString(formData, "note") || null,
                   });
                 }}
               >
@@ -664,9 +708,9 @@ function StockPage() {
                       <SelectValue placeholder="Select store" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(locations ?? []).map((l) => (
-                        <SelectItem key={l.id} value={l.id}>
-                          {l.name}
+                      {(locations ?? []).map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -680,9 +724,9 @@ function StockPage() {
                       <SelectValue placeholder="Select item" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(items ?? []).map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
+                      {(items ?? []).map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -702,9 +746,9 @@ function StockPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {USAGE_REASONS.map((r) => (
-                          <SelectItem key={r.value} value={r.value}>
-                            {r.label}
+                        {USAGE_REASONS.map((reason) => (
+                          <SelectItem key={reason.value} value={reason.value}>
+                            {reason.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -740,7 +784,9 @@ function StockPage() {
 
           <div className="space-y-1">
             {locationsLoading && (
-              <p className="px-2 py-4 text-sm text-muted-foreground">Loading stores…</p>
+              <p className="px-2 py-4 text-sm text-muted-foreground">
+                Loading stores…
+              </p>
             )}
 
             {(locations ?? []).map((location) => {
@@ -803,7 +849,7 @@ function StockPage() {
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search items"
                     className="w-56 pl-9"
                   />
@@ -815,9 +861,9 @@ function StockPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All kinds</SelectItem>
-                    {KINDS.map((k) => (
-                      <SelectItem key={k.value} value={k.value}>
-                        {k.label}
+                    {KINDS.map((kind) => (
+                      <SelectItem key={kind.value} value={kind.value}>
+                        {kind.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -881,8 +927,8 @@ function StockPage() {
                   {!pageLoading && activeBalances.length === 0 && (
                     <tr>
                       <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                        No stock balances in this store yet. Receive or transfer stock into this
-                        store.
+                        No stock balances in this store yet. Receive or transfer stock
+                        into this store.
                       </td>
                     </tr>
                   )}
