@@ -5,7 +5,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,14 +67,14 @@ function Moh707() {
   } = useQuery({
     queryKey: ["moh-707", monthStart],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("moh_monthly_aggregates")
         .select("*")
         .in("indicator_code", MOH_707_INDICATORS)
         .eq("period_month", monthStart)
         .order("indicator_code", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as AggregateRow[];
     },
   });
@@ -97,19 +97,20 @@ function Moh707() {
 
   const handleRecalculate = async () => {
     try {
-      const { error } = await (supabase as any).rpc(
-        "refresh_moh_707_monthly_aggregates",
-        {
-          target_month: monthStart,
-        }
-      );
+      const { error } = await db.rpc("refresh_moh_707_monthly_aggregates", {
+        target_month: monthStart,
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       toast.success("MOH 707 pharmacy aggregates refreshed.");
       await refetch();
-    } catch (error: any) {
-      toast.error(error?.message ?? "Failed to refresh MOH 707 aggregates.");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh MOH 707 aggregates.",
+      );
     }
   };
 
