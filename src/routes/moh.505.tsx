@@ -5,7 +5,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,17 +55,7 @@ const IDSR_INDICATORS = Object.keys(IDSR_LABELS);
 
 function getCurrentWeekStart() {
   const d = new Date();
-
-  /**
-   * Sunday as week start.
-   * If you want Monday as week start, replace below with:
-   *
-   * const day = d.getDay();
-   * const diff = day === 0 ? -6 : 1 - day;
-   * d.setDate(d.getDate() + diff);
-   */
   d.setDate(d.getDate() - d.getDay());
-
   return d.toISOString().split("T")[0];
 }
 
@@ -80,14 +70,14 @@ function Moh505() {
   } = useQuery({
     queryKey: ["moh-505", weekStart],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("moh_weekly_aggregates")
         .select("*")
         .in("indicator_code", IDSR_INDICATORS)
         .eq("week_start", weekStart)
         .order("indicator_code", { ascending: true });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data ?? []) as WeeklyAggregateRow[];
     },
   });
@@ -110,19 +100,20 @@ function Moh505() {
 
   const handleRecalculate = async () => {
     try {
-      const { error } = await (supabase as any).rpc(
-        "refresh_moh_weekly_aggregates",
-        {
-          target_week_start: weekStart,
-        }
-      );
+      const { error } = await db.rpc("refresh_moh_weekly_aggregates", {
+        target_week_start: weekStart,
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       toast.success("IDSR weekly aggregates refreshed.");
       await refetch();
-    } catch (error: any) {
-      toast.error(error?.message ?? "Failed to refresh IDSR weekly aggregates.");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh IDSR weekly aggregates.",
+      );
     }
   };
 
