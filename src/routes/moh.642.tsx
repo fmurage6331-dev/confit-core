@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, RefreshCw, RotateCcw } from "lucide-react";
+import { BarChart3, Printer, RefreshCw, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/642")({
@@ -114,7 +114,7 @@ function Moh642() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <BarChart3 className="h-6 w-6" />
@@ -137,7 +137,7 @@ function Moh642() {
               id="month"
               type="month"
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              onChange={(event) => setMonth(event.target.value)}
               className="w-48"
             />
           </div>
@@ -151,7 +151,18 @@ function Moh642() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
         </div>
+      </div>
+
+      <div className="hidden print:block text-center mb-6">
+        <h1 className="text-2xl font-bold">MOH 642 — Laboratory Commodities</h1>
+        <p className="text-sm">Reporting month: {month}</p>
+        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
       </div>
 
       <Card>
@@ -201,7 +212,7 @@ function Moh642() {
           {!isLoading &&
             !isFetching &&
             rows.every((row) => Number(row.value) === 0) && (
-              <p className="text-muted-foreground text-center pt-6">
+              <p className="text-muted-foreground text-center pt-6 no-print">
                 No Lab Store usage found for this month. Record usage from the
                 Stores & Stock page, then click Recalculate.
               </p>
