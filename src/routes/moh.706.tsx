@@ -37,7 +37,11 @@ function Moh706() {
     return d.toISOString().split("T")[0];
   });
 
-  const { data: labData, isLoading, refetch } = useQuery({
+  const {
+    data: labData,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["moh-706", weekStart],
     queryFn: async () => {
       const start = new Date(weekStart);
@@ -70,7 +74,9 @@ function Moh706() {
         </div>
         <div className="flex items-end gap-2">
           <div>
-            <Label htmlFor="week" className="text-xs">Week starting</Label>
+            <Label htmlFor="week" className="text-xs">
+              Week starting
+            </Label>
             <Input
               id="week"
               type="date"

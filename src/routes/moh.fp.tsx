@@ -35,7 +35,11 @@ function MohFP() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  const { data: fpData, isLoading, refetch } = useQuery({
+  const {
+    data: fpData,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["moh-fp", month],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -63,7 +67,9 @@ function MohFP() {
         </div>
         <div className="flex items-end gap-2">
           <div>
-            <Label htmlFor="month" className="text-xs">Reporting month</Label>
+            <Label htmlFor="month" className="text-xs">
+              Reporting month
+            </Label>
             <Input
               id="month"
               type="month"
