@@ -8,12 +8,10 @@ import {
   Activity,
   BarChart3,
   CalendarDays,
-  Download,
   FlaskConical,
   HeartPulse,
   Package,
   Pill,
-  Printer,
   ShieldAlert,
   Stethoscope,
   Users,
@@ -97,7 +95,7 @@ const MOH_REPORTS = [
 function MohDashboard() {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Activity className="h-8 w-8 text-primary" />
@@ -116,13 +114,6 @@ function MohDashboard() {
             </button>
           </Link>
         </div>
-      </div>
-
-      <div className="hidden print:block text-center mb-6">
-        <h1 className="text-2xl font-bold">MOH Reports Dashboard</h1>
-        <p className="text-xs text-muted-foreground">
-          Generated {new Date().toLocaleString()}
-        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -144,24 +135,13 @@ function MohDashboard() {
                   {description}
                 </p>
 
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {period}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-primary">
-                    <Printer className="h-3 w-3" />
-                    View & Print
-                  </span>
-                </div>
+                <span className="mt-3 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {period}
+                </span>
               </div>
             </a>
           ),
         )}
-      </div>
-
-      <div className="hidden print:block text-xs text-center mt-8 border-t pt-4">
-        LabTrack MOH Reports Dashboard | Generated on{" "}
-        {new Date().toLocaleDateString()}
       </div>
     </div>
   );
