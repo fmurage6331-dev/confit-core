@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, RefreshCw, RotateCcw, ShieldAlert } from "lucide-react";
+import { BarChart3, Printer, RefreshCw, RotateCcw, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/505")({
@@ -119,7 +119,7 @@ function Moh505() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <ShieldAlert className="h-6 w-6" />
@@ -142,7 +142,7 @@ function Moh505() {
               id="week"
               type="date"
               value={weekStart}
-              onChange={(e) => setWeekStart(e.target.value)}
+              onChange={(event) => setWeekStart(event.target.value)}
               className="w-48"
             />
           </div>
@@ -156,7 +156,18 @@ function Moh505() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
         </div>
+      </div>
+
+      <div className="hidden print:block text-center mb-6">
+        <h1 className="text-2xl font-bold">MOH 505 — IDSR Weekly Report</h1>
+        <p className="text-sm">Week starting: {weekStart}</p>
+        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
       </div>
 
       <Card>
@@ -209,7 +220,7 @@ function Moh505() {
           {!isLoading &&
             !isFetching &&
             rows.every((row) => Number(row.value) === 0) && (
-              <p className="text-muted-foreground text-center pt-6">
+              <p className="text-muted-foreground text-center pt-6 no-print">
                 No IDSR data found for this week. Click Recalculate after IDSR
                 indicators have been tagged.
               </p>
