@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, RefreshCw, RotateCcw } from "lucide-react";
+import { BarChart3, Printer, RefreshCw, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/717")({
@@ -239,7 +239,7 @@ function Moh717() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <BarChart3 className="h-6 w-6" />
@@ -260,7 +260,7 @@ function Moh717() {
               id="month"
               type="month"
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              onChange={(event) => setMonth(event.target.value)}
               className="w-48"
             />
           </div>
@@ -274,7 +274,18 @@ function Moh717() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
         </div>
+      </div>
+
+      <div className="hidden print:block text-center mb-6">
+        <h1 className="text-2xl font-bold">MOH 717 — Monthly Workload Summary</h1>
+        <p className="text-sm">Reporting month: {month}</p>
+        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -369,7 +380,7 @@ function Moh717() {
       )}
 
       {!isLoading && !isFetching && grouped.length === 0 && (
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground no-print">
           If this remains empty after recalculation, there may be no source
           encounters, pharmacy dispensing, or store usage for this month.
         </p>
