@@ -58,12 +58,6 @@ function MohFP() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  const {
-    data: fpData,
-    isLoading,
-    refetch,
-  } = useQuery({
-    queryKey: ["moh-fp", month],
   const monthStart = `${month}-01`;
 
   const {
@@ -166,7 +160,9 @@ function MohFP() {
       <div className="hidden print:block text-center mb-6">
         <h1 className="text-2xl font-bold">MOH FP — Family Planning Report</h1>
         <p className="text-sm">Reporting month: {month}</p>
-        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
+        <p className="text-xs text-muted-foreground">
+          Generated {new Date().toLocaleString()}
+        </p>
       </div>
 
       <Card>
@@ -213,13 +209,11 @@ function MohFP() {
             </Table>
           )}
 
-          {!isLoading &&
-            !isFetching &&
-            rows.every((row) => Number(row.value) === 0) && (
-              <p className="text-muted-foreground text-center pt-6 no-print">
-                No family planning data found for this month.
-              </p>
-            )}
+          {!isLoading && !isFetching && rows.every((row) => Number(row.value) === 0) && (
+            <p className="text-muted-foreground text-center pt-6 no-print">
+              No family planning data found for this month.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
