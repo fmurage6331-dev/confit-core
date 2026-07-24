@@ -65,16 +65,6 @@ function Moh706() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  const {
-    data: labData,
-    isLoading,
-    refetch,
-  } = useQuery({
-    queryKey: ["moh-706", weekStart],
-    queryFn: async () => {
-      const start = new Date(weekStart);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
   const monthStart = `${month}-01`;
 
   const {
@@ -147,8 +137,6 @@ function Moh706() {
 
         <div className="flex items-end gap-2 flex-wrap">
           <div>
-            <Label htmlFor="week" className="text-xs">
-              Week starting
             <Label htmlFor="month" className="text-xs">
               Reporting month
             </Label>
@@ -181,7 +169,9 @@ function Moh706() {
       <div className="hidden print:block text-center mb-6">
         <h1 className="text-2xl font-bold">MOH 706 — Laboratory Report</h1>
         <p className="text-sm">Reporting month: {month}</p>
-        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
+        <p className="text-xs text-muted-foreground">
+          Generated {new Date().toLocaleString()}
+        </p>
       </div>
 
       <Card>
@@ -228,13 +218,11 @@ function Moh706() {
             </Table>
           )}
 
-          {!isLoading &&
-            !isFetching &&
-            rows.every((row) => Number(row.value) === 0) && (
-              <p className="text-muted-foreground text-center pt-6 no-print">
-                No laboratory data found for this month.
-              </p>
-            )}
+          {!isLoading && !isFetching && rows.every((row) => Number(row.value) === 0) && (
+            <p className="text-muted-foreground text-center pt-6 no-print">
+              No laboratory data found for this month.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
