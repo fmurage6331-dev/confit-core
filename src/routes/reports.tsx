@@ -6,7 +6,7 @@
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { AccessDenied } from "@/lib/require-access";
@@ -46,6 +46,7 @@ import {
   Stethoscope,
   Truck,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -215,6 +216,8 @@ function ReportsPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [quarter, setQuarter] = useState(Math.floor(now.getMonth() / 3) + 1);
   const [openFund, setOpenFund] = useState(false);
+  const [selectedMohPrintReport, setSelectedMohPrintReport] = useState("/moh/705");
+
   const qc = useQueryClient();
 
   const q = QUARTERS.find((item) => item.v === quarter) ?? QUARTERS[0];
@@ -495,9 +498,38 @@ function ReportsPage() {
             </Select>
           </div>
 
+          <div className="w-56">
+            <Label className="text-xs">Print MOH report</Label>
+            <Select value={selectedMohPrintReport} onValueChange={setSelectedMohPrintReport}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="/moh/705">MOH 705 — Outpatient</SelectItem>
+                <SelectItem value="/moh/706">MOH 706 — Laboratory</SelectItem>
+                <SelectItem value="/moh/707">MOH 707 — Pharmacy</SelectItem>
+                <SelectItem value="/moh/505">MOH 505 — IDSR Weekly</SelectItem>
+                <SelectItem value="/moh/642">MOH 642 — Lab Commodities</SelectItem>
+                <SelectItem value="/moh/fp">MOH FP — Family Planning</SelectItem>
+                <SelectItem value="/moh/mch">MOH MCH — Maternal & Child</SelectItem>
+                <SelectItem value="/moh/717">MOH 717 — Monthly Summary</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.href = selectedMohPrintReport;
+            }}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Open MOH Report
+          </Button>
+
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" />
-            Print
+            Print Page
           </Button>
 
           {(canTests || canFinance) && (
@@ -527,7 +559,7 @@ function ReportsPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {MOH_REPORTS.map(({ title, subtitle, description, href, icon: Icon, period }) => (
-            <Link key={href} to={href as "/reports"}>
+            <a key={href} href={href}>
               <div className="h-full rounded-xl border bg-card p-5 transition-colors hover:border-primary/50 hover:bg-muted/30">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -545,7 +577,7 @@ function ReportsPage() {
                   {period}
                 </span>
               </div>
-            </Link>
+            </a>
           ))}
         </div>
       </section>
@@ -677,7 +709,7 @@ function ReportsPage() {
                 </DialogHeader>
 
                 <form
-                  onSubmit={(event) => {
+                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
                     event.preventDefault();
 
                     const formData = new FormData(event.currentTarget);
@@ -832,7 +864,7 @@ function ReportLinkCard({
   subtitle: string;
   description: string;
   href: string;
-  icon: typeof Package;
+  icon: LucideIcon;
 }) {
   return (
     <Link to={href as "/reports"}>
