@@ -44,11 +44,6 @@ function Moh505() {
   >([]);
   const [loading, setLoading] = useState(false);
 
-  // Check for auto-print
-  const shouldAutoPrint =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("print") === "true";
-
   async function loadReport() {
     setLoading(true);
     try {
@@ -75,23 +70,12 @@ function Moh505() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-print when data is loaded
-  useEffect(() => {
-    if (shouldAutoPrint && !loading && cases.length >= 0) {
-      const timer = setTimeout(() => {
-        window.print();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldAutoPrint, loading]);
-
   const totalCases = cases.reduce((sum, c) => sum + Number(c.count), 0);
   const totalDeaths = cases.reduce((sum, c) => sum + Number(c.deaths), 0);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <ShieldAlert className="h-6 w-6" />
@@ -128,14 +112,6 @@ function Moh505() {
             Print
           </Button>
         </div>
-      </div>
-
-      <div className="hidden print:block text-center mb-6">
-        <h1 className="text-2xl font-bold">MOH 505 — IDSR Weekly Report</h1>
-        <p className="text-sm">Week: {weekStart}</p>
-        <p className="text-xs text-muted-foreground">
-          Generated {new Date().toLocaleString()}
-        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
