@@ -3,10 +3,8 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/supabase-untyped";
-import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,8 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, Printer, RefreshCw, RotateCcw, ShieldAlert } from "lucide-react";
+import { Printer, RefreshCw, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/moh/505")({
   component: () => (
@@ -30,92 +29,65 @@ export const Route = createFileRoute("/moh/505")({
   ),
 });
 
-type WeeklyAggregateRow = {
-  indicator_code: string;
-  week_start: string;
-  value: number | string;
-  computed_at?: string | null;
-};
-
-const IDSR_LABELS: Record<string, string> = {
-  IDSR_CHOLERA: "Cholera Cases",
-  IDSR_MALARIA: "Malaria Cases Confirmed",
-  IDSR_MEASLES: "Measles Cases",
-  IDSR_TYPHOID: "Typhoid Cases",
-  IDSR_DYSENTERY: "Dysentery Cases",
-  IDSR_MENINGITIS: "Meningitis Cases",
-  IDSR_HEPATITIS: "Hepatitis Cases",
-  IDSR_YELLOW_FEVER: "Yellow Fever Cases",
-  IDSR_ANTHRAX: "Anthrax Cases",
-  IDSR_RABIES: "Rabies Cases",
-  IDSR_TETANUS: "Neonatal Tetanus",
-};
-
-const IDSR_INDICATORS = Object.keys(IDSR_LABELS);
-
-function getCurrentWeekStart() {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().split("T")[0];
+function getWeekStart(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0, 10);
 }
 
 function Moh505() {
-  const [weekStart, setWeekStart] = useState(getCurrentWeekStart);
+  const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
+  const [cases, setCases] = useState<
+    { disease: string; count: number; deaths: number }[]
+  >([]);
+  const [loading, setLoading] = useState(false);
 
-  const {
-    data: idsrData,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useQuery({
-    queryKey: ["moh-505", weekStart],
-    queryFn: async () => {
-      const { data, error } = await db
-        .from("moh_weekly_aggregates")
-        .select("*")
-        .in("indicator_code", IDSR_INDICATORS)
-        .eq("week_start", weekStart)
-        .order("indicator_code", { ascending: true });
+  // Check for auto-print
+  const shouldAutoPrint =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("print") === "true";
 
-      if (error) throw new Error(error.message);
-      return (data ?? []) as WeeklyAggregateRow[];
-    },
-  });
-
-  const rows = useMemo(() => {
-    return IDSR_INDICATORS.map((code) => {
-      const found = idsrData?.find((row) => row.indicator_code === code);
-
-      return {
-        indicator_code: code,
-        description: IDSR_LABELS[code] ?? code,
-        value: found?.value ?? 0,
-      };
-    });
-  }, [idsrData]);
-
-  const total = useMemo(() => {
-    return rows.reduce((sum, row) => sum + Number(row.value ?? 0), 0);
-  }, [rows]);
-
-  const handleRecalculate = async () => {
+  async function loadReport() {
+    setLoading(true);
     try {
-      const { error } = await db.rpc("refresh_moh_weekly_aggregates", {
-        target_week_start: weekStart,
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const { data, error } = await supabase.rpc("get_moh_505_report", {
+        p_start_date: `${weekStart}T00:00:00+03:00`,
+        p_end_date: `${weekEnd.toISOString().slice(0, 10)}T23:59:59+03:00`,
       });
 
-      if (error) throw new Error(error.message);
-
-      toast.success("IDSR weekly aggregates refreshed.");
-      await refetch();
-    } catch (error: unknown) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to refresh IDSR weekly aggregates.",
-      );
+      if (error) throw error;
+      setCases(data ?? []);
+    } catch (err) {
+      toast.error("Failed to load report");
+      setCases([]);
+    } finally {
+      setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-print when data is loaded
+  useEffect(() => {
+    if (shouldAutoPrint && !loading && cases.length >= 0) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAutoPrint, loading]);
+
+  const totalCases = cases.reduce((sum, c) => sum + Number(c.count), 0);
+  const totalDeaths = cases.reduce((sum, c) => sum + Number(c.deaths), 0);
 
   return (
     <div className="space-y-6">
@@ -126,14 +98,11 @@ function Moh505() {
             MOH 505 — IDSR Weekly Report
           </h1>
           <p className="text-sm text-muted-foreground">
-            Integrated Disease Surveillance and Response, weekly.
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Source: IDSR indicator tags aggregated weekly.
+            Integrated Disease Surveillance and Response.
           </p>
         </div>
 
-        <div className="flex items-end gap-2 flex-wrap">
+        <div className="flex items-end gap-2">
           <div>
             <Label htmlFor="week" className="text-xs">
               Week starting
@@ -142,18 +111,15 @@ function Moh505() {
               id="week"
               type="date"
               value={weekStart}
-              onChange={(event) => setWeekStart(event.target.value)}
-              className="w-48"
+              onChange={(e) => setWeekStart(e.target.value)}
+              className="w-44"
             />
           </div>
 
-          <Button onClick={handleRecalculate} variant="default">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Recalculate
-          </Button>
-
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="mr-2 h-4 w-4" />
+          <Button onClick={loadReport} disabled={loading} variant="outline">
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
 
@@ -166,65 +132,85 @@ function Moh505() {
 
       <div className="hidden print:block text-center mb-6">
         <h1 className="text-2xl font-bold">MOH 505 — IDSR Weekly Report</h1>
-        <p className="text-sm">Week starting: {weekStart}</p>
-        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
+        <p className="text-sm">Week: {weekStart}</p>
+        <p className="text-xs text-muted-foreground">
+          Generated {new Date().toLocaleString()}
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Cases
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{totalCases}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Deaths
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-red-600">{totalDeaths}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Diseases Reported
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{cases.length}</div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Total IDSR Cases / Events</CardTitle>
+          <CardTitle>Disease Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-semibold">{total}</div>
-          <p className="text-sm text-muted-foreground">
-            Total counted IDSR disease surveillance events for the selected week.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Weekly Disease Surveillance
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          {isLoading ? (
+          {loading ? (
             <p className="text-muted-foreground">Loading...</p>
+          ) : cases.length === 0 ? (
+            <p className="text-muted-foreground">
+              No disease data found for this week.
+            </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Indicator Code</TableHead>
-                  <TableHead>Disease / Event</TableHead>
+                  <TableHead>Disease</TableHead>
                   <TableHead className="text-right">Cases</TableHead>
+                  <TableHead className="text-right">Deaths</TableHead>
+                  <TableHead className="text-right">CFR %</TableHead>
                 </TableRow>
               </TableHeader>
-
               <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.indicator_code}>
-                    <TableCell className="font-mono text-xs">
-                      {row.indicator_code}
+                {cases.map((c) => (
+                  <TableRow key={c.disease}>
+                    <TableCell className="font-medium">{c.disease}</TableCell>
+                    <TableCell className="text-right">{c.count}</TableCell>
+                    <TableCell className="text-right">{c.deaths}</TableCell>
+                    <TableCell className="text-right">
+                      {c.count > 0
+                        ? ((Number(c.deaths) / Number(c.count)) * 100).toFixed(1)
+                        : "0.0"}
+                      %
                     </TableCell>
-                    <TableCell>{row.description}</TableCell>
-                    <TableCell className="text-right">{row.value}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
-
-          {!isLoading &&
-            !isFetching &&
-            rows.every((row) => Number(row.value) === 0) && (
-              <p className="text-muted-foreground text-center pt-6 no-print">
-                No IDSR data found for this week. Click Recalculate after IDSR
-                indicators have been tagged.
-              </p>
-            )}
         </CardContent>
       </Card>
     </div>
