@@ -1,14 +1,14 @@
 /**
- * LabTrack — Laboratory Records
+ * LabTrack — Store Management
  * Copyright (c) 2026 Francis Muhoro. All rights reserved.
  * Author: Francis Muhoro
  */
 
 import { createFileRoute } from "@tanstack/react-router";
 import { PermGuard } from "@/lib/require-access";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,12 +24,22 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Package, Printer, ClipboardCheck, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Boxes,
+  ClipboardCheck,
+  Package,
+  Plus,
+  Printer,
+  Search,
+  Store,
+  Warehouse,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
@@ -48,6 +58,23 @@ const KINDS = [
   { value: "consumable", label: "Consumable" },
 ] as const;
 
+const USAGE_REASONS = [
+  { value: "used", label: "Used" },
+  { value: "dispensed", label: "Dispensed" },
+  { value: "damaged", label: "Damaged" },
+  { value: "expired", label: "Expired" },
+  { value: "adjustment", label: "Adjustment" },
+] as const;
+
+type StockLocation = {
+  id: string;
+  name: string;
+  location_type: string;
+  room_id: string | null;
+  is_main_store: boolean;
+  is_active: boolean;
+};
+
 type StockItem = {
   id: string;
   name: string;
@@ -56,296 +83,690 @@ type StockItem = {
   unit: string | null;
   current_quantity: number | null;
   reorder_level: number | null;
-  buy_price: number | null;
+  buy_price?: number | null;
   cash_price: number | null;
   insurance_price: number | null;
   unit_price: number | null;
   notes: string | null;
 };
 
-function kindLabel(k: string) {
-  return KINDS.find((x) => x.value === k)?.label ?? k;
+type StoreBalance = {
+  id: string;
+  location_id: string;
+  location_name: string;
+  location_type: string;
+  is_main_store: boolean;
+  item_id: string;
+  item_name: string;
+  category: string | null;
+  kind: string | null;
+  unit: string | null;
+  quantity: number | string;
+  updated_at: string | null;
+};
+
+type StoreUsage = {
+  id: string;
+  location_id: string;
+  location_name: string;
+  item_id: string;
+  item_name: string;
+  category: string | null;
+  kind: string | null;
+  unit: string | null;
+  encounter_id: string | null;
+  quantity: number | string;
+  reason: string;
+  used_by: string | null;
+  used_by_email: string | null;
+  used_at: string;
+  notes: string | null;
+  created_at: string;
+};
+
+function kindLabel(value: string | null | undefined) {
+  const key = value ?? "consumable";
+  return KINDS.find((item) => item.value === key)?.label ?? key;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString();
+}
+
+function getFormString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+function getFormNumber(formData: FormData, key: string) {
+  const value = Number(formData.get(key) || 0);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function StockPage() {
   const qc = useQueryClient();
-  const [openItem, setOpenItem] = useState(false);
-  const [openMove, setOpenMove] = useState<StockItem | null>(null);
-  const [editItem, setEditItem] = useState<StockItem | null>(null);
-  const [tab, setTab] = useState<"all" | (typeof KINDS)[number]["value"]>("all");
-  const [createMohIndicator, setCreateMohIndicator] = useState(false);
 
-  const { data: items, isLoading } = useQuery({
-    queryKey: ["stock_items"],
+  const [activeLocationId, setActiveLocationId] = useState("");
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState("all");
+
+  const [openAddItem, setOpenAddItem] = useState(false);
+  const [openReceive, setOpenReceive] = useState(false);
+  const [openTransfer, setOpenTransfer] = useState(false);
+  const [openUsage, setOpenUsage] = useState(false);
+
+  const { data: locations, isLoading: locationsLoading } = useQuery({
+    queryKey: ["stock-locations"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
+        .from("stock_locations")
+        .select("*")
+        .eq("is_active", true)
+        .order("is_main_store", { ascending: false })
+        .order("name", { ascending: true });
+
+      if (error) throw new Error(error.message);
+      return (data ?? []) as StockLocation[];
+    },
+  });
+
+  const { data: items, isLoading: itemsLoading } = useQuery({
+    queryKey: ["stock-items"],
+    queryFn: async () => {
+      const { data, error } = await db
         .from("stock_items")
         .select("*")
-        .order("kind")
-        .order("category")
-        .order("name");
-      if (error) throw error;
+        .order("kind", { ascending: true })
+        .order("category", { ascending: true })
+        .order("name", { ascending: true });
+
+      if (error) throw new Error(error.message);
       return (data ?? []) as StockItem[];
     },
   });
 
+  const { data: balances, isLoading: balancesLoading } = useQuery({
+    queryKey: ["stock-store-balances"],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("stock_store_balances_view")
+        .select("*")
+        .order("location_name", { ascending: true })
+        .order("item_name", { ascending: true });
+
+      if (error) throw new Error(error.message);
+      return (data ?? []) as StoreBalance[];
+    },
+  });
+
+  const { data: usageRows, isLoading: usageLoading } = useQuery({
+    queryKey: ["stock-store-usage"],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("stock_store_usage_view")
+        .select("*")
+        .order("used_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw new Error(error.message);
+      return (data ?? []) as StoreUsage[];
+    },
+  });
+
+  useEffect(() => {
+    if (!activeLocationId && locations && locations.length > 0) {
+      setActiveLocationId(locations[0].id);
+    }
+  }, [activeLocationId, locations]);
+
+  const activeLocation = useMemo(() => {
+    return locations?.find((location) => location.id === activeLocationId) ?? null;
+  }, [locations, activeLocationId]);
+
+  const activeBalances = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return (balances ?? [])
+      .filter((row) => row.location_id === activeLocationId)
+      .filter((row) => {
+        if (kindFilter === "all") return true;
+        return (row.kind ?? "consumable") === kindFilter;
+      })
+      .filter((row) => {
+        if (!query) return true;
+
+        return (
+          row.item_name.toLowerCase().includes(query) ||
+          (row.category ?? "").toLowerCase().includes(query) ||
+          (row.kind ?? "").toLowerCase().includes(query)
+        );
+      });
+  }, [balances, activeLocationId, search, kindFilter]);
+
+  const activeUsage = useMemo(() => {
+    return (usageRows ?? []).filter((row) => row.location_id === activeLocationId);
+  }, [usageRows, activeLocationId]);
+
   const addItem = useMutation({
-    mutationFn: async (i: Record<string, unknown>) => {
-      const { error } = await supabase.from("stock_items").insert(i as never);
-      if (error) throw error;
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const { error } = await db.from("stock_items").insert(payload);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      toast.success("Product added");
-      qc.invalidateQueries({ queryKey: ["stock_items"] });
-      setOpenItem(false);
+      toast.success("Stock item added.");
+      setOpenAddItem(false);
+      qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
-  const updateItem = useMutation({
-    mutationFn: async (i: Record<string, unknown>) => {
-      const { error } = await supabase
-        .from("stock_items")
-        .update(i as never)
-        .eq("id", i.id as string);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Product updated");
-      qc.invalidateQueries({ queryKey: ["stock_items"] });
-      setEditItem(null);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const adjustProduct = useMutation({
-    mutationFn: async (args: {
+  const receiveStock = useMutation({
+    mutationFn: async (payload: {
+      locationId: string;
       itemId: string;
-      prices: Record<string, unknown>;
-      move: Record<string, unknown> | null;
+      quantity: number;
+      note: string | null;
     }) => {
-      const { error: priceError } = await supabase
-        .from("stock_items")
-        .update(args.prices as never)
-        .eq("id", args.itemId);
-      if (priceError) throw priceError;
-      if (args.move) {
-        const { error: moveError } = await supabase
-          .from("stock_movements")
-          .insert(args.move as never);
-        if (moveError) throw moveError;
-      }
+      const { error } = await db.rpc("receive_stock_to_location", {
+        target_location_id: payload.locationId,
+        target_item_id: payload.itemId,
+        received_quantity: payload.quantity,
+        note: payload.note,
+      });
+
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      toast.success("Product updated");
-      qc.invalidateQueries({ queryKey: ["stock_items"] });
-      setOpenMove(null);
+      toast.success("Stock received.");
+      setOpenReceive(false);
+      qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
+      qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
-  const filtered = (items ?? []).filter((i) =>
-    tab === "all" ? true : (i.kind ?? "consumable") === tab,
-  );
+  const transferStock = useMutation({
+    mutationFn: async (payload: {
+      fromLocationId: string;
+      toLocationId: string;
+      itemId: string;
+      quantity: number;
+      note: string | null;
+    }) => {
+      const { error } = await db.rpc("transfer_stock_between_locations", {
+        source_location_id: payload.fromLocationId,
+        destination_location_id: payload.toLocationId,
+        target_item_id: payload.itemId,
+        transfer_quantity: payload.quantity,
+        note: payload.note,
+      });
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Stock transferred.");
+      setOpenTransfer(false);
+      qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const recordUsage = useMutation({
+    mutationFn: async (payload: {
+      locationId: string;
+      itemId: string;
+      quantity: number;
+      reason: string;
+      note: string | null;
+    }) => {
+      const { error } = await db.rpc("record_stock_usage", {
+        source_location_id: payload.locationId,
+        target_item_id: payload.itemId,
+        used_quantity: payload.quantity,
+        usage_reason: payload.reason,
+        target_encounter_id: null,
+        note: payload.note,
+      });
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Stock usage recorded.");
+      setOpenUsage(false);
+      qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
+      qc.invalidateQueries({ queryKey: ["stock-store-usage"] });
+      qc.invalidateQueries({ queryKey: ["stock-items"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const pageLoading = locationsLoading || itemsLoading || balancesLoading;
 
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 no-print">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Package className="h-7 w-7 text-primary" />
-            Stock & products
+            <Warehouse className="h-7 w-7 text-primary" />
+            Stores & Stock
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pharmaceutical, non-pharmaceutical and consumable inventory. Record usage, adjustments
-            and stock takes.
+            Main Store and department stores for Lab, Pharmacy, Radiology,
+            Reception, MCH and FP.
           </p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
-          <Dialog open={openItem} onOpenChange={(v) => { setOpenItem(v); if (!v) setCreateMohIndicator(false); }}>
+
+          <Dialog open={openAddItem} onOpenChange={setOpenAddItem}>
             <DialogTrigger asChild>
-              <Button>
+              <Button variant="outline">
                 <Plus className="mr-2 h-4 w-4" />
-                Add product
+                Add item
               </Button>
             </DialogTrigger>
+
             <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add product / stock item</DialogTitle>
+                <DialogTitle>Add stock item</DialogTitle>
               </DialogHeader>
+
               <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
-                  const name = f.get("name") as string;
-                  const category = f.get("category") as string;
-                  const kind = f.get("kind") as string;
-                  const createIndicator = f.get("create_moh_indicator") === "on";
+                className="space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
 
                   addItem.mutate({
-                    name,
-                    kind: kind || "consumable",
-                    category,
-                    unit: f.get("unit") || "pcs",
-                    current_quantity: Number(f.get("current_quantity") || 0),
-                    reorder_level: Number(f.get("reorder_level") || 0),
-                    buy_price: Number(f.get("buy_price") || 0),
-                    cash_price: Number(f.get("cash_price") || 0),
-                    insurance_price: Number(f.get("insurance_price") || 0),
-                    unit_price: Number(f.get("cash_price") || 0),
-                    notes: f.get("notes"),
+                    name: getFormString(formData, "name"),
+                    kind: getFormString(formData, "kind") || "consumable",
+                    category: getFormString(formData, "category"),
+                    unit: getFormString(formData, "unit") || "pcs",
+                    current_quantity: getFormNumber(formData, "current_quantity"),
+                    reorder_level: getFormNumber(formData, "reorder_level"),
+                    buy_price: getFormNumber(formData, "buy_price"),
+                    cash_price: getFormNumber(formData, "cash_price"),
+                    insurance_price: getFormNumber(formData, "insurance_price"),
+                    unit_price: getFormNumber(formData, "cash_price"),
+                    notes: getFormString(formData, "notes"),
                   });
-
-                  // Create MOH indicator definition if checked
-                  if (createIndicator && category) {
-                    const indicatorCode = (f.get("moh_indicator_code") as string) || 
-                      name.toUpperCase().replace(/[^A-Z0-9]/g, "_").substring(0, 20);
-                    const description = (f.get("moh_description") as string) || name;
-                    const formNumber = (f.get("moh_form_number") as string) || "MOH_PHARM";
-                    
-                    // Determine criteria type based on category
-                    let criteriaType = "drug_class";
-                    if (category.includes("Contraceptive") || category.includes("FP")) {
-                      criteriaType = "fp_method";
-                    }
-
-                    const { error } = await supabase.from("moh_indicator_definitions").insert({
-                      form_number: formNumber,
-                      indicator_code: indicatorCode,
-                      description: description,
-                      criteria_type: criteriaType,
-                      criteria_value: category,
-                    });
-
-                    if (error) {
-                      toast.error("Product saved, but failed to create MOH indicator: " + error.message);
-                    } else {
-                      toast.success("MOH indicator created: " + indicatorCode);
-                    }
-                  }
                 }}
-                className="space-y-3"
               >
                 <div>
                   <Label>Name *</Label>
                   <Input name="name" required />
                 </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Kind *</Label>
+                    <Label>Kind</Label>
                     <Select name="kind" defaultValue="consumable">
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {KINDS.map((k) => (
-                          <SelectItem key={k.value} value={k.value}>
-                            {k.label}
+                        {KINDS.map((kind) => (
+                          <SelectItem key={kind.value} value={kind.value}>
+                            {kind.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div>
-                    <Label>Category (for MOH tracking)</Label>
-                    <Input name="category" placeholder="e.g. Antibiotics, FP, etc." />
+                    <Label>Category</Label>
+                    <Input name="category" placeholder="e.g. Test kits, Antibiotic" />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Buy price (KES)</Label>
-                    <Input type="number" step="0.01" name="buy_price" defaultValue={0} />
-                  </div>
-                  <div>
-                    <Label>Cash price (KES)</Label>
-                    <Input type="number" step="0.01" name="cash_price" defaultValue={0} />
-                  </div>
-                  <div>
-                    <Label>Insurance price (KES)</Label>
-                    <Input type="number" step="0.01" name="insurance_price" defaultValue={0} />
-                  </div>
-                </div>
+
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>Unit</Label>
                     <Input name="unit" defaultValue="pcs" />
                   </div>
                   <div>
-                    <Label>Starting qty</Label>
-                    <Input type="number" step="0.01" name="current_quantity" defaultValue={0} />
+                    <Label>Opening quantity</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="current_quantity"
+                      defaultValue={0}
+                    />
                   </div>
                   <div>
-                    <Label>Reorder ≤</Label>
-                    <Input type="number" step="0.01" name="reorder_level" defaultValue={0} />
+                    <Label>Reorder level</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="reorder_level"
+                      defaultValue={0}
+                    />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Buy price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="buy_price"
+                      defaultValue={0}
+                    />
+                  </div>
+                  <div>
+                    <Label>Cash price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="cash_price"
+                      defaultValue={0}
+                    />
+                  </div>
+                  <div>
+                    <Label>Insurance price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="insurance_price"
+                      defaultValue={0}
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <Label>Notes</Label>
                   <Textarea name="notes" />
                 </div>
 
-                {/* MOH Indicator Section */}
-                <div className="border rounded-lg p-3 bg-muted/30">
-                  <button
-                    type="button"
-                    onClick={() => setCreateMohIndicator(!createMohIndicator)}
-                    className="flex items-center gap-2 text-sm font-medium w-full"
-                  >
-                    {createMohIndicator ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                    MOH Indicator (auto-tracking)
-                  </button>
+                <DialogFooter>
+                  <Button type="submit" disabled={addItem.isPending}>
+                    Save item
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
 
-                  {createMohIndicator && (
-                    <div className="mt-3 space-y-3 pl-6">
-                      <p className="text-xs text-muted-foreground">
-                        Automatically create an indicator definition so this item is tracked in MOH reports.
-                      </p>
-                      <input type="checkbox" name="create_moh_indicator" defaultChecked={true} hidden />
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label>Form Number</Label>
-                          <Select name="moh_form_number" defaultValue="MOH_PHARM">
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="MOH_PHARM">MOH Pharmacy</SelectItem>
-                              <SelectItem value="MOH_FP">MOH Family Planning</SelectItem>
-                              <SelectItem value="MOH_717">MOH 717</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Indicator Code</Label>
-                          <Input
-                            name="moh_indicator_code"
-                            placeholder="Auto-generated"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label>Description</Label>
-                        <Input
-                          name="moh_description"
-                          placeholder="Description for this indicator"
-                        />
-                      </div>
-                    </div>
-                  )}
+          <Dialog open={openReceive} onOpenChange={setOpenReceive}>
+            <DialogTrigger asChild>
+              <Button>
+                <Package className="mr-2 h-4 w-4" />
+                Receive stock
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Receive stock into store</DialogTitle>
+              </DialogHeader>
+
+              <form
+                className="space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
+
+                  receiveStock.mutate({
+                    locationId: getFormString(formData, "location_id"),
+                    itemId: getFormString(formData, "item_id"),
+                    quantity: getFormNumber(formData, "quantity"),
+                    note: getFormString(formData, "note") || null,
+                  });
+                }}
+              >
+                <div>
+                  <Label>Store</Label>
+                  <Select name="location_id" defaultValue={activeLocationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(locations ?? []).map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Item</Label>
+                  <Select name="item_id">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(items ?? []).map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Quantity</Label>
+                  <Input type="number" step="0.01" name="quantity" required />
+                </div>
+
+                <div>
+                  <Label>Note</Label>
+                  <Textarea name="note" placeholder="Delivery note, supplier, or reason" />
                 </div>
 
                 <DialogFooter>
-                  <Button type="submit" disabled={addItem.isPending}>
-                    Save
+                  <Button type="submit" disabled={receiveStock.isPending}>
+                    Receive
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={openTransfer} onOpenChange={setOpenTransfer}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                Transfer
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Transfer stock between stores</DialogTitle>
+              </DialogHeader>
+
+              <form
+                className="space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
+
+                  transferStock.mutate({
+                    fromLocationId: getFormString(formData, "from_location_id"),
+                    toLocationId: getFormString(formData, "to_location_id"),
+                    itemId: getFormString(formData, "item_id"),
+                    quantity: getFormNumber(formData, "quantity"),
+                    note: getFormString(formData, "note") || null,
+                  });
+                }}
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>From store</Label>
+                    <Select name="from_location_id" defaultValue={activeLocationId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="From" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(locations ?? []).map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>To store</Label>
+                    <Select name="to_location_id">
+                      <SelectTrigger>
+                        <SelectValue placeholder="To" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(locations ?? []).map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Item</Label>
+                  <Select name="item_id">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(items ?? []).map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Quantity</Label>
+                  <Input type="number" step="0.01" name="quantity" required />
+                </div>
+
+                <div>
+                  <Label>Note</Label>
+                  <Textarea name="note" />
+                </div>
+
+                <DialogFooter>
+                  <Button type="submit" disabled={transferStock.isPending}>
+                    Transfer
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={openUsage} onOpenChange={setOpenUsage}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                Record usage
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Record manual stock usage</DialogTitle>
+              </DialogHeader>
+
+              <form
+                className="space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  const formData = new FormData(event.currentTarget);
+
+                  recordUsage.mutate({
+                    locationId: getFormString(formData, "location_id"),
+                    itemId: getFormString(formData, "item_id"),
+                    quantity: getFormNumber(formData, "quantity"),
+                    reason: getFormString(formData, "reason") || "used",
+                    note: getFormString(formData, "note") || null,
+                  });
+                }}
+              >
+                <div>
+                  <Label>Store</Label>
+                  <Select name="location_id" defaultValue={activeLocationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(locations ?? []).map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Item</Label>
+                  <Select name="item_id">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(items ?? []).map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Quantity</Label>
+                    <Input type="number" step="0.01" name="quantity" required />
+                  </div>
+
+                  <div>
+                    <Label>Reason</Label>
+                    <Select name="reason" defaultValue="used">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {USAGE_REASONS.map((reason) => (
+                          <SelectItem key={reason.value} value={reason.value}>
+                            {reason.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Note</Label>
+                  <Textarea
+                    name="note"
+                    placeholder="Example: Manual lab usage for MOH 642"
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button type="submit" disabled={recordUsage.isPending}>
+                    Record usage
                   </Button>
                 </DialogFooter>
               </form>
@@ -354,362 +775,240 @@ function StockPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b no-print">
-        {[{ value: "all", label: "All" }, ...KINDS].map((t) => (
-          <button
-            key={t.value}
-            onClick={() => setTab(t.value as typeof tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t.value
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+        <aside className="rounded-xl border bg-card p-3 no-print">
+          <div className="mb-3 flex items-center gap-2 px-2 text-sm font-semibold">
+            <Store className="h-4 w-4" />
+            Stores
+          </div>
 
-      <div className="hidden print:block mb-4">
-        <h2 className="text-xl font-bold">Stock Take Report</h2>
-        <p className="text-sm">Generated {new Date().toLocaleString()}</p>
-      </div>
-
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2">Item</th>
-              <th className="px-4 py-2">Kind</th>
-              <th className="px-4 py-2">Category</th>
-              <th className="px-4 py-2">Unit</th>
-              <th className="px-4 py-2">On hand</th>
-              <th className="px-4 py-2">Reorder ≤</th>
-              <th className="px-4 py-2 text-right">Buy</th>
-              <th className="px-4 py-2 text-right">Cash</th>
-              <th className="px-4 py-2 text-right">Insurance</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {isLoading && (
-              <tr>
-                <td colSpan={11} className="p-6 text-center text-muted-foreground">
-                  Loading…
-                </td>
-              </tr>
+          <div className="space-y-1">
+            {locationsLoading && (
+              <p className="px-2 py-4 text-sm text-muted-foreground">
+                Loading stores…
+              </p>
             )}
-            {filtered.map((i) => {
-              const low = Number(i.current_quantity) <= Number(i.reorder_level);
+
+            {(locations ?? []).map((location) => {
+              const active = location.id === activeLocationId;
+
               return (
-                <tr
-                  key={i.id}
-                  className="cursor-pointer transition-colors hover:bg-muted/40"
-                  onClick={() => setOpenMove(i)}
+                <button
+                  key={location.id}
+                  type="button"
+                  onClick={() => setActiveLocationId(location.id)}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted text-foreground"
+                  }`}
                 >
-                  <td className="px-4 py-2 font-medium">{i.name}</td>
-                  <td className="px-4 py-2">
-                    <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
-                      {kindLabel(i.kind ?? "consumable")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">{i.category}</td>
-                  <td className="px-4 py-2">{i.unit}</td>
-                  <td
-                    className={`px-4 py-2 font-mono ${low ? "text-destructive font-semibold" : ""}`}
-                  >
-                    {i.current_quantity}
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">{i.reorder_level}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">
-                    KES {Number(i.buy_price ?? 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
-                    KES {Number(i.cash_price ?? i.unit_price ?? 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
-                    KES {Number(i.insurance_price ?? 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-2">
-                    {low ? (
-                      <span className="inline-flex rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive">
-                        Low
-                      </span>
-                    ) : (
-                      <span className="inline-flex rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success">
-                        OK
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate">{location.name}</span>
+                    {location.is_main_store && (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${
+                          active
+                            ? "bg-primary-foreground/20 text-primary-foreground"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        main
                       </span>
                     )}
-                  </td>
-                  <td className="px-4 py-2 no-print">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditItem(i);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMove(i);
-                        }}
-                      >
-                        <ClipboardCheck className="mr-1 h-3 w-3" />
-                        Adjust
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+                  </span>
+                </button>
               );
             })}
-            {!isLoading && filtered.length === 0 && (
-              <tr>
-                <td colSpan={11} className="p-6 text-center text-muted-foreground">
-                  No items in this category.
-                </td>
-              </tr>
+
+            {!locationsLoading && (locations ?? []).length === 0 && (
+              <p className="px-2 py-4 text-sm text-muted-foreground">
+                No stores available for your account.
+              </p>
             )}
-          </tbody>
-        </table>
+          </div>
+        </aside>
+
+        <section className="space-y-4">
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Boxes className="h-5 w-5 text-primary" />
+                  {activeLocation?.name ?? "Store"}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {activeLocation?.is_main_store
+                    ? "Main receiving and distribution store."
+                    : "Department or room-level store."}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 no-print">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search items"
+                    className="w-56 pl-9"
+                  />
+                </div>
+
+                <Select value={kindFilter} onValueChange={setKindFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All kinds</SelectItem>
+                    {KINDS.map((kind) => (
+                      <SelectItem key={kind.value} value={kind.value}>
+                        {kind.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="border-b px-4 py-3">
+              <h3 className="font-semibold">Store balances</h3>
+              <p className="text-xs text-muted-foreground">
+                Current stock quantity inside the selected store.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2">Item</th>
+                    <th className="px-4 py-2">Kind</th>
+                    <th className="px-4 py-2">Category</th>
+                    <th className="px-4 py-2">Unit</th>
+                    <th className="px-4 py-2 text-right">Quantity</th>
+                    <th className="px-4 py-2">Updated</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y">
+                  {pageLoading && (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                        Loading…
+                      </td>
+                    </tr>
+                  )}
+
+                  {!pageLoading &&
+                    activeBalances.map((row) => (
+                      <tr key={row.id} className="hover:bg-muted/40">
+                        <td className="px-4 py-2 font-medium">{row.item_name}</td>
+                        <td className="px-4 py-2">
+                          <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
+                            {kindLabel(row.kind)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {row.category ?? "—"}
+                        </td>
+                        <td className="px-4 py-2">{row.unit ?? "pcs"}</td>
+                        <td className="px-4 py-2 text-right font-mono">
+                          {Number(row.quantity ?? 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {formatDate(row.updated_at)}
+                        </td>
+                      </tr>
+                    ))}
+
+                  {!pageLoading && activeBalances.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        No stock balances in this store yet. Receive or transfer stock
+                        into this store.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="border-b px-4 py-3">
+              <h3 className="font-semibold">Recent usage</h3>
+              <p className="text-xs text-muted-foreground">
+                Manual usage, pharmacy dispensing, damaged, expired and adjustment records.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2">Item</th>
+                    <th className="px-4 py-2">Reason</th>
+                    <th className="px-4 py-2 text-right">Quantity</th>
+                    <th className="px-4 py-2">Used by</th>
+                    <th className="px-4 py-2">Used at</th>
+                    <th className="px-4 py-2">Notes</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y">
+                  {usageLoading && (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                        Loading usage…
+                      </td>
+                    </tr>
+                  )}
+
+                  {!usageLoading &&
+                    activeUsage.map((row) => (
+                      <tr key={row.id} className="hover:bg-muted/40">
+                        <td className="px-4 py-2 font-medium">{row.item_name}</td>
+                        <td className="px-4 py-2">
+                          <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
+                            {row.reason}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono">
+                          {Number(row.quantity ?? 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {row.used_by_email ?? "—"}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {formatDate(row.used_at)}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {row.notes ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+
+                  {!usageLoading && activeUsage.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        No usage records for this store yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <Dialog open={!!openMove} onOpenChange={(v) => !v && setOpenMove(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adjust: {openMove?.name}</DialogTitle>
-          </DialogHeader>
-          {openMove && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                const change = Number(f.get("change") || 0);
-                adjustProduct.mutate({
-                  itemId: openMove.id,
-                  prices: {
-                    buy_price: Number(f.get("buy_price") || 0),
-                    cash_price: Number(f.get("cash_price") || 0),
-                    insurance_price: Number(f.get("insurance_price") || 0),
-                    unit_price: Number(f.get("cash_price") || 0),
-                  },
-                  move:
-                    change !== 0
-                      ? {
-                          item_id: openMove.id,
-                          change,
-                          reason: f.get("reason"),
-                          notes: f.get("notes"),
-                        }
-                      : null,
-                });
-              }}
-              className="space-y-4"
-            >
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label>Buy price (KES)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="buy_price"
-                    defaultValue={Number(openMove.buy_price ?? 0)}
-                  />
-                </div>
-                <div>
-                  <Label>Cash price (KES)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="cash_price"
-                    defaultValue={Number(openMove.cash_price ?? openMove.unit_price ?? 0)}
-                  />
-                </div>
-                <div>
-                  <Label>Insurance price (KES)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="insurance_price"
-                    defaultValue={Number(openMove.insurance_price ?? 0)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-3 border-t pt-3">
-                <p className="text-xs uppercase text-muted-foreground">
-                  Stock quantity change (optional)
-                </p>
-                <div>
-                  <Label>Reason</Label>
-                  <Select name="reason" defaultValue="usage">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="usage">Usage (subtract)</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
-                      <SelectItem value="stock_take">Stock take correction</SelectItem>
-                      <SelectItem value="delivery">Delivery (manual)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Change</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="change"
-                    defaultValue={0}
-                    placeholder="Positive to add, negative to remove — leave 0 to skip"
-                  />
-                </div>
-                <div>
-                  <Label>Notes</Label>
-                  <Textarea name="notes" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={adjustProduct.isPending}>
-                  Save
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit product</DialogTitle>
-          </DialogHeader>
-          {editItem && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                updateItem.mutate({
-                  id: editItem.id,
-                  name: f.get("name"),
-                  kind: f.get("kind") || "consumable",
-                  category: f.get("category"),
-                  unit: f.get("unit") || "pcs",
-                  current_quantity: Number(f.get("current_quantity") || 0),
-                  reorder_level: Number(f.get("reorder_level") || 0),
-                  buy_price: Number(f.get("buy_price") || 0),
-                  cash_price: Number(f.get("cash_price") || 0),
-                  insurance_price: Number(f.get("insurance_price") || 0),
-                  unit_price: Number(f.get("cash_price") || 0),
-                  notes: f.get("notes"),
-                });
-              }}
-              className="space-y-3"
-            >
-              <div>
-                <Label>Name *</Label>
-                <Input name="name" defaultValue={editItem.name} required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Kind *</Label>
-                  <Select name="kind" defaultValue={editItem.kind ?? "consumable"}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {KINDS.map((k) => (
-                        <SelectItem key={k.value} value={k.value}>
-                          {k.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <Input
-                    name="category"
-                    defaultValue={editItem.category ?? ""}
-                    placeholder="e.g. Antibiotics"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label>Buy price (KES)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="buy_price"
-                    defaultValue={Number(editItem.buy_price ?? 0)}
-                  />
-                </div>
-                <div>
-                  <Label>Cash price (KES)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="cash_price"
-                    defaultValue={Number(editItem.cash_price ?? editItem.unit_price ?? 0)}
-                  />
-                </div>
-                <div>
-                  <Label>Insurance price (KES)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="insurance_price"
-                    defaultValue={Number(editItem.insurance_price ?? 0)}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label>Unit</Label>
-                  <Input name="unit" defaultValue={editItem.unit ?? "pcs"} />
-                </div>
-                <div>
-                  <Label>On hand</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="current_quantity"
-                    defaultValue={Number(editItem.current_quantity ?? 0)}
-                  />
-                </div>
-                <div>
-                  <Label>Reorder ≤</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    name="reorder_level"
-                    defaultValue={Number(editItem.reorder_level ?? 0)}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>Notes</Label>
-                <Textarea name="notes" defaultValue={editItem.notes ?? ""} />
-              </div>
-              <DialogFooter className="flex gap-2">
-                <Button variant="outline" onClick={() => setEditItem(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateItem.isPending}>
-                  Save
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      <div className="print-only hidden">
+        <h2 className="text-xl font-bold">Store Stock Report</h2>
+        <p className="text-sm">Generated {new Date().toLocaleString()}</p>
+      </div>
     </div>
   );
 }
