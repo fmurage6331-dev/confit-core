@@ -58,6 +58,12 @@ function MohFP() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
 
+  const {
+    data: fpData,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["moh-fp", month],
   const monthStart = `${month}-01`;
 
   const {

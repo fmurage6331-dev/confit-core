@@ -65,6 +65,16 @@ function Moh706() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
 
+  const {
+    data: labData,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["moh-706", weekStart],
+    queryFn: async () => {
+      const start = new Date(weekStart);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
   const monthStart = `${month}-01`;
 
   const {
@@ -137,6 +147,8 @@ function Moh706() {
 
         <div className="flex items-end gap-2 flex-wrap">
           <div>
+            <Label htmlFor="week" className="text-xs">
+              Week starting
             <Label htmlFor="month" className="text-xs">
               Reporting month
             </Label>
