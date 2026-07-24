@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, RefreshCw, RotateCcw } from "lucide-react";
+import { BarChart3, Printer, RefreshCw, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/706")({
@@ -124,7 +124,7 @@ function Moh706() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <BarChart3 className="h-6 w-6" />
@@ -138,82 +138,3 @@ function Moh706() {
         <div className="flex items-end gap-2 flex-wrap">
           <div>
             <Label htmlFor="month" className="text-xs">
-              Reporting month
-            </Label>
-            <Input
-              id="month"
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="w-48"
-            />
-          </div>
-
-          <Button onClick={handleRecalculate} variant="default">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Recalculate
-          </Button>
-
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Laboratory Tests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-semibold">{total}</div>
-          <p className="text-sm text-muted-foreground">
-            Total counted lab indicators for this reporting month.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Lab Tests Summary</CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Indicator Code</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Count</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.indicator_code}>
-                    <TableCell className="font-mono text-xs">
-                      {row.indicator_code}
-                    </TableCell>
-                    <TableCell>{row.description}</TableCell>
-                    <TableCell className="text-right">{row.value}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {!isLoading &&
-            !isFetching &&
-            rows.every((row) => Number(row.value) === 0) && (
-              <p className="text-muted-foreground text-center pt-6">
-                No laboratory data found for this month.
-              </p>
-            )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
