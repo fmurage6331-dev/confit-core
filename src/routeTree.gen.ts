@@ -9,126 +9,63 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AccountRouteImport } from './routes/account'
-import { Route as AccountingRouteImport } from './routes/accounting'
-import { Route as ChangePasswordRouteImport } from './routes/change-password'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as DeliveriesRouteImport } from './routes/deliveries'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as InpatientRouteImport } from './routes/inpatient'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as MachinesRouteImport } from './routes/machines'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as MohRouteImport } from './routes/moh'
-import { Route as QueueRouteImport } from './routes/queue'
-import { Route as RegisterPatientRouteImport } from './routes/register-patient'
-import { Route as ReportsRouteImport } from './routes/reports'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as StockRouteImport } from './routes/stock'
-import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
-import { Route as AdminAuditLogRouteImport } from './routes/admin.audit-log'
-import { Route as AdminInsuranceRouteImport } from './routes/admin.insurance'
-import { Route as AdminMohIndicatorsRouteImport } from './routes/admin.moh-indicators'
-import { Route as AdminPermissionsRouteImport } from './routes/admin.permissions'
-import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
-import { Route as AdminRoomsRouteImport } from './routes/admin.rooms'
-import { Route as AdminServicesRouteImport } from './routes/admin.services'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminTestTemplatesRouteImport } from './routes/admin.test-templates'
-import { Route as AdminUsersRouteImport } from './routes/admin.users'
-import { Route as EncounterRecordsIndexRouteImport } from './routes/encounter-records.index'
-import { Route as EncounterRecordsIdRouteImport } from './routes/encounter-records.$id'
-import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
-import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
-import { Route as LaboratoryIndexRouteImport } from './routes/laboratory.index'
-import { Route as LaboratoryIdRouteImport } from './routes/laboratory.$id'
-import { Route as Moh705RouteImport } from './routes/moh.705'
-import { Route as PatientsIndexRouteImport } from './routes/patients.index'
-import { Route as PatientsIdRouteImport } from './routes/patients.$id'
-import { Route as RadiologyIndexRouteImport } from './routes/radiology.index'
-import { Route as RadiologyIdRouteImport } from './routes/radiology.$id'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as RegisterPatientRouteImport } from './routes/register-patient'
+import { Route as QueueRouteImport } from './routes/queue'
+import { Route as MohRouteImport } from './routes/moh'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as MachinesRouteImport } from './routes/machines'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as InpatientRouteImport } from './routes/inpatient'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as DeliveriesRouteImport } from './routes/deliveries'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as AccountingRouteImport } from './routes/accounting'
+import { Route as AccountRouteImport } from './routes/account'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as RecordsIndexRouteImport } from './routes/records.index'
-import { Route as RecordsIdRouteImport } from './routes/records.$id'
-import { Route as RecordsNewRouteImport } from './routes/records.new'
+import { Route as RadiologyIndexRouteImport } from './routes/radiology.index'
+import { Route as PatientsIndexRouteImport } from './routes/patients.index'
+import { Route as LaboratoryIndexRouteImport } from './routes/laboratory.index'
+import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
+import { Route as EncounterRecordsIndexRouteImport } from './routes/encounter-records.index'
 import { Route as RoomsIdRouteImport } from './routes/rooms.$id'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as RecordsNewRouteImport } from './routes/records.new'
+import { Route as RecordsIdRouteImport } from './routes/records.$id'
+import { Route as RadiologyIdRouteImport } from './routes/radiology.$id'
+import { Route as PatientsIdRouteImport } from './routes/patients.$id'
+import { Route as MohMchRouteImport } from './routes/moh.mch'
+import { Route as MohFpRouteImport } from './routes/moh.fp'
+import { Route as Moh717RouteImport } from './routes/moh.717'
+import { Route as Moh707RouteImport } from './routes/moh.707'
+import { Route as Moh706RouteImport } from './routes/moh.706'
+import { Route as Moh705RouteImport } from './routes/moh.705'
+import { Route as Moh642RouteImport } from './routes/moh.642'
+import { Route as Moh505RouteImport } from './routes/moh.505'
+import { Route as LaboratoryIdRouteImport } from './routes/laboratory.$id'
+import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
+import { Route as EncounterRecordsIdRouteImport } from './routes/encounter-records.$id'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminTestTemplatesRouteImport } from './routes/admin.test-templates'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminServicesRouteImport } from './routes/admin.services'
+import { Route as AdminRoomsRouteImport } from './routes/admin.rooms'
+import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
+import { Route as AdminPermissionsRouteImport } from './routes/admin.permissions'
+import { Route as AdminMohIndicatorsRouteImport } from './routes/admin.moh-indicators'
+import { Route as AdminInsuranceRouteImport } from './routes/admin.insurance'
+import { Route as AdminAuditLogRouteImport } from './routes/admin.audit-log'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountRoute = AccountRouteImport.update({
-  id: '/account',
-  path: '/account',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountingRoute = AccountingRouteImport.update({
-  id: '/accounting',
-  path: '/accounting',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChangePasswordRoute = ChangePasswordRouteImport.update({
-  id: '/change-password',
-  path: '/change-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DeliveriesRoute = DeliveriesRouteImport.update({
-  id: '/deliveries',
-  path: '/deliveries',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InpatientRoute = InpatientRouteImport.update({
-  id: '/inpatient',
-  path: '/inpatient',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MachinesRoute = MachinesRouteImport.update({
-  id: '/machines',
-  path: '/machines',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MohRoute = MohRouteImport.update({
-  id: '/moh',
-  path: '/moh',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QueueRoute = QueueRouteImport.update({
-  id: '/queue',
-  path: '/queue',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterPatientRoute = RegisterPatientRouteImport.update({
-  id: '/register-patient',
-  path: '/register-patient',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportsRoute = ReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
+const StockRoute = StockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -136,126 +73,79 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StockRoute = StockRouteImport.update({
-  id: '/stock',
-  path: '/stock',
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
-  id: '/admin/audit-log',
-  path: '/admin/audit-log',
+const RegisterPatientRoute = RegisterPatientRouteImport.update({
+  id: '/register-patient',
+  path: '/register-patient',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminInsuranceRoute = AdminInsuranceRouteImport.update({
-  id: '/admin/insurance',
-  path: '/admin/insurance',
+const QueueRoute = QueueRouteImport.update({
+  id: '/queue',
+  path: '/queue',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminMohIndicatorsRoute = AdminMohIndicatorsRouteImport.update({
-  id: '/admin/moh-indicators',
-  path: '/admin/moh-indicators',
+const MohRoute = MohRouteImport.update({
+  id: '/moh',
+  path: '/moh',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminPermissionsRoute = AdminPermissionsRouteImport.update({
-  id: '/admin/permissions',
-  path: '/admin/permissions',
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRequestsRoute = AdminRequestsRouteImport.update({
-  id: '/admin/requests',
-  path: '/admin/requests',
+const MachinesRoute = MachinesRouteImport.update({
+  id: '/machines',
+  path: '/machines',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoomsRoute = AdminRoomsRouteImport.update({
-  id: '/admin/rooms',
-  path: '/admin/rooms',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminServicesRoute = AdminServicesRouteImport.update({
-  id: '/admin/services',
-  path: '/admin/services',
+const InpatientRoute = InpatientRouteImport.update({
+  id: '/inpatient',
+  path: '/inpatient',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/admin/settings',
-  path: '/admin/settings',
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminTestTemplatesRoute = AdminTestTemplatesRouteImport.update({
-  id: '/admin/test-templates',
-  path: '/admin/test-templates',
+const DeliveriesRoute = DeliveriesRouteImport.update({
+  id: '/deliveries',
+  path: '/deliveries',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EncounterRecordsIndexRoute = EncounterRecordsIndexRouteImport.update({
-  id: '/encounter-records/',
-  path: '/encounter-records/',
+const ChangePasswordRoute = ChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EncounterRecordsIdRoute = EncounterRecordsIdRouteImport.update({
-  id: '/encounter-records/$id',
-  path: '/encounter-records/$id',
+const AccountingRoute = AccountingRouteImport.update({
+  id: '/accounting',
+  path: '/accounting',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InvoicesIndexRoute = InvoicesIndexRouteImport.update({
-  id: '/invoices/',
-  path: '/invoices/',
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InvoicesIdRoute = InvoicesIdRouteImport.update({
-  id: '/invoices/$id',
-  path: '/invoices/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaboratoryIndexRoute = LaboratoryIndexRouteImport.update({
-  id: '/laboratory/',
-  path: '/laboratory/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaboratoryIdRoute = LaboratoryIdRouteImport.update({
-  id: '/laboratory/$id',
-  path: '/laboratory/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const Moh705Route = Moh705RouteImport.update({
-  id: '/705',
-  path: '/705',
-  getParentRoute: () => MohRoute,
-} as any)
-const PatientsIndexRoute = PatientsIndexRouteImport.update({
-  id: '/patients/',
-  path: '/patients/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PatientsIdRoute = PatientsIdRouteImport.update({
-  id: '/patients/$id',
-  path: '/patients/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RadiologyIndexRoute = RadiologyIndexRouteImport.update({
-  id: '/radiology/',
-  path: '/radiology/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RadiologyIdRoute = RadiologyIdRouteImport.update({
-  id: '/radiology/$id',
-  path: '/radiology/$id',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecordsIndexRoute = RecordsIndexRouteImport.update({
@@ -263,14 +153,29 @@ const RecordsIndexRoute = RecordsIndexRouteImport.update({
   path: '/records/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecordsIdRoute = RecordsIdRouteImport.update({
-  id: '/records/$id',
-  path: '/records/$id',
+const RadiologyIndexRoute = RadiologyIndexRouteImport.update({
+  id: '/radiology/',
+  path: '/radiology/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecordsNewRoute = RecordsNewRouteImport.update({
-  id: '/records/new',
-  path: '/records/new',
+const PatientsIndexRoute = PatientsIndexRouteImport.update({
+  id: '/patients/',
+  path: '/patients/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaboratoryIndexRoute = LaboratoryIndexRouteImport.update({
+  id: '/laboratory/',
+  path: '/laboratory/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesIndexRoute = InvoicesIndexRouteImport.update({
+  id: '/invoices/',
+  path: '/invoices/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EncounterRecordsIndexRoute = EncounterRecordsIndexRouteImport.update({
+  id: '/encounter-records/',
+  path: '/encounter-records/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RoomsIdRoute = RoomsIdRouteImport.update({
@@ -278,17 +183,154 @@ const RoomsIdRoute = RoomsIdRouteImport.update({
   path: '/rooms/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
+const RecordsNewRoute = RecordsNewRouteImport.update({
+  id: '/records/new',
+  path: '/records/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecordsIdRoute = RecordsIdRouteImport.update({
+  id: '/records/$id',
+  path: '/records/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RadiologyIdRoute = RadiologyIdRouteImport.update({
+  id: '/radiology/$id',
+  path: '/radiology/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatientsIdRoute = PatientsIdRouteImport.update({
+  id: '/patients/$id',
+  path: '/patients/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MohMchRoute = MohMchRouteImport.update({
+  id: '/mch',
+  path: '/mch',
+  getParentRoute: () => MohRoute,
+} as any)
+const MohFpRoute = MohFpRouteImport.update({
+  id: '/fp',
+  path: '/fp',
+  getParentRoute: () => MohRoute,
+} as any)
+const Moh717Route = Moh717RouteImport.update({
+  id: '/717',
+  path: '/717',
+  getParentRoute: () => MohRoute,
+} as any)
+const Moh707Route = Moh707RouteImport.update({
+  id: '/707',
+  path: '/707',
+  getParentRoute: () => MohRoute,
+} as any)
+const Moh706Route = Moh706RouteImport.update({
+  id: '/706',
+  path: '/706',
+  getParentRoute: () => MohRoute,
+} as any)
+const Moh705Route = Moh705RouteImport.update({
+  id: '/705',
+  path: '/705',
+  getParentRoute: () => MohRoute,
+} as any)
+const Moh642Route = Moh642RouteImport.update({
+  id: '/642',
+  path: '/642',
+  getParentRoute: () => MohRoute,
+} as any)
+const Moh505Route = Moh505RouteImport.update({
+  id: '/505',
+  path: '/505',
+  getParentRoute: () => MohRoute,
+} as any)
+const LaboratoryIdRoute = LaboratoryIdRouteImport.update({
+  id: '/laboratory/$id',
+  path: '/laboratory/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesIdRoute = InvoicesIdRouteImport.update({
+  id: '/invoices/$id',
+  path: '/invoices/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EncounterRecordsIdRoute = EncounterRecordsIdRouteImport.update({
+  id: '/encounter-records/$id',
+  path: '/encounter-records/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTestTemplatesRoute = AdminTestTemplatesRouteImport.update({
+  id: '/admin/test-templates',
+  path: '/admin/test-templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminServicesRoute = AdminServicesRouteImport.update({
+  id: '/admin/services',
+  path: '/admin/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoomsRoute = AdminRoomsRouteImport.update({
+  id: '/admin/rooms',
+  path: '/admin/rooms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRequestsRoute = AdminRequestsRouteImport.update({
+  id: '/admin/requests',
+  path: '/admin/requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPermissionsRoute = AdminPermissionsRouteImport.update({
+  id: '/admin/permissions',
+  path: '/admin/permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMohIndicatorsRoute = AdminMohIndicatorsRouteImport.update({
+  id: '/admin/moh-indicators',
+  path: '/admin/moh-indicators',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminInsuranceRoute = AdminInsuranceRouteImport.update({
+  id: '/admin/insurance',
+  path: '/admin/insurance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
+  id: '/admin/audit-log',
+  path: '/admin/audit-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -323,7 +365,14 @@ export interface FileRoutesByFullPath {
   '/encounter-records/$id': typeof EncounterRecordsIdRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/laboratory/$id': typeof LaboratoryIdRoute
+  '/moh/505': typeof Moh505Route
+  '/moh/642': typeof Moh642Route
   '/moh/705': typeof Moh705Route
+  '/moh/706': typeof Moh706Route
+  '/moh/707': typeof Moh707Route
+  '/moh/717': typeof Moh717Route
+  '/moh/fp': typeof MohFpRoute
+  '/moh/mch': typeof MohMchRoute
   '/patients/$id': typeof PatientsIdRoute
   '/radiology/$id': typeof RadiologyIdRoute
   '/records/$id': typeof RecordsIdRoute
@@ -371,7 +420,14 @@ export interface FileRoutesByTo {
   '/encounter-records/$id': typeof EncounterRecordsIdRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/laboratory/$id': typeof LaboratoryIdRoute
+  '/moh/505': typeof Moh505Route
+  '/moh/642': typeof Moh642Route
   '/moh/705': typeof Moh705Route
+  '/moh/706': typeof Moh706Route
+  '/moh/707': typeof Moh707Route
+  '/moh/717': typeof Moh717Route
+  '/moh/fp': typeof MohFpRoute
+  '/moh/mch': typeof MohMchRoute
   '/patients/$id': typeof PatientsIdRoute
   '/radiology/$id': typeof RadiologyIdRoute
   '/records/$id': typeof RecordsIdRoute
@@ -420,7 +476,14 @@ export interface FileRoutesById {
   '/encounter-records/$id': typeof EncounterRecordsIdRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/laboratory/$id': typeof LaboratoryIdRoute
+  '/moh/505': typeof Moh505Route
+  '/moh/642': typeof Moh642Route
   '/moh/705': typeof Moh705Route
+  '/moh/706': typeof Moh706Route
+  '/moh/707': typeof Moh707Route
+  '/moh/717': typeof Moh717Route
+  '/moh/fp': typeof MohFpRoute
+  '/moh/mch': typeof MohMchRoute
   '/patients/$id': typeof PatientsIdRoute
   '/radiology/$id': typeof RadiologyIdRoute
   '/records/$id': typeof RecordsIdRoute
@@ -470,7 +533,14 @@ export interface FileRouteTypes {
     | '/encounter-records/$id'
     | '/invoices/$id'
     | '/laboratory/$id'
+    | '/moh/505'
+    | '/moh/642'
     | '/moh/705'
+    | '/moh/706'
+    | '/moh/707'
+    | '/moh/717'
+    | '/moh/fp'
+    | '/moh/mch'
     | '/patients/$id'
     | '/radiology/$id'
     | '/records/$id'
@@ -518,7 +588,14 @@ export interface FileRouteTypes {
     | '/encounter-records/$id'
     | '/invoices/$id'
     | '/laboratory/$id'
+    | '/moh/505'
+    | '/moh/642'
     | '/moh/705'
+    | '/moh/706'
+    | '/moh/707'
+    | '/moh/717'
+    | '/moh/fp'
+    | '/moh/mch'
     | '/patients/$id'
     | '/radiology/$id'
     | '/records/$id'
@@ -566,7 +643,14 @@ export interface FileRouteTypes {
     | '/encounter-records/$id'
     | '/invoices/$id'
     | '/laboratory/$id'
+    | '/moh/505'
+    | '/moh/642'
     | '/moh/705'
+    | '/moh/706'
+    | '/moh/707'
+    | '/moh/717'
+    | '/moh/fp'
+    | '/moh/mch'
     | '/patients/$id'
     | '/radiology/$id'
     | '/records/$id'
@@ -632,109 +716,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/account': {
-      id: '/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AccountRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/accounting': {
-      id: '/accounting'
-      path: '/accounting'
-      fullPath: '/accounting'
-      preLoaderRoute: typeof AccountingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/change-password': {
-      id: '/change-password'
-      path: '/change-password'
-      fullPath: '/change-password'
-      preLoaderRoute: typeof ChangePasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/deliveries': {
-      id: '/deliveries'
-      path: '/deliveries'
-      fullPath: '/deliveries'
-      preLoaderRoute: typeof DeliveriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inpatient': {
-      id: '/inpatient'
-      path: '/inpatient'
-      fullPath: '/inpatient'
-      preLoaderRoute: typeof InpatientRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/machines': {
-      id: '/machines'
-      path: '/machines'
-      fullPath: '/machines'
-      preLoaderRoute: typeof MachinesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/moh': {
-      id: '/moh'
-      path: '/moh'
-      fullPath: '/moh'
-      preLoaderRoute: typeof MohRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/queue': {
-      id: '/queue'
-      path: '/queue'
-      fullPath: '/queue'
-      preLoaderRoute: typeof QueueRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register-patient': {
-      id: '/register-patient'
-      path: '/register-patient'
-      fullPath: '/register-patient'
-      preLoaderRoute: typeof RegisterPatientRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reports': {
-      id: '/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ReportsRouteImport
+    '/stock': {
+      id: '/stock'
+      path: '/stock'
+      fullPath: '/stock'
+      preLoaderRoute: typeof StockRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -744,172 +730,109 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/stock': {
-      id: '/stock'
-      path: '/stock'
-      fullPath: '/stock'
-      preLoaderRoute: typeof StockRouteImport
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+    '/register-patient': {
+      id: '/register-patient'
+      path: '/register-patient'
+      fullPath: '/register-patient'
+      preLoaderRoute: typeof RegisterPatientRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/queue': {
+      id: '/queue'
+      path: '/queue'
+      fullPath: '/queue'
+      preLoaderRoute: typeof QueueRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/audit-log': {
-      id: '/admin/audit-log'
-      path: '/admin/audit-log'
-      fullPath: '/admin/audit-log'
-      preLoaderRoute: typeof AdminAuditLogRouteImport
+    '/moh': {
+      id: '/moh'
+      path: '/moh'
+      fullPath: '/moh'
+      preLoaderRoute: typeof MohRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/insurance': {
-      id: '/admin/insurance'
-      path: '/admin/insurance'
-      fullPath: '/admin/insurance'
-      preLoaderRoute: typeof AdminInsuranceRouteImport
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/moh-indicators': {
-      id: '/admin/moh-indicators'
-      path: '/admin/moh-indicators'
-      fullPath: '/admin/moh-indicators'
-      preLoaderRoute: typeof AdminMohIndicatorsRouteImport
+    '/machines': {
+      id: '/machines'
+      path: '/machines'
+      fullPath: '/machines'
+      preLoaderRoute: typeof MachinesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/permissions': {
-      id: '/admin/permissions'
-      path: '/admin/permissions'
-      fullPath: '/admin/permissions'
-      preLoaderRoute: typeof AdminPermissionsRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/requests': {
-      id: '/admin/requests'
-      path: '/admin/requests'
-      fullPath: '/admin/requests'
-      preLoaderRoute: typeof AdminRequestsRouteImport
+    '/inpatient': {
+      id: '/inpatient'
+      path: '/inpatient'
+      fullPath: '/inpatient'
+      preLoaderRoute: typeof InpatientRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/rooms': {
-      id: '/admin/rooms'
-      path: '/admin/rooms'
-      fullPath: '/admin/rooms'
-      preLoaderRoute: typeof AdminRoomsRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/services': {
-      id: '/admin/services'
-      path: '/admin/services'
-      fullPath: '/admin/services'
-      preLoaderRoute: typeof AdminServicesRouteImport
+    '/deliveries': {
+      id: '/deliveries'
+      path: '/deliveries'
+      fullPath: '/deliveries'
+      preLoaderRoute: typeof DeliveriesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/admin/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/test-templates': {
-      id: '/admin/test-templates'
-      path: '/admin/test-templates'
-      fullPath: '/admin/test-templates'
-      preLoaderRoute: typeof AdminTestTemplatesRouteImport
+    '/change-password': {
+      id: '/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/admin/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
+    '/accounting': {
+      id: '/accounting'
+      path: '/accounting'
+      fullPath: '/accounting'
+      preLoaderRoute: typeof AccountingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/encounter-records/': {
-      id: '/encounter-records/'
-      path: '/encounter-records'
-      fullPath: '/encounter-records/'
-      preLoaderRoute: typeof EncounterRecordsIndexRouteImport
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/encounter-records/$id': {
-      id: '/encounter-records/$id'
-      path: '/encounter-records/$id'
-      fullPath: '/encounter-records/$id'
-      preLoaderRoute: typeof EncounterRecordsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invoices/': {
-      id: '/invoices/'
-      path: '/invoices'
-      fullPath: '/invoices/'
-      preLoaderRoute: typeof InvoicesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invoices/$id': {
-      id: '/invoices/$id'
-      path: '/invoices/$id'
-      fullPath: '/invoices/$id'
-      preLoaderRoute: typeof InvoicesIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/laboratory/': {
-      id: '/laboratory/'
-      path: '/laboratory'
-      fullPath: '/laboratory/'
-      preLoaderRoute: typeof LaboratoryIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/laboratory/$id': {
-      id: '/laboratory/$id'
-      path: '/laboratory/$id'
-      fullPath: '/laboratory/$id'
-      preLoaderRoute: typeof LaboratoryIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/moh/705': {
-      id: '/moh/705'
-      path: '/705'
-      fullPath: '/moh/705'
-      preLoaderRoute: typeof Moh705RouteImport
-      parentRoute: typeof MohRoute
-    }
-    '/patients/': {
-      id: '/patients/'
-      path: '/patients'
-      fullPath: '/patients/'
-      preLoaderRoute: typeof PatientsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/patients/$id': {
-      id: '/patients/$id'
-      path: '/patients/$id'
-      fullPath: '/patients/$id'
-      preLoaderRoute: typeof PatientsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/radiology/': {
-      id: '/radiology/'
-      path: '/radiology'
-      fullPath: '/radiology/'
-      preLoaderRoute: typeof RadiologyIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/radiology/$id': {
-      id: '/radiology/$id'
-      path: '/radiology/$id'
-      fullPath: '/radiology/$id'
-      preLoaderRoute: typeof RadiologyIdRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/records/': {
@@ -919,18 +842,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecordsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/records/$id': {
-      id: '/records/$id'
-      path: '/records/$id'
-      fullPath: '/records/$id'
-      preLoaderRoute: typeof RecordsIdRouteImport
+    '/radiology/': {
+      id: '/radiology/'
+      path: '/radiology'
+      fullPath: '/radiology/'
+      preLoaderRoute: typeof RadiologyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/records/new': {
-      id: '/records/new'
-      path: '/records/new'
-      fullPath: '/records/new'
-      preLoaderRoute: typeof RecordsNewRouteImport
+    '/patients/': {
+      id: '/patients/'
+      path: '/patients'
+      fullPath: '/patients/'
+      preLoaderRoute: typeof PatientsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/laboratory/': {
+      id: '/laboratory/'
+      path: '/laboratory'
+      fullPath: '/laboratory/'
+      preLoaderRoute: typeof LaboratoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/': {
+      id: '/invoices/'
+      path: '/invoices'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof InvoicesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/encounter-records/': {
+      id: '/encounter-records/'
+      path: '/encounter-records'
+      fullPath: '/encounter-records/'
+      preLoaderRoute: typeof EncounterRecordsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rooms/$id': {
@@ -940,11 +884,193 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoomsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+    '/records/new': {
+      id: '/records/new'
+      path: '/records/new'
+      fullPath: '/records/new'
+      preLoaderRoute: typeof RecordsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/records/$id': {
+      id: '/records/$id'
+      path: '/records/$id'
+      fullPath: '/records/$id'
+      preLoaderRoute: typeof RecordsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/radiology/$id': {
+      id: '/radiology/$id'
+      path: '/radiology/$id'
+      fullPath: '/radiology/$id'
+      preLoaderRoute: typeof RadiologyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patients/$id': {
+      id: '/patients/$id'
+      path: '/patients/$id'
+      fullPath: '/patients/$id'
+      preLoaderRoute: typeof PatientsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/moh/mch': {
+      id: '/moh/mch'
+      path: '/mch'
+      fullPath: '/moh/mch'
+      preLoaderRoute: typeof MohMchRouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/moh/fp': {
+      id: '/moh/fp'
+      path: '/fp'
+      fullPath: '/moh/fp'
+      preLoaderRoute: typeof MohFpRouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/moh/717': {
+      id: '/moh/717'
+      path: '/717'
+      fullPath: '/moh/717'
+      preLoaderRoute: typeof Moh717RouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/moh/707': {
+      id: '/moh/707'
+      path: '/707'
+      fullPath: '/moh/707'
+      preLoaderRoute: typeof Moh707RouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/moh/706': {
+      id: '/moh/706'
+      path: '/706'
+      fullPath: '/moh/706'
+      preLoaderRoute: typeof Moh706RouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/moh/705': {
+      id: '/moh/705'
+      path: '/705'
+      fullPath: '/moh/705'
+      preLoaderRoute: typeof Moh705RouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/moh/642': {
+      id: '/moh/642'
+      path: '/642'
+      fullPath: '/moh/642'
+      preLoaderRoute: typeof Moh642RouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/moh/505': {
+      id: '/moh/505'
+      path: '/505'
+      fullPath: '/moh/505'
+      preLoaderRoute: typeof Moh505RouteImport
+      parentRoute: typeof MohRoute
+    }
+    '/laboratory/$id': {
+      id: '/laboratory/$id'
+      path: '/laboratory/$id'
+      fullPath: '/laboratory/$id'
+      preLoaderRoute: typeof LaboratoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/$id': {
+      id: '/invoices/$id'
+      path: '/invoices/$id'
+      fullPath: '/invoices/$id'
+      preLoaderRoute: typeof InvoicesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/encounter-records/$id': {
+      id: '/encounter-records/$id'
+      path: '/encounter-records/$id'
+      fullPath: '/encounter-records/$id'
+      preLoaderRoute: typeof EncounterRecordsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/test-templates': {
+      id: '/admin/test-templates'
+      path: '/admin/test-templates'
+      fullPath: '/admin/test-templates'
+      preLoaderRoute: typeof AdminTestTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/services': {
+      id: '/admin/services'
+      path: '/admin/services'
+      fullPath: '/admin/services'
+      preLoaderRoute: typeof AdminServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/rooms': {
+      id: '/admin/rooms'
+      path: '/admin/rooms'
+      fullPath: '/admin/rooms'
+      preLoaderRoute: typeof AdminRoomsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/requests': {
+      id: '/admin/requests'
+      path: '/admin/requests'
+      fullPath: '/admin/requests'
+      preLoaderRoute: typeof AdminRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/permissions': {
+      id: '/admin/permissions'
+      path: '/admin/permissions'
+      fullPath: '/admin/permissions'
+      preLoaderRoute: typeof AdminPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/moh-indicators': {
+      id: '/admin/moh-indicators'
+      path: '/admin/moh-indicators'
+      fullPath: '/admin/moh-indicators'
+      preLoaderRoute: typeof AdminMohIndicatorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/insurance': {
+      id: '/admin/insurance'
+      path: '/admin/insurance'
+      fullPath: '/admin/insurance'
+      preLoaderRoute: typeof AdminInsuranceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit-log': {
+      id: '/admin/audit-log'
+      path: '/admin/audit-log'
+      fullPath: '/admin/audit-log'
+      preLoaderRoute: typeof AdminAuditLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -954,15 +1080,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface MohRouteChildren {
+  Moh505Route: typeof Moh505Route
+  Moh642Route: typeof Moh642Route
   Moh705Route: typeof Moh705Route
+  Moh706Route: typeof Moh706Route
+  Moh707Route: typeof Moh707Route
+  Moh717Route: typeof Moh717Route
+  MohFpRoute: typeof MohFpRoute
+  MohMchRoute: typeof MohMchRoute
 }
 
 const MohRouteChildren: MohRouteChildren = {
+  Moh505Route: Moh505Route,
+  Moh642Route: Moh642Route,
   Moh705Route: Moh705Route,
+  Moh706Route: Moh706Route,
+  Moh707Route: Moh707Route,
+  Moh717Route: Moh717Route,
+  MohFpRoute: MohFpRoute,
+  MohMchRoute: MohMchRoute,
 }
 
 const MohRouteWithChildren = MohRoute._addFileChildren(MohRouteChildren)
@@ -1018,3 +1165,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

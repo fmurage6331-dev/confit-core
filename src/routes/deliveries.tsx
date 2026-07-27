@@ -137,8 +137,7 @@ function DeliveriesPage() {
             Deliveries
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Log incoming supplies. Linked stock items are received into Main Store
-            automatically.
+            Log incoming supplies. Linked stock items are received into Main Store automatically.
           </p>
           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Warehouse className="h-3.5 w-3.5" />
@@ -195,8 +194,8 @@ function DeliveriesPage() {
                     <div>
                       <p className="font-medium text-foreground">Main Store receiving</p>
                       <p>
-                        If you link this delivery to a stock item, the quantity will
-                        automatically increase the Main Store balance.
+                        If you link this delivery to a stock item, the quantity will automatically
+                        increase the Main Store balance.
                       </p>
                     </div>
                   </div>
@@ -239,8 +238,7 @@ function DeliveriesPage() {
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Select a stock item if this delivery should update Main Store
-                    inventory.
+                    Select a stock item if this delivery should update Main Store inventory.
                   </p>
                 </div>
 
@@ -348,9 +346,7 @@ function DeliveriesPage() {
                   <td className="px-4 py-2">{delivery.supplier ?? "—"}</td>
                   <td className="px-4 py-2">{delivery.batch_number ?? "—"}</td>
                   <td className="px-4 py-2">{formatDate(delivery.expiry_date)}</td>
-                  <td className="px-4 py-2 font-mono text-xs">
-                    {delivery.invoice_number ?? "—"}
-                  </td>
+                  <td className="px-4 py-2 font-mono text-xs">{delivery.invoice_number ?? "—"}</td>
                   <td className="px-4 py-2">{delivery.received_by ?? "—"}</td>
                 </tr>
               ))}

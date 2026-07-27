@@ -4,12 +4,11 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
+import { MohReportShell } from "@/components/moh/moh-report-shell";
+import { MohMonthPicker, getDefaultMonth } from "@/components/moh/moh-month-picker";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/supabase-untyped";
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -19,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarChart3, Printer, RefreshCw, RotateCcw } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/717")({
@@ -122,11 +121,7 @@ function getGroup(indicatorCode: string) {
 }
 
 function Moh717() {
-  const [month, setMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
-
+  const [month, setMonth] = useState(getDefaultMonth());
   const monthStart = `${month}-01`;
 
   const {
@@ -197,9 +192,7 @@ function Moh717() {
       "Other",
     ];
 
-    return Array.from(map.values()).sort(
-      (a, b) => order.indexOf(a.group) - order.indexOf(b.group),
-    );
+    return Array.from(map.values()).sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
   }, [rows]);
 
   const grandTotal = useMemo(() => {
@@ -208,86 +201,32 @@ function Moh717() {
 
   const handleRecalculateAll = async () => {
     try {
-      const monthly = await db.rpc("refresh_moh_monthly_aggregates", {
+      const { error } = await db.rpc("refresh_moh_aggregates", {
         target_month: monthStart,
       });
 
-      if (monthly.error) throw new Error(monthly.error.message);
-
-      const moh642 = await db.rpc("refresh_moh_642_monthly_aggregates", {
-        target_month: monthStart,
-      });
-
-      if (moh642.error) throw new Error(moh642.error.message);
-
-      const moh707 = await db.rpc("refresh_moh_707_monthly_aggregates", {
-        target_month: monthStart,
-      });
-
-      if (moh707.error) throw new Error(moh707.error.message);
+      if (error) throw new Error(error.message);
 
       toast.success("MOH monthly summary recalculated.");
       await refetch();
     } catch (error: unknown) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to recalculate MOH monthly summary.",
+        error instanceof Error ? error.message : "Failed to recalculate MOH monthly summary.",
       );
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
-            MOH 717 — Monthly Workload Summary
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Monthly summary across outpatient, laboratory, pharmacy, commodities,
-            family planning and MCH indicators.
-          </p>
-        </div>
-
-        <div className="flex items-end gap-2 flex-wrap">
-          <div>
-            <Label htmlFor="month" className="text-xs">
-              Reporting month
-            </Label>
-            <Input
-              id="month"
-              type="month"
-              value={month}
-              onChange={(event) => setMonth(event.target.value)}
-              className="w-48"
-            />
-          </div>
-
-          <Button onClick={handleRecalculateAll} variant="default">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Recalculate All
-          </Button>
-
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-        </div>
-      </div>
-
-      <div className="hidden print:block text-center mb-6">
-        <h1 className="text-2xl font-bold">MOH 717 — Monthly Workload Summary</h1>
-        <p className="text-sm">Reporting month: {month}</p>
-        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
-      </div>
-
+    <MohReportShell
+      icon={CalendarDays}
+      title="MOH 717 — Monthly Workload Summary"
+      description="Monthly summary across outpatient, laboratory, pharmacy, commodities, family planning and MCH indicators."
+      printSubtitle={`Reporting month: ${month}`}
+      periodControl={<MohMonthPicker month={month} onChange={setMonth} />}
+      onRecalculate={handleRecalculateAll}
+      recalculateLabel="Recalculate All"
+      onRefresh={() => refetch()}
+    >
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
@@ -307,9 +246,7 @@ function Moh717() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold">{grouped.length}</div>
-            <p className="text-sm text-muted-foreground">
-              MOH report groups with data this month.
-            </p>
+            <p className="text-sm text-muted-foreground">MOH report groups with data this month.</p>
           </CardContent>
         </Card>
 
@@ -319,9 +256,7 @@ function Moh717() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold">{rows?.length ?? 0}</div>
-            <p className="text-sm text-muted-foreground">
-              Individual aggregate indicator rows.
-            </p>
+            <p className="text-sm text-muted-foreground">Individual aggregate indicator rows.</p>
           </CardContent>
         </Card>
       </div>
@@ -357,9 +292,7 @@ function Moh717() {
                 <TableBody>
                   {group.rows.map((row) => (
                     <TableRow key={`${group.group}-${row.indicator_code}`}>
-                      <TableCell className="font-mono text-xs">
-                        {row.indicator_code}
-                      </TableCell>
+                      <TableCell className="font-mono text-xs">{row.indicator_code}</TableCell>
                       <TableCell>{row.description}</TableCell>
                       <TableCell className="text-right">{row.value}</TableCell>
                     </TableRow>
@@ -381,10 +314,10 @@ function Moh717() {
 
       {!isLoading && !isFetching && grouped.length === 0 && (
         <p className="text-center text-xs text-muted-foreground no-print">
-          If this remains empty after recalculation, there may be no source
-          encounters, pharmacy dispensing, or store usage for this month.
+          If this remains empty after recalculation, there may be no source encounters, pharmacy
+          dispensing, or store usage for this month.
         </p>
       )}
-    </div>
+    </MohReportShell>
   );
 }

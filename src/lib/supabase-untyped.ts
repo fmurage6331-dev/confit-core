@@ -28,14 +28,18 @@ type QueryBuilder<T = unknown> = PromiseLike<QueryResult<T>> & {
     },
   ) => QueryBuilder<T>;
   limit: (count: number) => QueryBuilder<T>;
+  insert: (values: Record<string, unknown> | Record<string, unknown>[]) => QueryBuilder<T>;
+  update: (values: Record<string, unknown>) => QueryBuilder<T>;
+  upsert: (
+    values: Record<string, unknown> | Record<string, unknown>[],
+    options?: { onConflict?: string },
+  ) => QueryBuilder<T>;
+  delete: () => QueryBuilder<T>;
 };
 
 type SupabaseUntyped = {
   from: <T = unknown>(relation: string) => QueryBuilder<T>;
-  rpc: <T = unknown>(
-    fn: string,
-    args?: Record<string, unknown>,
-  ) => Promise<QueryResult<T>>;
+  rpc: <T = unknown>(fn: string, args?: Record<string, unknown>) => Promise<QueryResult<T>>;
 };
 
 export const db = supabase as unknown as SupabaseUntyped;

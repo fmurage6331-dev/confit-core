@@ -342,9 +342,9 @@ function MachinesPage() {
                 log_date: string;
                 machines?: { name?: string } | null;
                 log_type?: string;
-                performed_by?: string;
+                performed_by?: string | null;
                 description?: string;
-                cost?: number;
+                cost?: number | null;
                 next_due_date?: string | null;
               }) => (
                 <tr key={l.id}>

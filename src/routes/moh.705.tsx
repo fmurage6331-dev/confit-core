@@ -5,11 +5,9 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { MohReportShell } from "@/components/moh/moh-report-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -26,7 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Activity, Download, Printer, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Activity, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/705")({
@@ -75,15 +75,15 @@ function Moh705Report() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.rpc("get_moh_705_report", {
+      const { data, error } = await db.rpc<ReportRow[]>("get_moh_705_report", {
         p_start_date: `${startDate}T00:00:00+03:00`,
         p_end_date: `${endDate}T23:59:59+03:00`,
         p_form_type: formType,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
-      setRows((data ?? []) as ReportRow[]);
+      setRows(data ?? []);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to load report");
     } finally {
@@ -136,10 +136,7 @@ function Moh705Report() {
       ),
     ];
 
-    const blob = new Blob([csvRows.join("\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
 
@@ -154,94 +151,62 @@ function Moh705Report() {
   const formLabel = formType === "A" ? "705A (Under 5 years)" : "705B (5 years and above)";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
-        <div>
-          <h1 className="text-2xl font-semibold">MOH 705 — Outpatient Summary</h1>
-          <p className="text-sm text-muted-foreground">
-            Disease surveillance report. Form {formLabel}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportCSV} disabled={rows.length === 0}>
-            <Download className="mr-2 h-4 w-4" />
-            CSV
-          </Button>
-
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-        </div>
-      </div>
-
-      <div className="hidden print:block text-center mb-6">
-        <h1 className="text-2xl font-bold">MOH 705 — Outpatient Summary</h1>
-        <p className="text-sm">
-          Form {formLabel} | {startDate} to {endDate}
-        </p>
-        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
-      </div>
-
-      <Card className="no-print">
-        <CardContent className="pt-6">
-          <div className="flex items-end gap-4 flex-wrap">
-            <div>
-              <Label htmlFor="form-type" className="text-xs">
-                Form Type
-              </Label>
-              <Select value={formType} onValueChange={(value) => setFormType(value as "A" | "B")}>
-                <SelectTrigger className="w-56" id="form-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="A">705A — Under 5 years</SelectItem>
-                  <SelectItem value="B">705B — 5 years and above</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="start-date" className="text-xs">
-                Start Date
-              </Label>
-              <Input
-                id="start-date"
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-                className="w-44"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="end-date" className="text-xs">
-                End Date
-              </Label>
-              <Input
-                id="end-date"
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                className="w-44"
-              />
-            </div>
-
-            <Button onClick={loadReport} disabled={loading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "Loading…" : "Generate Report"}
-            </Button>
+    <MohReportShell
+      icon={Stethoscope}
+      title="MOH 705 — Outpatient Summary"
+      description={`Disease surveillance report. Form ${formLabel}`}
+      printSubtitle={`Form ${formLabel} | ${startDate} to ${endDate}`}
+      periodControl={
+        <>
+          <div>
+            <Label htmlFor="form-type" className="text-xs">
+              Form Type
+            </Label>
+            <Select value={formType} onValueChange={(value) => setFormType(value as "A" | "B")}>
+              <SelectTrigger className="w-56" id="form-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A">705A — Under 5 years</SelectItem>
+                <SelectItem value="B">705B — 5 years and above</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
 
+          <div>
+            <Label htmlFor="start-date" className="text-xs">
+              Start Date
+            </Label>
+            <Input
+              id="start-date"
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              className="w-44"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="end-date" className="text-xs">
+              End Date
+            </Label>
+            <Input
+              id="end-date"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              className="w-44"
+            />
+          </div>
+        </>
+      }
+      onRefresh={loadReport}
+      onExportCsv={exportCSV}
+    >
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Cases
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Cases</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{totals.total}</div>
@@ -250,9 +215,7 @@ function Moh705Report() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Male Cases
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Male Cases</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">{totals.male}</div>
@@ -281,9 +244,7 @@ function Moh705Report() {
 
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Loading report data…
-            </p>
+            <p className="text-sm text-muted-foreground py-8 text-center">Loading report data…</p>
           ) : rows.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
               No data found for the selected period. Make sure encounters have been recorded with
@@ -316,9 +277,7 @@ function Moh705Report() {
                       <TableCell className="text-center font-mono text-xs text-muted-foreground">
                         {row.icd11_code === "N/A" ? "—" : row.icd11_code}
                       </TableCell>
-                      <TableCell className="text-center font-semibold">
-                        {row.total_cases}
-                      </TableCell>
+                      <TableCell className="text-center font-semibold">{row.total_cases}</TableCell>
                       <TableCell className="text-center">{row.male_cases}</TableCell>
                       <TableCell className="text-center">{row.female_cases}</TableCell>
                     </TableRow>
@@ -338,10 +297,6 @@ function Moh705Report() {
           )}
         </CardContent>
       </Card>
-
-      <div className="hidden print:block text-xs text-center mt-8 border-t pt-4">
-        MOH 705{formType} Report — Generated on {new Date().toLocaleDateString()} | LabTrack
-      </div>
-    </div>
+    </MohReportShell>
   );
 }

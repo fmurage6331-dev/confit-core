@@ -352,8 +352,7 @@ function StockPage() {
             Stores & Stock
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Main Store and department stores for Lab, Pharmacy, Radiology,
-            Reception, MCH and FP.
+            Main Store and department stores for Lab, Pharmacy, Radiology, Reception, MCH and FP.
           </p>
         </div>
 
@@ -433,51 +432,26 @@ function StockPage() {
                   </div>
                   <div>
                     <Label>Opening quantity</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="current_quantity"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="current_quantity" defaultValue={0} />
                   </div>
                   <div>
                     <Label>Reorder level</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="reorder_level"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="reorder_level" defaultValue={0} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>Buy price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="buy_price"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="buy_price" defaultValue={0} />
                   </div>
                   <div>
                     <Label>Cash price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="cash_price"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="cash_price" defaultValue={0} />
                   </div>
                   <div>
                     <Label>Insurance price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      name="insurance_price"
-                      defaultValue={0}
-                    />
+                    <Input type="number" step="0.01" name="insurance_price" defaultValue={0} />
                   </div>
                 </div>
 
@@ -758,10 +732,7 @@ function StockPage() {
 
                 <div>
                   <Label>Note</Label>
-                  <Textarea
-                    name="note"
-                    placeholder="Example: Manual lab usage for MOH 642"
-                  />
+                  <Textarea name="note" placeholder="Example: Manual lab usage for MOH 642" />
                 </div>
 
                 <DialogFooter>
@@ -784,9 +755,7 @@ function StockPage() {
 
           <div className="space-y-1">
             {locationsLoading && (
-              <p className="px-2 py-4 text-sm text-muted-foreground">
-                Loading stores…
-              </p>
+              <p className="px-2 py-4 text-sm text-muted-foreground">Loading stores…</p>
             )}
 
             {(locations ?? []).map((location) => {
@@ -798,9 +767,7 @@ function StockPage() {
                   type="button"
                   onClick={() => setActiveLocationId(location.id)}
                   className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted text-foreground"
+                    active ? "bg-primary text-primary-foreground" : "hover:bg-muted text-foreground"
                   }`}
                 >
                   <span className="flex items-center justify-between gap-2">
@@ -911,9 +878,7 @@ function StockPage() {
                             {kindLabel(row.kind)}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-muted-foreground">
-                          {row.category ?? "—"}
-                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">{row.category ?? "—"}</td>
                         <td className="px-4 py-2">{row.unit ?? "pcs"}</td>
                         <td className="px-4 py-2 text-right font-mono">
                           {Number(row.quantity ?? 0).toLocaleString()}
@@ -927,8 +892,8 @@ function StockPage() {
                   {!pageLoading && activeBalances.length === 0 && (
                     <tr>
                       <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                        No stock balances in this store yet. Receive or transfer stock
-                        into this store.
+                        No stock balances in this store yet. Receive or transfer stock into this
+                        store.
                       </td>
                     </tr>
                   )}
@@ -985,9 +950,7 @@ function StockPage() {
                         <td className="px-4 py-2 text-muted-foreground">
                           {formatDate(row.used_at)}
                         </td>
-                        <td className="px-4 py-2 text-muted-foreground">
-                          {row.notes ?? "—"}
-                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">{row.notes ?? "—"}</td>
                       </tr>
                     ))}
 

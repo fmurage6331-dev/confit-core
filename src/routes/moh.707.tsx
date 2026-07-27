@@ -4,22 +4,13 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
+import { MohReportShell } from "@/components/moh/moh-report-shell";
+import { MohIndicatorTable } from "@/components/moh/moh-indicator-table";
+import { MohMonthPicker, getDefaultMonth } from "@/components/moh/moh-month-picker";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/supabase-untyped";
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { BarChart3, Printer, RefreshCw, RotateCcw } from "lucide-react";
+import { Pill } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/moh/707")({
@@ -52,17 +43,12 @@ const MOH_707_LABELS: Record<string, string> = {
 const MOH_707_INDICATORS = Object.keys(MOH_707_LABELS);
 
 function Moh707() {
-  const [month, setMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
-
+  const [month, setMonth] = useState(getDefaultMonth());
   const monthStart = `${month}-01`;
 
   const {
     data: pharmacyData,
     isLoading,
-    isFetching,
     refetch,
   } = useQuery({
     queryKey: ["moh-707", monthStart],
@@ -82,22 +68,19 @@ function Moh707() {
   const rows = useMemo(() => {
     return MOH_707_INDICATORS.map((code) => {
       const found = pharmacyData?.find((row) => row.indicator_code === code);
-
       return {
         indicator_code: code,
         description: MOH_707_LABELS[code] ?? code,
-        value: found?.value ?? 0,
+        value: Number(found?.value ?? 0),
       };
     });
   }, [pharmacyData]);
 
-  const total = useMemo(() => {
-    return rows.reduce((sum, row) => sum + Number(row.value ?? 0), 0);
-  }, [rows]);
+  const total = useMemo(() => rows.reduce((sum, row) => sum + row.value, 0), [rows]);
 
   const handleRecalculate = async () => {
     try {
-      const { error } = await db.rpc("refresh_moh_707_monthly_aggregates", {
+      const { error } = await db.rpc("refresh_moh_aggregates", {
         target_month: monthStart,
       });
 
@@ -106,122 +89,29 @@ function Moh707() {
       toast.success("MOH 707 pharmacy aggregates refreshed.");
       await refetch();
     } catch (error: unknown) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to refresh MOH 707 aggregates.",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to refresh MOH 707 aggregates.");
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap no-print">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
-            MOH 707 — Pharmacy Report
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Pharmaceuticals dispensed summary, monthly.
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Source: Pharmacy Store dispensing usage and dispensed prescriptions.
-          </p>
-        </div>
-
-        <div className="flex items-end gap-2 flex-wrap">
-          <div>
-            <Label htmlFor="month" className="text-xs">
-              Reporting month
-            </Label>
-            <Input
-              id="month"
-              type="month"
-              value={month}
-              onChange={(event) => setMonth(event.target.value)}
-              className="w-48"
-            />
-          </div>
-
-          <Button onClick={handleRecalculate} variant="default">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Recalculate
-          </Button>
-
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-        </div>
-      </div>
-
-      <div className="hidden print:block text-center mb-6">
-        <h1 className="text-2xl font-bold">MOH 707 — Pharmacy Report</h1>
-        <p className="text-sm">Reporting month: {month}</p>
-        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Pharmacy Items Dispensed</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-semibold">{total}</div>
-          <p className="text-sm text-muted-foreground">
-            Total counted pharmacy items for this reporting month.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Pharmacy Summary</CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Indicator Code</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Count</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.indicator_code}>
-                    <TableCell className="font-mono text-xs">
-                      {row.indicator_code}
-                    </TableCell>
-                    <TableCell>{row.description}</TableCell>
-                    <TableCell className="text-right">{row.value}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {!isLoading &&
-            !isFetching &&
-            rows.every((row) => Number(row.value) === 0) && (
-              <p className="text-muted-foreground text-center pt-6 no-print">
-                No pharmacy dispensing data found for this month. Dispense
-                prescriptions or record Pharmacy Store usage, then click
-                Recalculate.
-              </p>
-            )}
-        </CardContent>
-      </Card>
-    </div>
+    <MohReportShell
+      icon={Pill}
+      title="MOH 707 — Pharmacy Report"
+      description="Pharmaceuticals dispensed summary, monthly. Source: Pharmacy Store dispensing usage and dispensed prescriptions."
+      printSubtitle={`Reporting month: ${month}`}
+      periodControl={<MohMonthPicker month={month} onChange={setMonth} />}
+      onRecalculate={handleRecalculate}
+      onRefresh={() => refetch()}
+    >
+      <MohIndicatorTable
+        totalLabel="Total Pharmacy Items Dispensed"
+        totalDescription="Total counted pharmacy items for this reporting month."
+        total={total}
+        tableTitle="Pharmacy Summary"
+        isLoading={isLoading}
+        rows={rows}
+        emptyMessage="No pharmacy dispensing data found for this month. Dispense prescriptions or record Pharmacy Store usage, then click Recalculate."
+      />
+    </MohReportShell>
   );
 }

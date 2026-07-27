@@ -4,11 +4,12 @@
  * Author: Francis Muhoro
  */
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
+import { MohReportsGrid } from "@/components/moh/moh-reports-grid";
 import { AccessDenied } from "@/lib/require-access";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -33,19 +34,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Activity,
   BarChart3,
-  CalendarDays,
   FileDown,
-  FlaskConical,
-  HeartPulse,
   Lock,
   Package,
-  Pill,
   Plus,
   Printer,
-  ShieldAlert,
-  Stethoscope,
   Truck,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -79,81 +73,6 @@ const MONTH_NAMES = [
   "Oct",
   "Nov",
   "Dec",
-];
-
-const MOH_REPORTS = [
-  {
-    title: "MOH Dashboard",
-    subtitle: "All MOH reports",
-    description: "Open the central MOH reporting dashboard.",
-    href: "/moh",
-    icon: Activity,
-    period: "Monthly / Weekly",
-  },
-  {
-    title: "MOH 705",
-    subtitle: "Outpatient Report",
-    description: "Monthly outpatient attendance by age and sex.",
-    href: "/moh/705",
-    icon: Stethoscope,
-    period: "Monthly",
-  },
-  {
-    title: "MOH 706",
-    subtitle: "Laboratory Report",
-    description: "Monthly laboratory investigations and tests.",
-    href: "/moh/706",
-    icon: FlaskConical,
-    period: "Monthly",
-  },
-  {
-    title: "MOH 707",
-    subtitle: "Pharmacy Report",
-    description: "Monthly pharmaceuticals dispensed summary.",
-    href: "/moh/707",
-    icon: Pill,
-    period: "Monthly",
-  },
-  {
-    title: "MOH 505",
-    subtitle: "IDSR Weekly",
-    description: "Integrated Disease Surveillance and Response.",
-    href: "/moh/505",
-    icon: ShieldAlert,
-    period: "Weekly",
-  },
-  {
-    title: "MOH 642",
-    subtitle: "Lab Commodities",
-    description: "Laboratory reagents and consumables usage.",
-    href: "/moh/642",
-    icon: Package,
-    period: "Monthly",
-  },
-  {
-    title: "MOH FP",
-    subtitle: "Family Planning",
-    description: "Family planning services and methods summary.",
-    href: "/moh/fp",
-    icon: Users,
-    period: "Monthly",
-  },
-  {
-    title: "MOH MCH",
-    subtitle: "Maternal & Child Health",
-    description: "ANC, delivery, PNC and maternal-child indicators.",
-    href: "/moh/mch",
-    icon: HeartPulse,
-    period: "Monthly",
-  },
-  {
-    title: "MOH 717",
-    subtitle: "Monthly Summary",
-    description: "Summary across monthly MOH aggregate indicators.",
-    href: "/moh/717",
-    icon: CalendarDays,
-    period: "Monthly",
-  },
 ];
 
 type TestReportRow = {
@@ -205,6 +124,7 @@ type SummaryTotals = {
 
 function ReportsPage() {
   const { hasPerm } = useAuth();
+  const navigate = useNavigate();
 
   const canTests = hasPerm("reports.tests");
   const canFinance = hasPerm("reports.finance");
@@ -441,10 +361,7 @@ function ReportsPage() {
       billed += due;
       collected += paid;
 
-      if (
-        registration.payment_status !== "paid" &&
-        registration.payment_status !== "waived"
-      ) {
+      if (registration.payment_status !== "paid" && registration.payment_status !== "waived") {
         outstanding += Math.max(0, due - paid);
       }
     }
@@ -519,9 +436,7 @@ function ReportsPage() {
 
           <Button
             variant="outline"
-            onClick={() => {
-              window.location.href = selectedMohPrintReport;
-            }}
+            onClick={() => navigate({ to: selectedMohPrintReport as "/moh/705" })}
           >
             <Printer className="mr-2 h-4 w-4" />
             Open MOH Report
@@ -550,36 +465,22 @@ function ReportsPage() {
       </div>
 
       <section className="space-y-3 no-print">
-        <div>
-          <h2 className="text-xl font-semibold">MOH Reports</h2>
-          <p className="text-sm text-muted-foreground">
-            Open Ministry of Health reporting tools from one place.
-          </p>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-semibold">MOH Reports</h2>
+            <p className="text-sm text-muted-foreground">
+              Open Ministry of Health reporting tools from one place.
+            </p>
+          </div>
+          <Link to="/moh">
+            <Button variant="outline" size="sm">
+              <Activity className="mr-2 h-4 w-4" />
+              MOH Dashboard
+            </Button>
+          </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {MOH_REPORTS.map(({ title, subtitle, description, href, icon: Icon, period }) => (
-            <a key={href} href={href}>
-              <div className="h-full rounded-xl border bg-card p-5 transition-colors hover:border-primary/50 hover:bg-muted/30">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold">{title}</h3>
-                    <p className="text-sm text-muted-foreground">{subtitle}</p>
-                  </div>
-                  <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                </div>
-
-                <p className="mt-3 text-sm text-muted-foreground">{description}</p>
-
-                <span className="mt-3 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {period}
-                </span>
-              </div>
-            </a>
-          ))}
-        </div>
+        <MohReportsGrid />
       </section>
 
       <section className="space-y-3 no-print">
@@ -884,21 +785,9 @@ function ReportLinkCard({
   );
 }
 
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "emerald" | "rose";
-}) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "emerald" | "rose" }) {
   const color =
-    tone === "emerald"
-      ? "text-emerald-600"
-      : tone === "rose"
-        ? "text-rose-600"
-        : "text-foreground";
+    tone === "emerald" ? "text-emerald-600" : tone === "rose" ? "text-rose-600" : "text-foreground";
 
   return (
     <div className="rounded-lg border bg-background p-3">

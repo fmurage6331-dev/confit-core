@@ -1,25 +1,22 @@
 /**
  * LabTrack — MOH 505 IDSR Weekly Report
+ *
+ * Reads from moh_weekly_aggregates (weekly cadence), refreshed via
+ * refresh_moh_weekly_aggregates(target_week_start). See project notes:
+ * this table/function must exist in the backend for this page to return
+ * data — it is not yet present in supabase/migrations as of this change.
  */
 
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Printer, RefreshCw, ShieldAlert } from "lucide-react";
+import { MohReportShell } from "@/components/moh/moh-report-shell";
+import { MohIndicatorTable } from "@/components/moh/moh-indicator-table";
+import { MohWeekPicker, getWeekStart } from "@/components/moh/moh-week-picker";
+import { useQuery } from "@tanstack/react-query";
+import { db } from "@/lib/supabase-untyped";
+import { useMemo, useState } from "react";
+import { ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/moh/505")({
   component: () => (
@@ -29,166 +26,99 @@ export const Route = createFileRoute("/moh/505")({
   ),
 });
 
-function getWeekStart(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
+type WeeklyAggregateRow = {
+  indicator_code: string;
+  period_week_start: string;
+  value: number | string;
+  computed_at?: string | null;
+};
+
+const IDSR_LABELS: Record<string, string> = {
+  IDSR_MEASLES: "Measles (suspected)",
+  IDSR_CHOLERA: "Acute Watery Diarrhoea / Cholera",
+  IDSR_AFP: "Acute Flaccid Paralysis",
+  IDSR_NEONATAL_TETANUS: "Neonatal Tetanus",
+  IDSR_BLOODY_DIARRHOEA: "Bloody Diarrhoea (Dysentery)",
+  IDSR_MENINGITIS: "Meningitis (suspected)",
+  IDSR_VHF: "Viral Haemorrhagic Fever (suspected)",
+  IDSR_PLAGUE: "Plague (suspected)",
+  IDSR_RABIES: "Animal Bites / Suspected Rabies",
+  IDSR_MALARIA: "Malaria (confirmed)",
+  IDSR_TYPHOID: "Typhoid Fever",
+  IDSR_SARI: "Severe Acute Respiratory Infection",
+};
+
+const IDSR_INDICATORS = Object.keys(IDSR_LABELS);
 
 function Moh505() {
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
-  const [cases, setCases] = useState<
-    { disease: string; count: number; deaths: number }[]
-  >([]);
-  const [loading, setLoading] = useState(false);
 
-  async function loadReport() {
-    setLoading(true);
+  const {
+    data: weeklyData,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["moh-505", weekStart],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("moh_weekly_aggregates")
+        .select("*")
+        .in("indicator_code", IDSR_INDICATORS)
+        .eq("period_week_start", weekStart)
+        .order("indicator_code", { ascending: true });
+
+      if (error) throw new Error(error.message);
+      return (data ?? []) as WeeklyAggregateRow[];
+    },
+  });
+
+  const rows = useMemo(() => {
+    return IDSR_INDICATORS.map((code) => {
+      const found = weeklyData?.find((row) => row.indicator_code === code);
+      return {
+        indicator_code: code,
+        description: IDSR_LABELS[code] ?? code,
+        value: Number(found?.value ?? 0),
+      };
+    });
+  }, [weeklyData]);
+
+  const total = useMemo(() => rows.reduce((sum, row) => sum + row.value, 0), [rows]);
+
+  const handleRecalculate = async () => {
     try {
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-
-      const { data, error } = await supabase.rpc("get_moh_505_report", {
-        p_start_date: `${weekStart}T00:00:00+03:00`,
-        p_end_date: `${weekEnd.toISOString().slice(0, 10)}T23:59:59+03:00`,
+      const { error } = await db.rpc("refresh_moh_weekly_aggregates", {
+        target_week_start: weekStart,
       });
 
-      if (error) throw error;
-      setCases(data ?? []);
-    } catch (err) {
-      toast.error("Failed to load report");
-      setCases([]);
-    } finally {
-      setLoading(false);
+      if (error) throw new Error(error.message);
+
+      toast.success("MOH 505 IDSR aggregates refreshed.");
+      await refetch();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to refresh MOH 505 aggregates.");
     }
-  }
-
-  useEffect(() => {
-    loadReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const totalCases = cases.reduce((sum, c) => sum + Number(c.count), 0);
-  const totalDeaths = cases.reduce((sum, c) => sum + Number(c.deaths), 0);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <ShieldAlert className="h-6 w-6" />
-            MOH 505 — IDSR Weekly Report
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Integrated Disease Surveillance and Response.
-          </p>
-        </div>
-
-        <div className="flex items-end gap-2">
-          <div>
-            <Label htmlFor="week" className="text-xs">
-              Week starting
-            </Label>
-            <Input
-              id="week"
-              type="date"
-              value={weekStart}
-              onChange={(e) => setWeekStart(e.target.value)}
-              className="w-44"
-            />
-          </div>
-
-          <Button onClick={loadReport} disabled={loading} variant="outline">
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Cases
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totalCases}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Deaths
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">{totalDeaths}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Diseases Reported
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{cases.length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Disease Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : cases.length === 0 ? (
-            <p className="text-muted-foreground">
-              No disease data found for this week.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Disease</TableHead>
-                  <TableHead className="text-right">Cases</TableHead>
-                  <TableHead className="text-right">Deaths</TableHead>
-                  <TableHead className="text-right">CFR %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cases.map((c) => (
-                  <TableRow key={c.disease}>
-                    <TableCell className="font-medium">{c.disease}</TableCell>
-                    <TableCell className="text-right">{c.count}</TableCell>
-                    <TableCell className="text-right">{c.deaths}</TableCell>
-                    <TableCell className="text-right">
-                      {c.count > 0
-                        ? ((Number(c.deaths) / Number(c.count)) * 100).toFixed(1)
-                        : "0.0"}
-                      %
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <MohReportShell
+      icon={ShieldAlert}
+      title="MOH 505 — IDSR Weekly Report"
+      description="Integrated Disease Surveillance and Response, reported weekly."
+      printSubtitle={`Week starting: ${weekStart}`}
+      periodControl={<MohWeekPicker weekStart={weekStart} onChange={setWeekStart} />}
+      onRecalculate={handleRecalculate}
+      onRefresh={() => refetch()}
+    >
+      <MohIndicatorTable
+        totalLabel="Total IDSR Cases This Week"
+        totalDescription="Total counted priority-disease indicators for this reporting week."
+        total={total}
+        tableTitle="Disease Breakdown"
+        isLoading={isLoading}
+        rows={rows}
+        emptyMessage="No IDSR data found for this week."
+      />
+    </MohReportShell>
   );
 }
