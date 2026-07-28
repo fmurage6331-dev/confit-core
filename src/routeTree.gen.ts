@@ -29,6 +29,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as RecordsIndexRouteImport } from './routes/records.index'
 import { Route as RadiologyIndexRouteImport } from './routes/radiology.index'
 import { Route as PatientsIndexRouteImport } from './routes/patients.index'
+import { Route as MohIndexRouteImport } from './routes/moh.index'
 import { Route as LaboratoryIndexRouteImport } from './routes/laboratory.index'
 import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
 import { Route as EncounterRecordsIndexRouteImport } from './routes/encounter-records.index'
@@ -162,6 +163,11 @@ const PatientsIndexRoute = PatientsIndexRouteImport.update({
   id: '/patients/',
   path: '/patients/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const MohIndexRoute = MohIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MohRoute,
 } as any)
 const LaboratoryIndexRoute = LaboratoryIndexRouteImport.update({
   id: '/laboratory/',
@@ -381,6 +387,7 @@ export interface FileRoutesByFullPath {
   '/encounter-records/': typeof EncounterRecordsIndexRoute
   '/invoices/': typeof InvoicesIndexRoute
   '/laboratory/': typeof LaboratoryIndexRoute
+  '/moh/': typeof MohIndexRoute
   '/patients/': typeof PatientsIndexRoute
   '/radiology/': typeof RadiologyIndexRoute
   '/records/': typeof RecordsIndexRoute
@@ -399,7 +406,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/machines': typeof MachinesRoute
   '/mcp': typeof McpRoute
-  '/moh': typeof MohRouteWithChildren
   '/queue': typeof QueueRoute
   '/register-patient': typeof RegisterPatientRoute
   '/reports': typeof ReportsRoute
@@ -436,6 +442,7 @@ export interface FileRoutesByTo {
   '/encounter-records': typeof EncounterRecordsIndexRoute
   '/invoices': typeof InvoicesIndexRoute
   '/laboratory': typeof LaboratoryIndexRoute
+  '/moh': typeof MohIndexRoute
   '/patients': typeof PatientsIndexRoute
   '/radiology': typeof RadiologyIndexRoute
   '/records': typeof RecordsIndexRoute
@@ -492,6 +499,7 @@ export interface FileRoutesById {
   '/encounter-records/': typeof EncounterRecordsIndexRoute
   '/invoices/': typeof InvoicesIndexRoute
   '/laboratory/': typeof LaboratoryIndexRoute
+  '/moh/': typeof MohIndexRoute
   '/patients/': typeof PatientsIndexRoute
   '/radiology/': typeof RadiologyIndexRoute
   '/records/': typeof RecordsIndexRoute
@@ -549,6 +557,7 @@ export interface FileRouteTypes {
     | '/encounter-records/'
     | '/invoices/'
     | '/laboratory/'
+    | '/moh/'
     | '/patients/'
     | '/radiology/'
     | '/records/'
@@ -567,7 +576,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/machines'
     | '/mcp'
-    | '/moh'
     | '/queue'
     | '/register-patient'
     | '/reports'
@@ -604,6 +612,7 @@ export interface FileRouteTypes {
     | '/encounter-records'
     | '/invoices'
     | '/laboratory'
+    | '/moh'
     | '/patients'
     | '/radiology'
     | '/records'
@@ -659,6 +668,7 @@ export interface FileRouteTypes {
     | '/encounter-records/'
     | '/invoices/'
     | '/laboratory/'
+    | '/moh/'
     | '/patients/'
     | '/radiology/'
     | '/records/'
@@ -855,6 +865,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/patients/'
       preLoaderRoute: typeof PatientsIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/moh/': {
+      id: '/moh/'
+      path: '/'
+      fullPath: '/moh/'
+      preLoaderRoute: typeof MohIndexRouteImport
+      parentRoute: typeof MohRoute
     }
     '/laboratory/': {
       id: '/laboratory/'
@@ -1099,6 +1116,7 @@ interface MohRouteChildren {
   Moh717Route: typeof Moh717Route
   MohFpRoute: typeof MohFpRoute
   MohMchRoute: typeof MohMchRoute
+  MohIndexRoute: typeof MohIndexRoute
 }
 
 const MohRouteChildren: MohRouteChildren = {
@@ -1110,6 +1128,7 @@ const MohRouteChildren: MohRouteChildren = {
   Moh717Route: Moh717Route,
   MohFpRoute: MohFpRoute,
   MohMchRoute: MohMchRoute,
+  MohIndexRoute: MohIndexRoute,
 }
 
 const MohRouteWithChildren = MohRoute._addFileChildren(MohRouteChildren)

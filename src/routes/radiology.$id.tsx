@@ -6,6 +6,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { PermGuard } from "@/lib/require-access";
 import { Button } from "@/components/ui/button";
@@ -154,6 +155,31 @@ function RadiologyDetail() {
           .update({ status: "completed" })
           .eq("id", id);
         if (error) throw error;
+
+        // Same "route patient back once every requested scan for this visit
+        // is done" logic used by laboratory.$id.tsx / records.new.tsx for lab.
+        if (order?.encounter_id) {
+          const { data: openOrders } = await supabase
+            .from("radiology_orders")
+            .select("id,status")
+            .eq("encounter_id", order.encounter_id)
+            .neq("status", "completed")
+            .neq("status", "declined")
+            .neq("id", id);
+          const stillPending = (openOrders ?? []).length > 0;
+          if (!stillPending) {
+            const { error: routeError } = await db.rpc(
+              "send_radiology_results_to_requesting_room",
+              {
+                p_encounter_id: order.encounter_id,
+              },
+            );
+            if (routeError)
+              toast.error(
+                `Result saved, but couldn't route patient back automatically: ${routeError.message}`,
+              );
+          }
+        }
       }
     },
     onSuccess: (_d, vars) => {

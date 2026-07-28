@@ -44,13 +44,13 @@ export const Route = createFileRoute("/admin/rooms")({
   ),
 });
 
-type RoomKind = "general" | "lab" | "triage" | "consultation" | "pharmacy";
+type RoomKind = "general" | "lab" | "radiology" | "triage" | "consultation" | "pharmacy";
 type Room = { id: string; name: string; code: string | null; is_active: boolean; kind: RoomKind };
 
 const schema = z.object({
   name: z.string().trim().min(1).max(80),
   code: z.string().trim().max(20).optional(),
-  kind: z.enum(["general", "lab", "triage", "consultation", "pharmacy"]),
+  kind: z.enum(["general", "lab", "radiology", "triage", "consultation", "pharmacy"]),
   is_active: z.boolean(),
 });
 
@@ -265,11 +265,13 @@ function AdminRooms() {
                       Consultation (diagnosis & prescription)
                     </SelectItem>
                     <SelectItem value="lab">Laboratory (receives test requests)</SelectItem>
+                    <SelectItem value="radiology">Radiology (receives imaging requests)</SelectItem>
                     <SelectItem value="pharmacy">Pharmacy (dispense prescriptions)</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Lab and Pharmacy rooms automatically receive requests routed from consultation.
+                  Lab, Radiology and Pharmacy rooms automatically receive requests routed from
+                  consultation.
                 </p>
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">

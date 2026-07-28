@@ -32,6 +32,7 @@ import {
 import {
   DoorOpen,
   FlaskConical,
+  ScanLine,
   ArrowRight,
   ShieldAlert,
   ClipboardPlus,
@@ -56,7 +57,14 @@ export const Route = createFileRoute("/rooms/$id")({
   ),
 });
 
-type RoomKind = "general" | "lab" | "triage" | "consultation" | "pharmacy" | "billing";
+type RoomKind =
+  | "general"
+  | "lab"
+  | "radiology"
+  | "triage"
+  | "consultation"
+  | "pharmacy"
+  | "billing";
 type Room = { id: string; name: string; code: string | null; kind: RoomKind };
 type TestItem = { id: string; name: string; price: number; requested_by_room_id?: string | null };
 type Vitals = {
@@ -141,6 +149,7 @@ type Prescription = {
 const kindIcon: Record<RoomKind, React.ReactNode> = {
   general: <DoorOpen className="h-7 w-7 text-primary" />,
   lab: <FlaskConical className="h-7 w-7 text-primary" />,
+  radiology: <ScanLine className="h-7 w-7 text-primary" />,
   triage: <Activity className="h-7 w-7 text-primary" />,
   consultation: <Stethoscope className="h-7 w-7 text-primary" />,
   pharmacy: <Pill className="h-7 w-7 text-primary" />,
@@ -150,6 +159,7 @@ const kindBlurb: Record<RoomKind, string> = {
   general:
     "Patients currently in this room. Request tests/services to send them for billing and the lab.",
   lab: "Lab requests sent here. Open a patient to perform the requested tests.",
+  radiology: "This room's imaging requests are handled on the dedicated Radiology worklist.",
   triage: "Capture vitals and anthropometrics, then send the patient to consultation.",
   consultation:
     "Take history, diagnose (ICD-11), prescribe, and request lab / radiology / ward / theater.",
@@ -314,6 +324,7 @@ function RoomPage() {
 
   function actionLabel(): string {
     if (kind === "lab") return "Perform tests";
+    if (kind === "radiology") return "Open Radiology";
     if (kind === "triage") return "Take vitals";
     if (kind === "consultation") return "Consult";
     if (kind === "pharmacy") return "Dispense";
@@ -487,6 +498,14 @@ function RoomPage() {
                         <Button size="sm" disabled={!cleared} onClick={() => startLab(r)}>
                           {actionLabel()} <ArrowRight className="ml-1 h-3.5 w-3.5" />
                         </Button>
+                      ) : kind === "radiology" ? (
+                        <Link
+                          to="/radiology"
+                          className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10"
+                        >
+                          <ArrowRight className="h-3.5 w-3.5" />
+                          {actionLabel()}
+                        </Link>
                       ) : kind === "billing" ? (
                         <Link
                           to="/accounting"
