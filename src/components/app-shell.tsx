@@ -73,6 +73,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user, location.pathname, navigate]);
 
   // Load rooms this user can access (admins see all active rooms; others see their grants).
+  // Lab and Radiology rooms are excluded here: they already have dedicated static nav
+  // links (/laboratory, /radiology) above, so including them again here would show two
+  // entries for the same department pointing at two different pages.
   const [accessibleRooms, setAccessibleRooms] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => {
     if (!user) return;
@@ -80,22 +83,28 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (isAdmin) {
         const { data } = await supabase
           .from("rooms")
-          .select("id,name")
+          .select("id,name,kind")
           .eq("is_active", true)
           .order("name");
-        setAccessibleRooms((data ?? []) as { id: string; name: string }[]);
+        const rows = ((data ?? []) as { id: string; name: string; kind: string }[]).filter(
+          (r) => r.kind !== "lab" && r.kind !== "radiology",
+        );
+        setAccessibleRooms(rows.map((r) => ({ id: r.id, name: r.name })));
       } else {
         const { data } = await supabase
           .from("user_room_access")
-          .select("rooms(id,name,is_active)")
+          .select("rooms(id,name,is_active,kind)")
           .eq("user_id", user.id);
         const rows = (
           (data ?? []) as unknown as {
-            rooms: { id: string; name: string; is_active: boolean } | null;
+            rooms: { id: string; name: string; is_active: boolean; kind: string } | null;
           }[]
         )
           .map((r) => r.rooms)
-          .filter((r): r is { id: string; name: string; is_active: boolean } => !!r && r.is_active);
+          .filter(
+            (r): r is { id: string; name: string; is_active: boolean; kind: string } =>
+              !!r && r.is_active && r.kind !== "lab" && r.kind !== "radiology",
+          );
         setAccessibleRooms(rows.map((r) => ({ id: r.id, name: r.name })));
       }
     })();
