@@ -47,6 +47,7 @@ import {
   BedDouble,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { DischargeButton, ReferOutButton } from "@/routes/inpatient";
 
 export const Route = createFileRoute("/rooms/$id")({
@@ -756,7 +757,10 @@ function ConsultationDialog({
 }) {
   const { user, hasPerm } = useAuth();
   const canAdmit = hasPerm("admit_patient");
-  const [tab, setTab] = useState<"history" | "diagnosis" | "prescription" | "requests">("history");
+  // ── CHANGE 1: added "results" to the tab union type ──
+  const [tab, setTab] = useState<"history" | "diagnosis" | "prescription" | "requests" | "results">(
+    "history",
+  );
   const [h, setH] = useState<History>(reg.history ?? {});
   const [dxs, setDxs] = useState<Diagnosis[]>(reg.diagnoses ?? []);
   const [rxs, setRxs] = useState<Prescription[]>([]);
@@ -946,14 +950,19 @@ function ConsultationDialog({
           />
         </div>
 
+        {/* ── CHANGE 2 & 3: added "results" tab to the array and its label ── */}
         <div className="mt-2 flex gap-1 border-b">
-          {(["history", "diagnosis", "prescription", "requests"] as const).map((t) => (
+          {(["history", "diagnosis", "prescription", "requests", "results"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-3 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground"}`}
             >
-              {t === "requests" ? "Requests (Lab / Radiology / Ward / Theater)" : t}
+              {t === "requests"
+                ? "Requests (Lab / Radiology / Ward / Theater)"
+                : t === "results"
+                  ? "Results"
+                  : t}
             </button>
           ))}
         </div>
@@ -1032,6 +1041,9 @@ function ConsultationDialog({
           {tab === "requests" && (
             <RequestServicesInline reg={reg} roomId={roomId} onSaved={onSaved} />
           )}
+
+          {/* ── CHANGE 4: results tab panel ── */}
+          {tab === "results" && <EncounterResultsTab encounterId={reg.id} />}
         </div>
 
         <DialogFooter>
@@ -1983,5 +1995,247 @@ function ConsultationAdmitDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ==================== CHANGE 5: Results tab component ==================== */
+
+type LabResultRow = {
+  id: string;
+  status: string | null;
+  lab_test_catalog: { name: string | null; category: string | null } | null;
+  lab_results: {
+    result: {
+      parameters?: {
+        name: string;
+        value: string;
+        unit?: string;
+        low?: string;
+        high?: string;
+      }[];
+      summary?: string;
+    } | null;
+    performed_by: string | null;
+    reported_at: string | null;
+  }[];
+};
+
+type RadiologyResultRow = {
+  id: string;
+  status: string | null;
+  priority: string | null;
+  clinical_indication: string | null;
+  ordered_at: string;
+  lab_test_catalog: { name: string | null; category: string | null } | null;
+};
+
+function EncounterResultsTab({ encounterId }: { encounterId: string }) {
+  const [labRows, setLabRows] = useState<LabResultRow[]>([]);
+  const [radRows, setRadRows] = useState<RadiologyResultRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const [labRes, radRes] = await Promise.all([
+        supabase
+          .from("lab_orders")
+          .select(
+            "id,status,lab_test_catalog(name,category),lab_results(result,performed_by,reported_at)",
+          )
+          .eq("encounter_id", encounterId)
+          .eq("status", "completed")
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("radiology_orders")
+          .select(
+            "id,status,priority,clinical_indication,ordered_at,lab_test_catalog(name,category)",
+          )
+          .eq("encounter_id", encounterId)
+          .eq("status", "completed")
+          .order("ordered_at", { ascending: true }),
+      ]);
+      if (cancelled) return;
+      setLabRows((labRes.data ?? []) as unknown as LabResultRow[]);
+      setRadRows((radRes.data ?? []) as unknown as RadiologyResultRow[]);
+      setLoading(false);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [encounterId]);
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground py-4">Loading results…</p>;
+  }
+
+  if (labRows.length === 0 && radRows.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+        No completed lab or radiology results for this visit yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ── Lab results ── */}
+      {labRows.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Laboratory
+          </h3>
+          {labRows.map((order) => {
+            const r = order.lab_results?.[0] ?? null;
+            const params = r?.result?.parameters ?? [];
+            const summary = r?.result?.summary ?? "";
+            return (
+              <div key={order.id} className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium">{order.lab_test_catalog?.name ?? "Lab test"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.lab_test_catalog?.category ?? ""}
+                    </p>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                    Completed
+                  </Badge>
+                </div>
+
+                {r ? (
+                  <>
+                    {params.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border rounded-lg overflow-hidden">
+                          <thead>
+                            <tr className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                              <th className="px-3 py-2 text-left">Parameter</th>
+                              <th className="px-3 py-2 text-left">Result</th>
+                              <th className="px-3 py-2 text-left">Unit</th>
+                              <th className="px-3 py-2 text-left">Reference</th>
+                              <th className="px-3 py-2 text-left">Flag</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {params.map((p, i) => {
+                              const numVal = parseFloat(p.value);
+                              const low = parseFloat(p.low ?? "");
+                              const high = parseFloat(p.high ?? "");
+                              const flagLow = !isNaN(numVal) && !isNaN(low) && numVal < low;
+                              const flagHigh = !isNaN(numVal) && !isNaN(high) && numVal > high;
+                              return (
+                                <tr key={i} className="border-t">
+                                  <td className="px-3 py-2">{p.name}</td>
+                                  <td
+                                    className={`px-3 py-2 font-medium ${
+                                      flagLow || flagHigh ? "text-rose-600" : ""
+                                    }`}
+                                  >
+                                    {p.value || "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-muted-foreground">
+                                    {p.unit ?? "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-muted-foreground">
+                                    {p.low && p.high
+                                      ? `${p.low} – ${p.high}`
+                                      : p.low
+                                        ? `≥ ${p.low}`
+                                        : p.high
+                                          ? `≤ ${p.high}`
+                                          : "—"}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    {flagHigh && (
+                                      <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 text-xs">
+                                        High
+                                      </Badge>
+                                    )}
+                                    {flagLow && (
+                                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs">
+                                        Low
+                                      </Badge>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {params.length === 0 && summary && (
+                      <p className="text-sm whitespace-pre-wrap">{summary}</p>
+                    )}
+
+                    {params.length > 0 && summary && (
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                          Summary / comment
+                        </p>
+                        <p className="text-sm whitespace-pre-wrap">{summary}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground border-t pt-2">
+                      {r.performed_by && <span>Performed by: {r.performed_by}</span>}
+                      {r.reported_at && (
+                        <span>
+                          Reported: {format(new Date(r.reported_at), "dd MMM yyyy, HH:mm")}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    Order completed — no result record saved.
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Radiology results ── */}
+      {radRows.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Radiology
+          </h3>
+          {radRows.map((order) => (
+            <div key={order.id} className="rounded-xl border bg-card p-4 shadow-sm space-y-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-medium">{order.lab_test_catalog?.name ?? "Radiology study"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {order.lab_test_catalog?.category ?? ""}
+                    {order.priority ? ` · ${order.priority}` : ""}
+                  </p>
+                </div>
+                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                  Completed
+                </Badge>
+              </div>
+              {order.clinical_indication && (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Clinical indication
+                  </p>
+                  <p className="text-sm">{order.clinical_indication}</p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground border-t pt-2">
+                Ordered: {format(new Date(order.ordered_at), "dd MMM yyyy, HH:mm")}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
