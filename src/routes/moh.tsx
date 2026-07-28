@@ -1,45 +1,15 @@
 /**
- * LabTrack — MOH Reports Dashboard
+ * LabTrack — MOH layout route.
+ *
+ * This is a pathless-content layout for every /moh/* page. It renders
+ * only <Outlet />, which is what actually lets /moh/705, /moh/706, etc.
+ * display their own content instead of falling back to this route's
+ * nearest rendered ancestor. The dashboard itself lives in moh.index.tsx
+ * (the exact /moh path); each report page wraps itself in <AppShell>.
  */
 
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/app-shell";
-import { MohReportsGrid } from "@/components/moh/moh-reports-grid";
-import { Activity, BarChart3 } from "lucide-react";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/moh")({
-  component: () => (
-    <AppShell>
-      <MohDashboard />
-    </AppShell>
-  ),
+  component: () => <Outlet />,
 });
-
-function MohDashboard() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Activity className="h-8 w-8 text-primary" />
-            MOH Reports
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ministry of Health reporting dashboard. Select a report to view or print.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          <Link to="/reports">
-            <button className="flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-muted">
-              <BarChart3 className="h-4 w-4" />
-              General Reports
-            </button>
-          </Link>
-        </div>
-      </div>
-
-      <MohReportsGrid />
-    </div>
-  );
-}
