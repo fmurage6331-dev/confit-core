@@ -96,3 +96,4 @@ into `encounter_diagnoses` using a direct INSERT/ON CONFLICT statement.
 | C | SHA API integration (OAuth2, eligibility, claims) | ⏳ Blocked — needs sandbox credentials |
 | D | Security hardening (MFA, RLS role gap fix) | ⬜ Ready to start |
 | E | Audit log completeness review | ⬜ Ready to start |
+| F | ICD-11 WHO API key configuration | ⏳ Pending — local `icd11_codes` table works as primary source (manually populated). WHO API Edge Function (`icd11-search`) is correctly coded but needs `ICD_CLIENT_ID` and `ICD_CLIENT_SECRET` secrets configured in Supabase. When configured, API becomes primary and DB becomes fallback automatically — no code change needed |
