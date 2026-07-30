@@ -13,28 +13,92 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/settings")({ component: SettingsPage });
+
+type FacilitySettings = {
+  facility_name: string;
+  facility_kmhfl_code: string;
+  facility_sha_id: string;
+  facility_sha_provider_no: string;
+  facility_county: string;
+  facility_address: string;
+  facility_phone: string;
+  facility_email: string;
+};
+
+const EMPTY_FACILITY: FacilitySettings = {
+  facility_name: "",
+  facility_kmhfl_code: "",
+  facility_sha_id: "",
+  facility_sha_provider_no: "",
+  facility_county: "",
+  facility_address: "",
+  facility_phone: "",
+  facility_email: "",
+};
 
 function SettingsPage() {
   const { isAdmin, rolesLoading } = useAuth();
   const { appName, logoUrl, refresh } = useBranding();
   const navigate = useNavigate();
+
+  // Branding state
   const [name, setName] = useState(appName);
   const [file, setFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
+
+  // Facility state
+  const [facility, setFacility] = useState<FacilitySettings>(EMPTY_FACILITY);
+  const [savingFacility, setSavingFacility] = useState(false);
+  const [loadingFacility, setLoadingFacility] = useState(true);
 
   useEffect(() => {
     setName(appName);
   }, [appName]);
+
   useEffect(() => {
     if (!rolesLoading && !isAdmin) navigate({ to: "/dashboard" });
   }, [isAdmin, rolesLoading, navigate]);
 
-  async function onSubmit(e: FormEvent) {
+  // Load existing facility settings
+  useEffect(() => {
+    async function loadFacility() {
+      setLoadingFacility(true);
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select(
+          "facility_name,facility_kmhfl_code,facility_sha_id,facility_sha_provider_no,facility_county,facility_address,facility_phone,facility_email",
+        )
+        .eq("id", "global")
+        .maybeSingle();
+      setLoadingFacility(false);
+      if (error || !data) return;
+           const d = data as unknown as Record<string, string | null>;
+      setFacility({
+        facility_name: d.facility_name ?? "",
+        facility_kmhfl_code: d.facility_kmhfl_code ?? "",
+        facility_sha_id: d.facility_sha_id ?? "",
+        facility_sha_provider_no: d.facility_sha_provider_no ?? "",
+        facility_county: d.facility_county ?? "",
+        facility_address: d.facility_address ?? "",
+        facility_phone: d.facility_phone ?? "",
+        facility_email: d.facility_email ?? "",
+      });
+    }
+    loadFacility();
+  }, []);
+
+  function setF(k: keyof FacilitySettings) {
+    return (e: React.ChangeEvent<HTMLInputElement>) =>
+      setFacility((prev) => ({ ...prev, [k]: e.target.value }));
+  }
+
+  async function onSubmitBranding(e: FormEvent) {
     e.preventDefault();
-    setSaving(true);
+    setSavingBranding(true);
     try {
       let newLogoUrl = logoUrl;
       if (file) {
@@ -57,54 +121,207 @@ function SettingsPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save");
     } finally {
-      setSaving(false);
+      setSavingBranding(false);
+    }
+  }
+
+  async function onSubmitFacility(e: FormEvent) {
+    e.preventDefault();
+    setSavingFacility(true);
+    try {
+            const { error } = await supabase.from("app_settings").upsert({
+        id: "global",
+        facility_name: facility.facility_name.trim() || null,
+        facility_kmhfl_code: facility.facility_kmhfl_code.trim() || null,
+        facility_sha_id: facility.facility_sha_id.trim() || null,
+        facility_sha_provider_no: facility.facility_sha_provider_no.trim() || null,
+        facility_county: facility.facility_county.trim() || null,
+        facility_address: facility.facility_address.trim() || null,
+        facility_phone: facility.facility_phone.trim() || null,
+        facility_email: facility.facility_email.trim() || null,
+      } as never);
+      if (error) throw error;
+      toast.success("Facility details saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingFacility(false);
     }
   }
 
   return (
     <AppShell>
       <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold">Customization</h1>
+        <h1 className="text-2xl font-bold">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set the application name and logo shown across the app.
+          Manage application branding and facility details.
         </p>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-6 rounded-2xl border bg-card p-6">
-          <div>
-            <Label htmlFor="name">Application name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={60}
-            />
-          </div>
+        <Tabs defaultValue="branding" className="mt-6">
+          <TabsList>
+            <TabsTrigger value="branding">Branding</TabsTrigger>
+            <TabsTrigger value="facility">Facility</TabsTrigger>
+          </TabsList>
 
-          <div>
-            <Label>Current logo</Label>
-            <div className="mt-2 flex h-20 w-20 items-center justify-center rounded-lg border bg-muted overflow-hidden">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
+          {/* ── Branding tab ── */}
+          <TabsContent value="branding" className="mt-4">
+            <form onSubmit={onSubmitBranding} className="space-y-6 rounded-2xl border bg-card p-6">
+              <p className="text-sm text-muted-foreground">
+                Set the application name and logo shown across the app.
+              </p>
+
+              <div>
+                <Label htmlFor="name">Application name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={60}
+                />
+              </div>
+
+              <div>
+                <Label>Current logo</Label>
+                <div className="mt-2 flex h-20 w-20 items-center justify-center rounded-lg border bg-muted overflow-hidden">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No logo</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="logo">Upload new logo (PNG/JPG/SVG)</Label>
+                <Input
+                  id="logo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
+              <Button type="submit" disabled={savingBranding}>
+                {savingBranding ? "Saving…" : "Save branding"}
+              </Button>
+            </form>
+          </TabsContent>
+
+          {/* ── Facility tab ── */}
+          <TabsContent value="facility" className="mt-4">
+            <form onSubmit={onSubmitFacility} className="space-y-6 rounded-2xl border bg-card p-6">
+              <p className="text-sm text-muted-foreground">
+                Facility details are used in FHIR resources and SHA claims. Fill these in accurately
+                — they identify your facility to the national health systems.
+              </p>
+
+              {loadingFacility ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
               ) : (
-                <span className="text-xs text-muted-foreground">No logo</span>
+                <>
+                  {/* Basic details */}
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Basic details
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="facility_name">Facility name</Label>
+                        <Input
+                          id="facility_name"
+                          value={facility.facility_name}
+                          onChange={setF("facility_name")}
+                          placeholder="e.g. Aegiscare Medical Centre"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="facility_county">County</Label>
+                        <Input
+                          id="facility_county"
+                          value={facility.facility_county}
+                          onChange={setF("facility_county")}
+                          placeholder="e.g. Nairobi"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="facility_phone">Phone</Label>
+                        <Input
+                          id="facility_phone"
+                          value={facility.facility_phone}
+                          onChange={setF("facility_phone")}
+                          placeholder="e.g. +254 700 000 000"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="facility_address">Address</Label>
+                        <Input
+                          id="facility_address"
+                          value={facility.facility_address}
+                          onChange={setF("facility_address")}
+                          placeholder="e.g. 123 Ngong Road, Nairobi"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="facility_email">Email</Label>
+                        <Input
+                          id="facility_email"
+                          type="email"
+                          value={facility.facility_email}
+                          onChange={setF("facility_email")}
+                          placeholder="e.g. info@facility.co.ke"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* National identifiers */}
+                  <div className="space-y-1 border-t pt-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      National identifiers (DHA / SHA)
+                    </div>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      Required for SHA claims and FHIR submissions. Find your KMHFL code at{" "}
+                      <span className="font-mono">hiskenya.org</span>.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                      <div>
+                        <Label htmlFor="facility_kmhfl_code">KMHFL code</Label>
+                        <Input
+                          id="facility_kmhfl_code"
+                          value={facility.facility_kmhfl_code}
+                          onChange={setF("facility_kmhfl_code")}
+                          placeholder="e.g. 13247"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="facility_sha_id">SHA facility ID</Label>
+                        <Input
+                          id="facility_sha_id"
+                          value={facility.facility_sha_id}
+                          onChange={setF("facility_sha_id")}
+                          placeholder="e.g. SHA/F/00123"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="facility_sha_provider_no">SHA provider number</Label>
+                        <Input
+                          id="facility_sha_provider_no"
+                          value={facility.facility_sha_provider_no}
+                          onChange={setF("facility_sha_provider_no")}
+                          placeholder="e.g. PRV/2026/00456"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
-            </div>
-          </div>
 
-          <div>
-            <Label htmlFor="logo">Upload new logo (PNG/JPG/SVG)</Label>
-            <Input
-              id="logo"
-              type="file"
-              accept="image/png,image/jpeg,image/svg+xml,image/webp"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </div>
-
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-        </form>
+              <Button type="submit" disabled={savingFacility || loadingFacility}>
+                {savingFacility ? "Saving…" : "Save facility details"}
+              </Button>
+            </form>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
   );
