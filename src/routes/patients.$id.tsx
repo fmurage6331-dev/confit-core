@@ -256,7 +256,7 @@ function PatientProfile() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Button asChild size="sm" variant="ghost">
-                        <Link to="/records/$id" params={{ id: e.id }}>
+                        <Link to="/encounter-records/$id" params={{ id: e.id }}>
                           Open
                         </Link>
                       </Button>
