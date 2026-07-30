@@ -28,26 +28,42 @@ export const Route = createFileRoute("/admin/permissions")({
 
 type Role =
   | "staff"
+  | "receptionist"
   | "accountant"
-  | "lab_tech"
+  | "insurance_agent"
   | "records_officer"
+  | "triage_nurse"
+  | "nurse"
   | "doctor"
   | "clinical_officer"
-  | "nurse"
+  | "dental_officer"
+  | "nutritionist"
+  | "physiotherapist"
+  | "hts_counsellor"
+  | "lab_tech"
   | "radiologist"
   | "pharmacist"
-  | "mortician";
+  | "mortician"
+  | "system_admin";
 
 const ROLES: { key: Role; label: string }[] = [
   { key: "doctor", label: "Doctor" },
   { key: "clinical_officer", label: "Clinical officer" },
+  { key: "dental_officer", label: "Dental officer" },
   { key: "nurse", label: "Nurse" },
+  { key: "triage_nurse", label: "Triage nurse" },
+  { key: "hts_counsellor", label: "HTS counsellor" },
+  { key: "nutritionist", label: "Nutritionist" },
+  { key: "physiotherapist", label: "Physiotherapist" },
   { key: "radiologist", label: "Radiologist" },
   { key: "pharmacist", label: "Pharmacist" },
   { key: "lab_tech", label: "Lab tech" },
+  { key: "receptionist", label: "Receptionist" },
   { key: "records_officer", label: "Records" },
   { key: "accountant", label: "Accountant" },
+  { key: "insurance_agent", label: "Insurance agent" },
   { key: "mortician", label: "Mortician" },
+  { key: "system_admin", label: "System admin" },
   { key: "staff", label: "Staff (general)" },
 ];
 
@@ -75,7 +91,10 @@ const PERMS: { group: string; items: { key: string; label: string }[] }[] = [
   {
     group: "Lab",
     items: [
-      { key: "lab_results_entry", label: "Enter lab results" },
+      { key: "lab_view", label: "View lab orders" },
+      { key: "lab_update", label: "Update lab status" },
+      { key: "lab_results_create", label: "Enter lab results" },
+      { key: "lab_results_entry", label: "Legacy lab results entry" },
       { key: "machines", label: "Machines & maintenance" },
       { key: "deliveries", label: "Deliveries" },
       { key: "stock", label: "Stock" },
@@ -112,7 +131,10 @@ const PERMS: { group: string; items: { key: string; label: string }[] }[] = [
   },
   {
     group: "Accounting",
-    items: [{ key: "accounting", label: "Process bills & payments" }],
+    items: [
+      { key: "accounting", label: "Process bills & payments" },
+      { key: "insurance_claims", label: "Manage insurance claims" },
+    ],
   },
   {
     group: "Reports (department scoped)",
@@ -165,7 +187,6 @@ function PermissionsPage() {
   async function save() {
     setSaving(true);
     const allPerms = PERMS.flatMap((g) => g.items.map((i) => i.key));
-    // Compute desired & current sets, diff per role.
     const { data: current, error } = await supabase
       .from("role_permissions")
       .select("role,permission");
@@ -196,7 +217,7 @@ function PermissionsPage() {
     }
 
     if (toInsert.length) {
-      const { error: e1 } = await supabase.from("role_permissions").insert(toInsert);
+            const { error: e1 } = await supabase.from("role_permissions").insert(toInsert as never);
       if (e1) {
         toast.error(e1.message);
         setSaving(false);
@@ -207,7 +228,7 @@ function PermissionsPage() {
       const { error: e2 } = await supabase
         .from("role_permissions")
         .delete()
-        .eq("role", d.role)
+                .eq("role", d.role as never)
         .eq("permission", d.permission);
       if (e2) {
         toast.error(e2.message);
@@ -217,7 +238,6 @@ function PermissionsPage() {
     }
     setSaving(false);
     toast.success("Permissions saved");
-    // Refresh current user's perms so any change is reflected immediately.
     if (user) await refreshRoles();
   }
 
@@ -242,13 +262,13 @@ function PermissionsPage() {
           Loading…
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="overflow-x-auto overflow-hidden rounded-xl border bg-card">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Permission</th>
                 {ROLES.map((r) => (
-                  <th key={r.key} className="px-4 py-3 text-center">
+                  <th key={r.key} className="px-2 py-3 text-center text-xs">
                     {r.label}
                   </th>
                 ))}
@@ -272,7 +292,7 @@ function PermissionsPage() {
                         <div className="text-xs text-muted-foreground">{p.key}</div>
                       </td>
                       {ROLES.map((r) => (
-                        <td key={r.key} className="px-4 py-3 text-center">
+                        <td key={r.key} className="px-2 py-3 text-center">
                           <Checkbox
                             checked={matrix[r.key]?.has(p.key) ?? false}
                             onCheckedChange={() => toggle(r.key, p.key)}

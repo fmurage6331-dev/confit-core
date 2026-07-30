@@ -75,7 +75,7 @@ export const createUser = createServerFn({ method: "POST" })
     if (data.role !== "none" && created.user) {
       const { error: rErr } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: created.user.id, role: data.role });
+                .insert({ user_id: created.user.id, role: data.role } as never);
       if (rErr) throw new Error(rErr.message);
     }
     return { id: created.user?.id };
@@ -94,7 +94,7 @@ export const setUserRole = createServerFn({ method: "POST" })
     if (data.role !== "none") {
       const { error } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: data.userId, role: data.role });
+                .insert({ user_id: data.userId, role: data.role } as never);
       if (error) throw new Error(error.message);
     }
     return { ok: true };
