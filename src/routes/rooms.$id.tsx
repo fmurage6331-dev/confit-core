@@ -45,6 +45,8 @@ import {
   X,
   Receipt,
   BedDouble,
+  Printer,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -429,112 +431,126 @@ function RoomPage() {
           </table>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Patient</th>
-                <th className="px-4 py-3">From</th>
-                <th className="px-4 py-3">Requested</th>
-                <th className="px-4 py-3">Payment</th>
-                <th className="px-4 py-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
+        <div
+          className={
+            kind === "consultation" ? "space-y-3" : "overflow-hidden rounded-xl border bg-card"
+          }
+        >
+          {kind !== "consultation" && (
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                    Loading…
-                  </td>
+                  <th className="px-4 py-3">Patient</th>
+                  <th className="px-4 py-3">From</th>
+                  <th className="px-4 py-3">Requested</th>
+                  <th className="px-4 py-3">Payment</th>
+                  <th className="px-4 py-3 text-right">Action</th>
                 </tr>
-              )}
-              {!loading && rows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    No active patients.
-                  </td>
-                </tr>
-              )}
-              {rows.map((r) => {
-                const cleared = r.payment_status === "paid" || r.payment_status === "waived";
-                const hasTests = (r.tests ?? []).length > 0;
-                return (
-                  <tr key={r.id} className="border-t">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{r.patient_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {r.file_number ? `#${r.file_number}` : "—"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {r.from_room ?? <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {hasTests ? (
-                        <div className="flex flex-wrap gap-1">
-                          {r.tests.map((t) => (
-                            <Badge key={t.id} variant="secondary" className="text-xs">
-                              {t.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No services requested</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {cleared ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                          {r.payment_status}
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 flex w-fit items-center gap-1">
-                          <ShieldAlert className="h-3 w-3" />
-                          {r.payment_status}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {kind === "lab" ? (
-                        <Button size="sm" disabled={!cleared} onClick={() => startLab(r)}>
-                          {actionLabel()} <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                        </Button>
-                      ) : kind === "radiology" ? (
-                        <Link
-                          to="/radiology"
-                          className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10"
-                        >
-                          <ArrowRight className="h-3.5 w-3.5" />
-                          {actionLabel()}
-                        </Link>
-                      ) : kind === "billing" ? (
-                        <Link
-                          to="/accounting"
-                          className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10"
-                        >
-                          <Receipt className="h-3.5 w-3.5" />
-                          {actionLabel()}
-                        </Link>
-                      ) : (
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setOpenReg(r)}>
-                            <ClipboardPlus className="mr-1 h-3.5 w-3.5" />
-                            {actionLabel()}
-                          </Button>
-                          <Link to="/queue" className="text-xs text-primary underline self-center">
-                            Queue
-                          </Link>
-                        </div>
-                      )}
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                      Loading…
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                )}
+                {!loading && rows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                      No active patients.
+                    </td>
+                  </tr>
+                )}
+                {rows.map((r) => {
+                  const cleared = r.payment_status === "paid" || r.payment_status === "waived";
+                  const hasTests = (r.tests ?? []).length > 0;
+
+                                    return (
+                    <tr key={r.id} className="border-t">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{r.patient_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {r.file_number ? `#${r.file_number}` : "—"}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {r.from_room ?? <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {hasTests ? (
+                          <div className="flex flex-wrap gap-1">
+                            {r.tests.map((t) => (
+                              <Badge key={t.id} variant="secondary" className="text-xs">
+                                {t.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            No services requested
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {cleared ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                            {r.payment_status}
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 flex w-fit items-center gap-1">
+                            <ShieldAlert className="h-3 w-3" />
+                            {r.payment_status}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {kind === "lab" ? (
+                          <Button size="sm" disabled={!cleared} onClick={() => startLab(r)}>
+                            {actionLabel()} <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                          </Button>
+                        ) : kind === "radiology" ? (
+                          <Link
+                            to="/radiology"
+                            className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10"
+                          >
+                            <ArrowRight className="h-3.5 w-3.5" />
+                            {actionLabel()}
+                          </Link>
+                        ) : kind === "billing" ? (
+                          <Link
+                            to="/accounting"
+                            className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10"
+                          >
+                            <Receipt className="h-3.5 w-3.5" />
+                            {actionLabel()}
+                          </Link>
+                        ) : (
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setOpenReg(r)}>
+                              <ClipboardPlus className="mr-1 h-3.5 w-3.5" />
+                              {actionLabel()}
+                            </Button>
+                            <Link
+                              to="/queue"
+                              className="text-xs text-primary underline self-center"
+                            >
+                              Queue
+                            </Link>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+                      </table>
+          )}
+          {kind === "consultation" && rows.map((r) => (
+            <ConsultationPatientCard key={r.id} reg={r} onOpen={() => setOpenReg(r)} />
+          ))}
         </div>
       )}
-
       {openReg && kind === "triage" && (
         <TriageDialog
           reg={openReg}
@@ -1035,7 +1051,13 @@ function ConsultationDialog({
           {tab === "diagnosis" && <DiagnosisEditor dxs={dxs} setDxs={setDxs} />}
 
           {tab === "prescription" && (
-            <PrescriptionEditor rxs={rxs} stock={stock} onAdd={addRx} onCancel={cancelRx} />
+            <PrescriptionEditor
+              rxs={rxs}
+              stock={stock}
+              onAdd={addRx}
+              onCancel={cancelRx}
+              allergies={(reg.history as { allergies?: string })?.allergies ?? ""}
+            />
           )}
 
           {tab === "requests" && (
@@ -1237,9 +1259,11 @@ function PrescriptionEditor({
   stock,
   onAdd,
   onCancel,
+  allergies,
 }: {
   rxs: Prescription[];
   stock: StockItem[];
+  allergies?: string;
   onAdd: (
     rx: Omit<
       Prescription,
@@ -1271,6 +1295,16 @@ function PrescriptionEditor({
     if (!drugName.trim()) {
       toast.error("Drug name is required");
       return;
+    }
+    if (allergies) {
+      const words = drugName.toLowerCase().split(/\s+/);
+      const match = words.some((w) => allergies.toLowerCase().includes(w));
+      if (match) {
+        const ok = window.confirm(
+          `⚠️ Allergy warning: "${drugName}" may match a known allergy (${allergies}).\n\nPrescribe anyway?`,
+        );
+        if (!ok) return;
+      }
     }
     await onAdd({
       stock_item_id: stockId || null,
@@ -1407,27 +1441,41 @@ function PharmacyDialog({
 }) {
   const { user } = useAuth();
   const [rxs, setRxs] = useState<Prescription[]>([]);
+  const [stockMap, setStockMap] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [printing, setPrinting] = useState(false);
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("prescriptions")
-      .select("*")
-      .eq("registration_id", reg.id)
-      .order("created_at", { ascending: false });
+    const [rxRes, stockRes] = await Promise.all([
+      supabase
+        .from("prescriptions")
+        .select("*")
+        .eq("registration_id", reg.id)
+        .order("created_at", { ascending: true }),
+      supabase.from("stock_items").select("id,current_quantity").eq("kind", "pharmaceutical"),
+    ]);
     setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setRxs((data ?? []) as Prescription[]);
+    setRxs((rxRes.data ?? []) as Prescription[]);
+    const sm = new Map<string, number>();
+    (stockRes.data ?? []).forEach((s) => {
+      sm.set(s.id, Number(s.current_quantity ?? 0));
+    });
+    setStockMap(sm);
   }
+
   useEffect(() => {
     load();
   }, [reg.id]);
 
   async function dispense(rx: Prescription) {
+    const available = rx.stock_item_id ? (stockMap.get(rx.stock_item_id) ?? 0) : Infinity;
+    if (rx.stock_item_id && available < Number(rx.quantity)) {
+      const ok = window.confirm(
+        `Warning: Only ${available} units of ${rx.drug_name} in stock but ${rx.quantity} requested. Dispense anyway?`,
+      );
+      if (!ok) return;
+    }
     const { error } = await supabase
       .from("prescriptions")
       .update({
@@ -1444,6 +1492,7 @@ function PharmacyDialog({
     toast.success(`Dispensed ${rx.drug_name}`);
     load();
   }
+
   async function cancel(rx: Prescription) {
     const { error } = await supabase
       .from("prescriptions")
@@ -1455,6 +1504,7 @@ function PharmacyDialog({
     }
     load();
   }
+
   async function finish() {
     const anyPending = rxs.some((r) => r.status === "pending");
     if (anyPending) {
@@ -1473,6 +1523,8 @@ function PharmacyDialog({
     onSaved();
   }
 
+  const allergies = (reg.history as { allergies?: string })?.allergies ?? "";
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
@@ -1481,62 +1533,148 @@ function PharmacyDialog({
             <Pill className="h-5 w-5 text-primary" /> Pharmacy — {reg.patient_name}
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+
+        {/* Allergy banner */}
+        {allergies && (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 flex items-center gap-2">
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              <span className="font-semibold">Known allergies:</span> {allergies}
+            </span>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
           {!loading && rxs.length === 0 && (
             <p className="text-sm text-muted-foreground">No prescriptions for this patient.</p>
           )}
-          {rxs.map((rx) => (
-            <div key={rx.id} className="flex items-start justify-between rounded-lg border p-3">
-              <div>
-                <div className="text-sm font-medium">
-                  {rx.drug_name}{" "}
-                  <span className="text-xs text-muted-foreground">×{rx.quantity}</span>
+          {rxs.map((rx) => {
+            const available = rx.stock_item_id ? (stockMap.get(rx.stock_item_id) ?? null) : null;
+            const stockLow = available !== null && available < Number(rx.quantity);
+            const allergyMatch =
+              allergies &&
+              rx.drug_name
+                .toLowerCase()
+                .split(/\s+/)
+                .some((w) => allergies.toLowerCase().includes(w));
+            return (
+              <div
+                key={rx.id}
+                className={`rounded-xl border p-4 space-y-2 ${
+                  allergyMatch ? "border-rose-300 bg-rose-50/50" : "bg-card"
+                }`}
+              >
+                {/* Drug header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-sm">
+                      {rx.drug_name}
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        ×{rx.quantity}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {[rx.dosage, rx.frequency, rx.duration].filter(Boolean).join(" · ") || "—"}
+                    </div>
+                    {rx.notes && (
+                      <div className="text-xs text-muted-foreground mt-0.5 italic">{rx.notes}</div>
+                    )}
+                  </div>
+                  <Badge
+                    variant={
+                      rx.status === "pending"
+                        ? "secondary"
+                        : rx.status === "dispensed"
+                          ? "default"
+                          : "outline"
+                    }
+                  >
+                    {rx.status}
+                  </Badge>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {[rx.dosage, rx.frequency, rx.duration].filter(Boolean).join(" · ") || "—"}
+
+                {/* Allergy warning */}
+                {allergyMatch && (
+                  <div className="flex items-center gap-1 text-xs text-rose-600 font-medium">
+                    <ShieldAlert className="h-3 w-3" />
+                    Possible allergy match — verify with prescriber
+                  </div>
+                )}
+
+                {/* Stock warning */}
+                {stockLow && rx.status === "pending" && (
+                  <div className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                    <ShieldAlert className="h-3 w-3" />
+                    Only {available} in stock — {rx.quantity} requested
+                  </div>
+                )}
+
+                {/* Prescriber / dispenser info */}
+                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground border-t pt-2">
+                  <div>
+                    <div className="font-medium text-foreground">Prescribed by</div>
+                    <div>{rx.prescribed_by_name ?? "—"}</div>
+                    <div>
+                      {rx.created_at ? format(new Date(rx.created_at), "dd MMM, HH:mm") : "—"}
+                    </div>
+                  </div>
+                  {rx.status === "dispensed" && (
+                    <div>
+                      <div className="font-medium text-foreground">Dispensed by</div>
+                      <div>{rx.dispensed_by_name ?? "—"}</div>
+                      <div>
+                        {rx.dispensed_at ? format(new Date(rx.dispensed_at), "dd MMM, HH:mm") : "—"}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {rx.notes && <div className="text-xs mt-0.5">{rx.notes}</div>}
-                {!rx.stock_item_id && (
-                  <div className="text-[10px] uppercase text-amber-600 mt-1">
-                    No linked stock — no auto deduction
+
+                {/* Actions */}
+                {rx.status === "pending" && (
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" onClick={() => dispense(rx)}>
+                      <Check className="h-4 w-4 mr-1" /> Dispense
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => cancel(rx)}>
+                      <X className="h-4 w-4 text-destructive" /> Cancel
+                    </Button>
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant={
-                    rx.status === "pending"
-                      ? "secondary"
-                      : rx.status === "dispensed"
-                        ? "default"
-                        : "outline"
-                  }
-                >
-                  {rx.status}
-                </Badge>
-                {rx.status === "pending" && (
-                  <>
-                    <Button size="sm" onClick={() => dispense(rx)}>
-                      <Check className="h-4 w-4 mr-1" />
-                      Dispense
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => cancel(rx)}>
-                      <X className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <DialogFooter>
+
+        <DialogFooter className="flex-wrap gap-2">
+          {/* Print slip */}
+          {rxs.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPrinting(true);
+                setTimeout(() => {
+                  window.print();
+                  setPrinting(false);
+                }, 100);
+              }}
+              disabled={printing}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Print prescription slip
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
           <Button onClick={finish}>Close visit</Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Print-only prescription slip */}
+      <div className="hidden print:block fixed inset-0 bg-white p-8 z-50">
+        <PrescriptionPrintSlip reg={reg} rxs={rxs} />
+      </div>
     </Dialog>
   );
 }
@@ -2236,6 +2374,216 @@ function EncounterResultsTab({ encounterId }: { encounterId: string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+/* ==================== CONSULTATION PATIENT CARD ==================== */
+
+function ConsultationPatientCard({ reg, onOpen }: { reg: Reg; onOpen: () => void }) {
+  const waitMinutes = Math.floor((Date.now() - new Date(reg.created_at).getTime()) / 60000);
+  const waitColor =
+    waitMinutes > 60
+      ? "border-l-rose-500 bg-rose-50/30"
+      : waitMinutes > 30
+        ? "border-l-amber-500 bg-amber-50/30"
+        : "border-l-emerald-500 bg-emerald-50/30";
+
+  const waitLabel =
+    waitMinutes > 60 ? `${Math.floor(waitMinutes / 60)}h ${waitMinutes % 60}m` : `${waitMinutes}m`;
+
+  const v = reg.vitals ?? {};
+  const cleared = reg.payment_status === "paid" || reg.payment_status === "waived";
+  const diagnoses = (reg.diagnoses ?? []) as { icd11_code: string; description: string }[];
+  const tests = reg.tests ?? [];
+
+  return (
+    <div
+      className={`rounded-xl border-l-4 border border-border p-4 cursor-pointer hover:shadow-md transition-shadow ${waitColor}`}
+      onClick={onOpen}
+    >
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-base">{reg.patient_name}</div>
+          <div className="text-xs text-muted-foreground">
+            {reg.file_number ? `#${reg.file_number}` : "—"}
+            {reg.from_room ? ` · from ${reg.from_room}` : ""}
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {waitLabel} waiting
+          </div>
+          {cleared ? (
+            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-xs">
+              {reg.payment_status}
+            </Badge>
+          ) : (
+            <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 text-xs flex items-center gap-1">
+              <ShieldAlert className="h-3 w-3" />
+              {reg.payment_status}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Vitals row */}
+      {Object.values(v).some((val) => val !== undefined && val !== "") && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {v.bp_systolic && v.bp_diastolic && (
+            <VitalChip
+              label="BP"
+              value={`${v.bp_systolic}/${v.bp_diastolic}`}
+              alert={Number(v.bp_systolic) > 140 || Number(v.bp_diastolic) > 90}
+            />
+          )}
+          {v.pulse_bpm && (
+            <VitalChip
+              label="Pulse"
+              value={`${v.pulse_bpm} bpm`}
+              alert={Number(v.pulse_bpm) > 100 || Number(v.pulse_bpm) < 60}
+            />
+          )}
+          {v.temperature_c && (
+            <VitalChip
+              label="Temp"
+              value={`${v.temperature_c}°C`}
+              alert={Number(v.temperature_c) > 38.5}
+            />
+          )}
+          {v.spo2 && <VitalChip label="SpO₂" value={`${v.spo2}%`} alert={Number(v.spo2) < 94} />}
+          {v.pain_score !== undefined && v.pain_score !== "" && (
+            <VitalChip label="Pain" value={`${v.pain_score}/10`} alert={Number(v.pain_score) > 7} />
+          )}
+        </div>
+      )}
+
+      {/* Services requested */}
+      {tests.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {tests.map((t) => (
+            <Badge key={t.id} variant="secondary" className="text-xs">
+              {t.name}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Diagnoses */}
+      {diagnoses.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {diagnoses.map((d, i) => (
+            <Badge key={i} className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs">
+              {d.icd11_code} {d.description}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Open button */}
+      <div className="mt-3 flex justify-end">
+        <Button size="sm" variant="outline">
+          <Stethoscope className="mr-1 h-3.5 w-3.5" />
+          Consult
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function VitalChip({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
+  return (
+    <div
+      className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-xs border ${
+        alert
+          ? "bg-rose-100 border-rose-300 text-rose-700 font-semibold"
+          : "bg-background border-border text-muted-foreground"
+      }`}
+    >
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+/* ==================== PRESCRIPTION PRINT SLIP ==================== */
+
+function PrescriptionPrintSlip({ reg, rxs }: { reg: Reg; rxs: Prescription[] }) {
+  return (
+    <div className="text-sm font-sans space-y-4">
+      {/* Header */}
+      <div className="border-b-2 border-black pb-3">
+        <div className="text-xl font-bold">AegisCare — Prescription</div>
+        <div className="text-xs text-gray-500">
+          Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}
+        </div>
+      </div>
+
+      {/* Patient details */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="text-xs text-gray-500 uppercase">Patient</div>
+          <div className="font-semibold">{reg.patient_name}</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 uppercase">File #</div>
+          <div className="font-semibold">{reg.file_number ?? "—"}</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 uppercase">Date</div>
+          <div>{format(new Date(), "dd MMM yyyy")}</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 uppercase">Payment mode</div>
+          <div className="capitalize">{reg.payment_mode}</div>
+        </div>
+      </div>
+
+      {/* Prescriptions table */}
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-gray-300 text-xs uppercase text-gray-500">
+            <th className="py-1 text-left pr-3">#</th>
+            <th className="py-1 text-left pr-3">Drug</th>
+            <th className="py-1 text-left pr-3">Dosage</th>
+            <th className="py-1 text-left pr-3">Frequency</th>
+            <th className="py-1 text-left pr-3">Duration</th>
+            <th className="py-1 text-right">Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rxs.map((rx, i) => (
+            <tr key={rx.id} className="border-b border-gray-100">
+              <td className="py-1.5 pr-3 text-gray-500">{i + 1}</td>
+              <td className="py-1.5 pr-3 font-medium">{rx.drug_name}</td>
+              <td className="py-1.5 pr-3">{rx.dosage ?? "—"}</td>
+              <td className="py-1.5 pr-3">{rx.frequency ?? "—"}</td>
+              <td className="py-1.5 pr-3">{rx.duration ?? "—"}</td>
+              <td className="py-1.5 text-right">{rx.quantity}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Prescriber */}
+      {rxs[0]?.prescribed_by_name && (
+        <div className="text-xs text-gray-500">
+          Prescribed by: <span className="font-medium text-black">{rxs[0].prescribed_by_name}</span>
+        </div>
+      )}
+
+      {/* Signature lines */}
+      <div className="mt-8 grid grid-cols-2 gap-8 text-xs text-gray-500">
+        <div>
+          <div className="border-b border-black pb-8" />
+          <div className="mt-1">Prescriber signature</div>
+        </div>
+        <div>
+          <div className="border-b border-black pb-8" />
+          <div className="mt-1">Dispenser signature</div>
+        </div>
+      </div>
     </div>
   );
 }
