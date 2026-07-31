@@ -1,3 +1,4 @@
+
 // Supabase Edge Function: icd11-search
 // Proxies live search requests to WHO's ICD-11 API, keeping client secret server-side.
 // Deploy this as a function named "icd11-search" in Lovable Cloud / Supabase Edge Functions.
