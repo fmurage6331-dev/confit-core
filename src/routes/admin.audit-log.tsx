@@ -5,12 +5,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/lib/auth-context";
 import { AccessDenied } from "@/lib/require-access";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -19,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Printer } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/admin/audit-log")({
@@ -45,6 +47,7 @@ type Row = {
   new_data: Record<string, unknown> | null;
   changed_by: string | null;
   changed_at: string;
+  display_name?: string;
 };
 
 function AuditLogView() {
@@ -52,7 +55,7 @@ function AuditLogView() {
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [changedBy, setChangedBy] = useState("");
+  const [nameFilter, setNameFilter] = useState("");
   const [open, setOpen] = useState<Row | null>(null);
 
   const tablesQ = useQuery({
@@ -65,7 +68,7 @@ function AuditLogView() {
   });
 
   const rowsQ = useQuery({
-    queryKey: ["audit-rows", tableFilter, actionFilter, from, to, changedBy],
+    queryKey: ["audit-rows", tableFilter, actionFilter, from, to],
     queryFn: async () => {
       let q = supabase
         .from("audit_log")
@@ -76,28 +79,89 @@ function AuditLogView() {
       if (actionFilter !== "all") q = q.eq("action", actionFilter);
       if (from) q = q.gte("changed_at", new Date(from).toISOString());
       if (to) q = q.lte("changed_at", new Date(to + "T23:59:59").toISOString());
-      if (changedBy.trim()) q = q.eq("changed_by", changedBy.trim());
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as Row[];
+
+      // Resolve display names for unique user IDs
+      const rows = (data ?? []) as unknown as Row[];
+      const uniqueIds = Array.from(
+        new Set(rows.map((r) => r.changed_by).filter(Boolean) as string[]),
+      );
+
+      if (uniqueIds.length > 0) {
+        const { data: profiles } = await db
+          .from<{ id: string; first_name: string; last_name: string; username: string }>("profiles")
+          .select("id,first_name,last_name,username")
+          .in("id", uniqueIds);
+
+        const nameMap = new Map<string, string>();
+        (Array.isArray(profiles) ? profiles : profiles ? [profiles] : []).forEach((p) => {
+          nameMap.set(p.id, `${p.first_name} ${p.last_name} (@${p.username})`);
+        });
+
+        return rows.map((r) => ({
+          ...r,
+          display_name: r.changed_by
+            ? (nameMap.get(r.changed_by) ?? r.changed_by.slice(0, 8))
+            : "—",
+        }));
+      }
+
+      return rows.map((r) => ({
+        ...r,
+        display_name: r.changed_by ? r.changed_by.slice(0, 8) : "—",
+      }));
     },
   });
 
+  // Client-side filter by name
+  const filtered = useMemo(() => {
+    const rows = rowsQ.data ?? [];
+    if (!nameFilter.trim()) return rows;
+    const q = nameFilter.toLowerCase();
+    return rows.filter((r) => r.display_name?.toLowerCase().includes(q));
+  }, [rowsQ.data, nameFilter]);
+
+  function handlePrint() {
+    window.print();
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <ShieldCheck className="h-5 w-5" />
+      {/* Screen header */}
+      <div className="flex items-center justify-between print:hidden">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Audit log</h1>
+            <p className="text-sm text-muted-foreground">
+              Read-only change history across the system.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Audit log</h1>
-          <p className="text-sm text-muted-foreground">
-            Read-only change history across the system.
-          </p>
+        <Button variant="outline" onClick={handlePrint}>
+          <Printer className="mr-2 h-4 w-4" />
+          Print report
+        </Button>
+      </div>
+
+      {/* Print header */}
+      <div className="hidden print:block border-b-2 border-black pb-3 mb-4">
+        <div className="text-xl font-bold">AegisCare — Audit Log Report</div>
+        <div className="text-sm text-gray-500">
+          Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}
+          {tableFilter !== "all" && ` · Table: ${tableFilter}`}
+          {actionFilter !== "all" && ` · Action: ${actionFilter}`}
+          {from && ` · From: ${from}`}
+          {to && ` · To: ${to}`}
+          {nameFilter && ` · User: ${nameFilter}`}
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-5">
+      {/* Filters */}
+      <div className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-5 print:hidden">
         <div>
           <Label>Table</Label>
           <Select value={tableFilter} onValueChange={setTableFilter}>
@@ -137,15 +201,23 @@ function AuditLogView() {
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <div>
-          <Label>Changed by (user id)</Label>
+          <Label>Changed by (name)</Label>
           <Input
-            value={changedBy}
-            onChange={(e) => setChangedBy(e.target.value)}
-            placeholder="uuid…"
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+            placeholder="Search by name…"
           />
         </div>
       </div>
 
+      {/* Results count */}
+      {!rowsQ.isLoading && (
+        <p className="text-xs text-muted-foreground print:hidden">
+          Showing {filtered.length} of {rowsQ.data?.length ?? 0} entries
+        </p>
+      )}
+
+      {/* Table */}
       <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-card)]">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -172,45 +244,56 @@ function AuditLogView() {
                 </td>
               </tr>
             )}
-            {!rowsQ.isLoading && (rowsQ.data ?? []).length === 0 && (
+            {!rowsQ.isLoading && filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
                   No entries.
                 </td>
               </tr>
             )}
-            {(rowsQ.data ?? []).map((r) => (
+            {filtered.map((r) => (
               <tr
                 key={r.id}
-                className="hover:bg-accent/40 cursor-pointer"
+                className="hover:bg-accent/40 cursor-pointer print:cursor-default"
                 onClick={() => setOpen(r)}
               >
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap text-xs">
                   {format(new Date(r.changed_at), "dd MMM yyyy, HH:mm:ss")}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">{r.table_name}</td>
                 <td className="px-4 py-3">
-                  <Badge variant={r.action === "DELETE" ? "destructive" : "outline"}>
+                  <Badge
+                    variant={
+                      r.action === "DELETE"
+                        ? "destructive"
+                        : r.action === "INSERT"
+                          ? "default"
+                          : "outline"
+                    }
+                  >
                     {r.action}
                   </Badge>
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                   {r.record_id?.slice(0, 8) ?? "—"}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {r.changed_by?.slice(0, 8) ?? "—"}
-                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{r.display_name ?? "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
+      {/* Diff dialog — screen only */}
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col print:hidden">
           <DialogHeader>
             <DialogTitle>
               {open?.action} on {open?.table_name} · {open?.record_id?.slice(0, 8)}
+              <span className="ml-3 text-sm font-normal text-muted-foreground">
+                by {open?.display_name} ·{" "}
+                {open && format(new Date(open.changed_at), "dd MMM yyyy, HH:mm:ss")}
+              </span>
             </DialogTitle>
           </DialogHeader>
           {open && <DiffView row={open} />}
