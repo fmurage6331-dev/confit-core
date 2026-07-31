@@ -71,6 +71,31 @@ export function AppShell({ children }: { children: ReactNode }) {
       navigate({ to: "/change-password" });
     }
   }, [user, location.pathname, navigate]);
+  // ── Session timeout — auto-logout after 30 minutes of inactivity ──────────
+  useEffect(() => {
+    if (!user) return;
+    const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+    let timer: ReturnType<typeof setTimeout>;
+
+    function resetTimer() {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        await signOut();
+        navigate({ to: "/login" });
+        // Toast will show on login page if we pass a param — simple alert for now
+        alert("You have been logged out due to inactivity.");
+      }, TIMEOUT_MS);
+    }
+
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
+    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer(); // start the timer immediately
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+    };
+  }, [user, signOut, navigate]);
 
   // Load rooms this user can access (admins see all active rooms; others see their grants).
   // Lab and Radiology rooms are excluded here: they already have dedicated static nav

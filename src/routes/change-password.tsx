@@ -19,7 +19,15 @@ export const Route = createFileRoute("/change-password")({
   component: ChangePasswordPage,
 });
 
-const schema = z.object({ password: z.string().min(8).max(72) });
+const schema = z.object({
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72)
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+});
 
 function ChangePasswordPage() {
   const { user, loading } = useAuth();
@@ -80,6 +88,9 @@ function ChangePasswordPage() {
             <div>
               <Label>New password</Label>
               <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Min 8 characters · uppercase · number · special character
+              </p>
             </div>
             <div>
               <Label>Confirm password</Label>
