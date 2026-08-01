@@ -100,6 +100,7 @@ serve(async (req) => {
     searchUrl.searchParams.set("q", query);
     searchUrl.searchParams.set("useFlexisearch", "true");
     searchUrl.searchParams.set("flatResults", "true");
+    searchUrl.searchParams.set("highlightingEnabled", "false");
 
     const searchResp = await fetch(searchUrl.toString(), {
       headers: {
@@ -117,12 +118,22 @@ serve(async (req) => {
 
     const searchData = await searchResp.json();
 
+    const cleanTitle = (raw: string) =>
+      raw
+        .replace(/<[^>]*>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+
     // Normalize WHO's response into { code, title, uri } matching our icd11_codes table.
     const results = (searchData.destinationEntities || [])
       .map((entity: Record<string, unknown>) => ({
         code: (entity.theCode as string) || null,
-        title: ((entity.title as string) || "").replace(/<[^>]*>/g, ""), // strip highlight markup
-        uri: (entity.id as string) || null,
+        title: cleanTitle((entity.title as string) || ""),
+        uri: (entity.stemId as string) || (entity.id as string) || null,
       }))
       .filter((r: { code: string | null }) => r.code); // only keep entities that actually have a code
 
