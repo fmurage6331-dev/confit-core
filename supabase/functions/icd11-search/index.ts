@@ -11,7 +11,9 @@ const corsHeaders = {
 };
 
 const TOKEN_URL = "https://icdaccessmanagement.who.int/connect/token";
-const SEARCH_URL = "https://id.who.int/icd/entity/search";
+// The MMS linearization search returns entities that carry an actual ICD-11 code
+// (theCode). The foundation /entity/search endpoint does not, so it is unusable here.
+const SEARCH_URL = "https://id.who.int/icd/release/11/2024-01/mms/search";
 
 // Simple in-memory token cache (per warm function instance).
 // WHO tokens are typically valid for ~1 hour, so we avoid re-authenticating on every search.
