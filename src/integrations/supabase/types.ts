@@ -2316,6 +2316,8 @@ export type Database = {
           name: string
           notes: string | null
           reorder_level: number
+          strength: number | null
+          strength_unit: string | null
           unit: string
           unit_price: number | null
           updated_at: string
@@ -2332,6 +2334,8 @@ export type Database = {
           name: string
           notes?: string | null
           reorder_level?: number
+          strength?: number | null
+          strength_unit?: string | null
           unit?: string
           unit_price?: number | null
           updated_at?: string
@@ -2348,6 +2352,8 @@ export type Database = {
           name?: string
           notes?: string | null
           reorder_level?: number
+          strength?: number | null
+          strength_unit?: string | null
           unit?: string
           unit_price?: number | null
           updated_at?: string

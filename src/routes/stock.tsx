@@ -393,6 +393,8 @@ function StockPage() {
                     cash_price: getFormNumber(formData, "cash_price"),
                     insurance_price: getFormNumber(formData, "insurance_price"),
                     unit_price: getFormNumber(formData, "cash_price"),
+                    strength: getFormNumber(formData, "strength") || null,
+                    strength_unit: getFormString(formData, "strength_unit") || null,
                     notes: getFormString(formData, "notes"),
                   });
                 }}
@@ -452,6 +454,17 @@ function StockPage() {
                   <div>
                     <Label>Insurance price</Label>
                     <Input type="number" step="0.01" name="insurance_price" defaultValue={0} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Strength (per unit)</Label>
+                    <Input type="number" step="0.01" name="strength" placeholder="e.g. 500" />
+                  </div>
+                  <div>
+                    <Label>Strength unit</Label>
+                    <Input name="strength_unit" placeholder="mg, g, ml, mcg" />
                   </div>
                 </div>
 
