@@ -470,7 +470,7 @@ function RoomPage() {
                   const cleared = r.payment_status === "paid" || r.payment_status === "waived";
                   const hasTests = (r.tests ?? []).length > 0;
 
-                                    return (
+                  return (
                     <tr key={r.id} className="border-t">
                       <td className="px-4 py-3">
                         <div className="font-medium">{r.patient_name}</div>
@@ -548,32 +548,13 @@ function RoomPage() {
                   );
                 })}
               </tbody>
-                      </table>
+            </table>
           )}
-          {kind === "consultation" && (
-            <ConsultationOverview
-              rows={rows}
-              roomName={room.name}
-              roomId={id}
-              filter={consultFilter}
-              onFilter={setConsultFilter}
-              onRefresh={loadRequests}
-            />
-          )}
-          {kind === "consultation" &&
-            rows
-              .filter((r) => !consultFilter || consultPriority(r) === consultFilter)
-              .map((r) => (
-                <ConsultationPatientCard key={r.id} reg={r} onOpen={() => setOpenReg(r)} />
-              ))}
-          {kind === "consultation" && rows.length === 0 && (
-            <div className="rounded-lg bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
-              No patients awaiting service
-            </div>
-          )}
+          {kind === "consultation" && rows.map((r) => (
+            <ConsultationPatientCard key={r.id} reg={r} onOpen={() => setOpenReg(r)} />
+          ))}
         </div>
       )}
-
       {openReg && kind === "triage" && (
         <TriageDialog
           reg={openReg}
@@ -848,7 +829,7 @@ function ConsultationDialog({
       .select("id,name,kind,current_quantity,strength,strength_unit")
       .eq("kind", "pharmaceutical")
       .order("name")
-      .then(({ data }) => setStock((data ?? []) as StockItem[]));
+            .then(({ data }) => setStock((data ?? []) as unknown as StockItem[]));
     loadAdmission();
   }, [reg.id]);
 
@@ -1277,36 +1258,6 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
   );
 }
 
-const FREQUENCIES: { value: string; label: string }[] = [
-  { value: "STAT", label: "STAT - Immediately (×1 total)" },
-  { value: "OD", label: "OD - Once daily (×1/day)" },
-  { value: "BD", label: "BD - Twice daily (×2/day)" },
-  { value: "TDS", label: "TDS - Three times daily (×3/day)" },
-  { value: "QID", label: "QID - Four times daily (×4/day)" },
-  { value: "QHS", label: "QHS - At bedtime (×1/day)" },
-  { value: "PRN", label: "PRN - As needed (manual quantity)" },
-];
-
-const FREQUENCY_MAP: Record<string, number> = {
-  STAT: 0,
-  OD: 1,
-  BD: 2,
-  TDS: 3,
-  QID: 4,
-  QHS: 1,
-  PRN: 0,
-};
-
-const DURATIONS: number[] = [1, 2, 3, 4, 5, 6, 7, 10, 14, 21, 28, 30];
-
-function calcQuantity(unitsPerDose: number, freq: string, durationDays: number): number | null {
-  if (freq === "PRN") return null;
-  if (freq === "STAT") return unitsPerDose;
-  const timesPerDay = FREQUENCY_MAP[freq] ?? 0;
-  if (!timesPerDay || !durationDays) return null;
-  return unitsPerDose * timesPerDay * durationDays;
-}
-
 function PrescriptionEditor({
   rxs,
   stock,
@@ -1333,35 +1284,17 @@ function PrescriptionEditor({
 }) {
   const [stockId, setStockId] = useState<string>("");
   const [drugName, setDrugName] = useState("");
-  const [customDose, setCustomDose] = useState("");
-  const [unitsPerDose, setUnitsPerDose] = useState<number>(1);
-  const [freq, setFreq] = useState("TDS");
-  const [durationDays, setDurationDays] = useState<number>(5);
+  const [dosage, setDosage] = useState("");
+  const [freq, setFreq] = useState("");
+  const [duration, setDuration] = useState("");
   const [qty, setQty] = useState<number>(1);
-  const [qtyTouched, setQtyTouched] = useState(false);
   const [notes, setNotes] = useState("");
-
-  const stockItem = stock.find((x) => x.id === stockId) ?? null;
-  const hasStrength = !!(stockItem && stockItem.strength);
-  const unitWord = stockItem?.strength_unit === "ml" ? "ml" : "tablet(s)";
-  const autoQty = hasStrength ? calcQuantity(unitsPerDose, freq, durationDays) : null;
-
-  useEffect(() => {
-    if (autoQty != null && !qtyTouched) setQty(autoQty);
-  }, [autoQty, qtyTouched]);
 
   function selectStock(id: string) {
     setStockId(id);
     const s = stock.find((x) => x.id === id);
     if (s && !drugName) setDrugName(s.name);
   }
-
-  const freqLabel = FREQUENCIES.find((f) => f.value === freq)?.label ?? freq;
-  const durationStr = `${durationDays} day${durationDays === 1 ? "" : "s"}`;
-  const dosageStr = hasStrength
-    ? `${unitsPerDose} ${unitWord} (${unitsPerDose * (stockItem!.strength ?? 0)}${stockItem!.strength_unit ?? ""})`
-    : customDose;
-
   async function add() {
     if (!drugName.trim()) {
       toast.error("Drug name is required");
@@ -1380,26 +1313,25 @@ function PrescriptionEditor({
     await onAdd({
       stock_item_id: stockId || null,
       drug_name: drugName.trim(),
-      dosage: dosageStr || null,
-      frequency: freqLabel || null,
-      duration: freq === "STAT" ? "Single dose" : durationStr,
+      dosage: dosage || null,
+      frequency: freq || null,
+      duration: duration || null,
       quantity: Number(qty) || 1,
       notes: notes || null,
     });
     setStockId("");
     setDrugName("");
-    setCustomDose("");
-    setUnitsPerDose(1);
-    setFreq("TDS");
-    setDurationDays(5);
+    setDosage("");
+    setFreq("");
+    setDuration("");
     setQty(1);
-    setQtyTouched(false);
     setNotes("");
   }
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border p-3 space-y-2">
+      <div className="rounded-lg border p-4 space-y-3">
+        {/* Stock + drug name */}
         <div className="grid gap-2 md:grid-cols-2">
           <div>
             <Label>Pharmacy stock (optional)</Label>
@@ -1410,8 +1342,7 @@ function PrescriptionEditor({
               <SelectContent>
                 {stock.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                    {s.strength ? ` ${s.strength}${s.strength_unit ?? ""}` : ""}{" "}
+                    {s.name}{" "}
                     <span className="text-xs text-muted-foreground">
                       ({s.current_quantity ?? 0})
                     </span>
@@ -1424,112 +1355,42 @@ function PrescriptionEditor({
             <Label>Drug name</Label>
             <Input value={drugName} onChange={(e) => setDrugName(e.target.value)} />
           </div>
-
-          {hasStrength ? (
-            <div>
-              <Label>Units per dose</Label>
-              <Input
-                type="number"
-                min={0.5}
-                step="0.5"
-                value={unitsPerDose}
-                onChange={(e) => {
-                  setUnitsPerDose(Number(e.target.value));
-                  setQtyTouched(false);
-                }}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                = {unitsPerDose * (stockItem!.strength ?? 0)}
-                {stockItem!.strength_unit ?? ""} per dose
-              </p>
-            </div>
-          ) : (
-            <div>
-              <Label>Dose</Label>
-              <Input
-                value={customDose}
-                onChange={(e) => setCustomDose(e.target.value)}
-                placeholder="500 mg"
-              />
-            </div>
-          )}
-
+          <div>
+            <Label>Dosage</Label>
+            <Input
+              value={dosage}
+              onChange={(e) => setDosage(e.target.value)}
+              placeholder="500 mg"
+            />
+          </div>
           <div>
             <Label>Frequency</Label>
-            <Select
-              value={freq}
-              onValueChange={(v) => {
-                setFreq(v);
-                setQtyTouched(false);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FREQUENCIES.map((f) => (
-                  <SelectItem key={f.value} value={f.value}>
-                    {f.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input value={freq} onChange={(e) => setFreq(e.target.value)} placeholder="TDS" />
           </div>
 
           <div>
             <Label>Duration</Label>
-            <Select
-              value={String(durationDays)}
-              onValueChange={(v) => {
-                setDurationDays(Number(v));
-                setQtyTouched(false);
-              }}
-              disabled={freq === "STAT"}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DURATIONS.map((d) => (
-                  <SelectItem key={d} value={String(d)}>
-                    {d} day{d === 1 ? "" : "s"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="5 days"
+            />
           </div>
-
           <div>
-            <Label>Quantity {autoQty != null ? "(auto-calculated)" : ""}</Label>
+            <Label>Quantity</Label>
             <Input
               type="number"
               min={1}
               value={qty}
-              onChange={(e) => {
-                setQty(Number(e.target.value));
-                setQtyTouched(true);
-              }}
+              onChange={(e) => setQty(Number(e.target.value))}
             />
-            {autoQty != null && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                ℹ {unitsPerDose} {unitWord}
-                {freq === "STAT"
-                  ? " once"
-                  : ` × ${FREQUENCY_MAP[freq]}×/day × ${durationDays} days`}{" "}
-                = {autoQty}
-              </p>
-            )}
-            {freq === "PRN" && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                As needed — enter quantity manually.
-              </p>
-            )}
           </div>
         </div>
         <div>
           <Label>Notes</Label>
           <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
+
         <div className="flex justify-end">
           <Button size="sm" onClick={add}>
             <Plus className="mr-1 h-3.5 w-3.5" />
