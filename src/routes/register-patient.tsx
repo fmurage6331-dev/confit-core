@@ -23,14 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import {
-  Banknote,
-  HeartHandshake,
-  Plus,
-  Shield,
-  Trash2,
-  type LucideIcon,
-} from "lucide-react";
+import { Banknote, HeartHandshake, Plus, Shield, Trash2, type LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/register-patient")({
   component: () => (
@@ -112,6 +105,8 @@ function RegisterPatient() {
   const [occupation, setOccupation] = useState("");
   const [marital, setMarital] = useState("");
   const [nationality, setNationality] = useState("");
+  const [nationalId, setNationalId] = useState("");
+  const [nationalIdType, setNationalIdType] = useState("");
   const [religion, setReligion] = useState("");
   const [education, setEducation] = useState("");
 
@@ -176,8 +171,7 @@ function RegisterPatient() {
 
   const subtotal = selectedTests.reduce((sum, test) => sum + priceFor(test), 0);
   const coveragePct = mode === "insurance" && insurer ? Number(insurer.coverage_percentage) : 0;
-  const insuranceCovered =
-    mode === "insurance" ? +((subtotal * coveragePct) / 100).toFixed(2) : 0;
+  const insuranceCovered = mode === "insurance" ? +((subtotal * coveragePct) / 100).toFixed(2) : 0;
   const patientDue = mode === "free" ? 0 : +(subtotal - insuranceCovered).toFixed(2);
 
   const toggleTest = (id: string) => {
@@ -289,6 +283,8 @@ function RegisterPatient() {
       occupation: occupation.trim() || null,
       marital_status: marital || null,
       nationality: nationality.trim() || null,
+      national_id: nationalId.trim() || null,
+      national_id_type: nationalIdType || null,
       religion: religion.trim() || null,
       education_level: education || null,
       is_deceased: isDeceased,
@@ -412,10 +408,7 @@ function RegisterPatient() {
                 />
               </Field>
               <Field label="Middle Name (optional)">
-                <Input
-                  value={middleName}
-                  onChange={(event) => setMiddleName(event.target.value)}
-                />
+                <Input value={middleName} onChange={(event) => setMiddleName(event.target.value)} />
               </Field>
               <Field label="Family Name" required>
                 <Input
@@ -505,21 +498,13 @@ function RegisterPatient() {
 
             <Group title="Address">
               <Field label="Address line 1" required>
-                <Input
-                  value={addr1}
-                  onChange={(event) => setAddr1(event.target.value)}
-                  required
-                />
+                <Input value={addr1} onChange={(event) => setAddr1(event.target.value)} required />
               </Field>
               <Field label="Address line 2 (optional)">
                 <Input value={addr2} onChange={(event) => setAddr2(event.target.value)} />
               </Field>
               <Field label="City / Town" required>
-                <Input
-                  value={city}
-                  onChange={(event) => setCity(event.target.value)}
-                  required
-                />
+                <Input value={city} onChange={(event) => setCity(event.target.value)} required />
               </Field>
               <Field label="County" required>
                 <Input
@@ -540,10 +525,7 @@ function RegisterPatient() {
           <Section id="demographics" number="3" title="Demographics">
             <Group title="Background">
               <Field label="Occupation">
-                <Input
-                  value={occupation}
-                  onChange={(event) => setOccupation(event.target.value)}
-                />
+                <Input value={occupation} onChange={(event) => setOccupation(event.target.value)} />
               </Field>
               <Field label="Marital status">
                 <Select value={marital} onValueChange={setMarital}>
@@ -563,6 +545,25 @@ function RegisterPatient() {
                 <Input
                   value={nationality}
                   onChange={(event) => setNationality(event.target.value)}
+                />
+              </Field>
+              <Field label="ID Type">
+                <Select value={nationalIdType} onValueChange={setNationalIdType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ID type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="national_id">National ID</SelectItem>
+                    <SelectItem value="passport">Passport</SelectItem>
+                    <SelectItem value="birth_certificate">Birth Certificate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="ID Number">
+                <Input
+                  value={nationalId}
+                  onChange={(event) => setNationalId(event.target.value)}
+                  placeholder="e.g. 12345678"
                 />
               </Field>
               <Field label="Religion (optional)">
@@ -631,9 +632,7 @@ function RegisterPatient() {
                       onChange={(event) =>
                         setRelationships((all) =>
                           all.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, relation: event.target.value }
-                              : item,
+                            itemIndex === index ? { ...item, relation: event.target.value } : item,
                           ),
                         )
                       }
@@ -655,9 +654,7 @@ function RegisterPatient() {
                       onChange={(event) =>
                         setRelationships((all) =>
                           all.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, contact: event.target.value }
-                              : item,
+                            itemIndex === index ? { ...item, contact: event.target.value } : item,
                           ),
                         )
                       }
@@ -667,9 +664,7 @@ function RegisterPatient() {
                       variant="ghost"
                       size="icon"
                       onClick={() =>
-                        setRelationships((all) =>
-                          all.filter((_, itemIndex) => itemIndex !== index),
-                        )
+                        setRelationships((all) => all.filter((_, itemIndex) => itemIndex !== index))
                       }
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
@@ -682,10 +677,7 @@ function RegisterPatient() {
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    setRelationships((all) => [
-                      ...all,
-                      { relation: "", name: "", contact: "" },
-                    ])
+                    setRelationships((all) => [...all, { relation: "", name: "", contact: "" }])
                   }
                 >
                   <Plus className="mr-1 h-4 w-4" />
@@ -719,10 +711,7 @@ function RegisterPatient() {
                 />
               </Field>
               <Field label="Address (optional)">
-                <Input
-                  value={kinAddress}
-                  onChange={(event) => setKinAddress(event.target.value)}
-                />
+                <Input value={kinAddress} onChange={(event) => setKinAddress(event.target.value)} />
               </Field>
             </Group>
           </Section>
@@ -918,13 +907,7 @@ function RegisterPatient() {
   );
 }
 
-function YesNo({
-  value,
-  onChange,
-}: {
-  value: boolean;
-  onChange: (value: boolean) => void;
-}) {
+function YesNo({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
   return (
     <div className="inline-flex overflow-hidden rounded-md border">
       <button
