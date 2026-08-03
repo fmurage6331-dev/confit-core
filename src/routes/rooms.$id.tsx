@@ -845,7 +845,7 @@ function ConsultationDialog({
       .then(({ data }) => setRxs((data ?? []) as Prescription[]));
     supabase
       .from("stock_items")
-      .select("id,name,kind,current_quantity")
+      .select("id,name,kind,current_quantity,strength,strength_unit")
       .eq("kind", "pharmaceutical")
       .order("name")
       .then(({ data }) => setStock((data ?? []) as StockItem[]));
