@@ -1277,6 +1277,36 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
   );
 }
 
+const FREQUENCIES: { value: string; label: string }[] = [
+  { value: "STAT", label: "STAT - Immediately (×1 total)" },
+  { value: "OD", label: "OD - Once daily (×1/day)" },
+  { value: "BD", label: "BD - Twice daily (×2/day)" },
+  { value: "TDS", label: "TDS - Three times daily (×3/day)" },
+  { value: "QID", label: "QID - Four times daily (×4/day)" },
+  { value: "QHS", label: "QHS - At bedtime (×1/day)" },
+  { value: "PRN", label: "PRN - As needed (manual quantity)" },
+];
+
+const FREQUENCY_MAP: Record<string, number> = {
+  STAT: 0,
+  OD: 1,
+  BD: 2,
+  TDS: 3,
+  QID: 4,
+  QHS: 1,
+  PRN: 0,
+};
+
+const DURATIONS: number[] = [1, 2, 3, 4, 5, 6, 7, 10, 14, 21, 28, 30];
+
+function calcQuantity(unitsPerDose: number, freq: string, durationDays: number): number | null {
+  if (freq === "PRN") return null;
+  if (freq === "STAT") return unitsPerDose;
+  const timesPerDay = FREQUENCY_MAP[freq] ?? 0;
+  if (!timesPerDay || !durationDays) return null;
+  return unitsPerDose * timesPerDay * durationDays;
+}
+
 function PrescriptionEditor({
   rxs,
   stock,
