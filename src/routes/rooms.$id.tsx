@@ -2587,3 +2587,225 @@ function PrescriptionPrintSlip({ reg, rxs }: { reg: Reg; rxs: Prescription[] }) 
     </div>
   );
 }
+
+/* ==================== CONSULTATION OVERVIEW (stats header) ==================== */
+
+export type ConsultPriority = "emergency" | "urgent" | "not_urgent";
+
+export function consultPriority(reg: Reg): ConsultPriority {
+  const v = reg.vitals ?? {};
+  const n = (x: number | "" | undefined) => (x === "" || x === undefined ? undefined : Number(x));
+  const spo2 = n(v.spo2);
+  const temp = n(v.temperature_c);
+  const pulse = n(v.pulse_bpm);
+  const sys = n(v.bp_systolic);
+  const dia = n(v.bp_diastolic);
+  const pain = n(v.pain_score);
+  if (
+    (spo2 !== undefined && spo2 < 90) ||
+    (temp !== undefined && temp >= 39.5) ||
+    (pulse !== undefined && (pulse > 130 || pulse < 45)) ||
+    (sys !== undefined && (sys >= 180 || sys < 90)) ||
+    (pain !== undefined && pain >= 8)
+  )
+    return "emergency";
+  if (
+    (spo2 !== undefined && spo2 < 94) ||
+    (temp !== undefined && temp > 38) ||
+    (pulse !== undefined && (pulse > 100 || pulse < 60)) ||
+    (sys !== undefined && sys >= 140) ||
+    (dia !== undefined && dia >= 90) ||
+    (pain !== undefined && pain >= 5)
+  )
+    return "urgent";
+  return "not_urgent";
+}
+
+type InvestigationCounts = { lab: number; radiology: number; procedures: number };
+
+function StatCard({
+  title,
+  total,
+  items,
+  onPick,
+  active,
+}: {
+  title: string;
+  total: number;
+  items: { key: string; label: string; value: number }[];
+  onPick?: (key: string) => void;
+  active?: string | null;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="mt-3 flex items-end gap-5">
+        <div className="text-3xl font-light leading-none">{total}</div>
+        <div className="flex flex-wrap gap-4">
+          {items.map((it) => (
+            <button
+              key={it.key}
+              type="button"
+              onClick={() => onPick?.(it.key)}
+              className={`text-left ${onPick ? "cursor-pointer" : "cursor-default"}`}
+            >
+              <div
+                className={`text-xs ${
+                  active === it.key ? "font-semibold text-primary underline" : "text-primary"
+                }`}
+              >
+                {it.label} →
+              </div>
+              <div className="text-xl font-light">{it.value}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ConsultationOverview({
+  rows,
+  roomName,
+  roomId,
+  filter,
+  onFilter,
+  onRefresh,
+}: {
+  rows: Reg[];
+  roomName: string;
+  roomId: string;
+  filter: ConsultPriority | null;
+  onFilter: (p: ConsultPriority | null) => void;
+  onRefresh: () => void;
+}) {
+  const [awaiting, setAwaiting] = useState<InvestigationCounts>({
+    lab: 0,
+    radiology: 0,
+    procedures: 0,
+  });
+  const [completed, setCompleted] = useState<InvestigationCounts>({
+    lab: 0,
+    radiology: 0,
+    procedures: 0,
+  });
+  const [totalVisits, setTotalVisits] = useState(0);
+
+  async function loadStats() {
+    const [{ data: roomsData }, { data: sentOut }] = await Promise.all([
+      supabase.from("rooms").select("id,kind"),
+      supabase
+        .from("patient_registrations")
+        .select("id,current_room_id,status,tests,from_room")
+        .eq("from_room", roomName)
+        .neq("status", "cancelled"),
+    ]);
+    const kindById = new Map<string, string>(
+      ((roomsData ?? []) as { id: string; kind: string }[]).map((r) => [r.id, r.kind]),
+    );
+    const a: InvestigationCounts = { lab: 0, radiology: 0, procedures: 0 };
+    const c: InvestigationCounts = { lab: 0, radiology: 0, procedures: 0 };
+    for (const reg of (sentOut ?? []) as {
+      current_room_id: string | null;
+      status: string;
+      tests: unknown;
+    }[]) {
+      const kind = reg.current_room_id ? kindById.get(reg.current_room_id) : undefined;
+      const bucket: keyof InvestigationCounts =
+        kind === "lab" ? "lab" : kind === "radiology" ? "radiology" : "procedures";
+      if (reg.current_room_id === roomId) {
+        // returned to this consultation room → investigation completed
+        const has = Array.isArray(reg.tests) && reg.tests.length > 0;
+        if (has) c.lab += 1;
+      } else if (reg.status !== "done" && kind) {
+        a[bucket] += 1;
+      }
+    }
+    setAwaiting(a);
+    setCompleted(c);
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const { count } = await supabase
+      .from("patient_registrations")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", startOfDay.toISOString());
+    setTotalVisits(count ?? 0);
+  }
+
+  useEffect(() => {
+    loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, roomName, rows.length]);
+
+  const byPriority = useMemo(() => {
+    const out = { emergency: 0, urgent: 0, not_urgent: 0 };
+    for (const r of rows) out[consultPriority(r)] += 1;
+    return out;
+  }, [rows]);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Awaiting consultation"
+          total={rows.length}
+          active={filter}
+          onPick={(k) => onFilter(filter === k ? null : (k as ConsultPriority))}
+          items={[
+            { key: "emergency", label: "Emergency", value: byPriority.emergency },
+            { key: "urgent", label: "Urgent", value: byPriority.urgent },
+            { key: "not_urgent", label: "Not Urgent", value: byPriority.not_urgent },
+          ]}
+        />
+        <StatCard
+          title="Investigation Awaiting"
+          total={awaiting.lab + awaiting.radiology + awaiting.procedures}
+          items={[
+            { key: "lab", label: "Lab", value: awaiting.lab },
+            { key: "radiology", label: "Radiology", value: awaiting.radiology },
+            { key: "procedures", label: "Procedures", value: awaiting.procedures },
+          ]}
+        />
+        <StatCard
+          title="Investigation Completed"
+          total={completed.lab + completed.radiology + completed.procedures}
+          items={[
+            { key: "lab", label: "Lab", value: completed.lab },
+            { key: "radiology", label: "Radiology", value: completed.radiology },
+            { key: "procedures", label: "Procedures", value: completed.procedures },
+          ]}
+        />
+        <div className="rounded-xl border bg-card p-4">
+          <div className="text-sm font-semibold">Total Visits</div>
+          <div className="mt-3 text-3xl font-light leading-none">{totalVisits}</div>
+          <div className="mt-1 text-xs text-muted-foreground">today</div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-2 text-sm">
+        <span className="font-medium">Filters:</span>
+        {filter ? (
+          <Badge
+            className="cursor-pointer bg-rose-100 text-rose-700 hover:bg-rose-100"
+            onClick={() => onFilter(null)}
+          >
+            {filter.replace("_", " ")} <X className="ml-1 h-3 w-3" />
+          </Badge>
+        ) : (
+          <Badge variant="secondary">No filters</Badge>
+        )}
+        <Button size="sm" variant="ghost" onClick={onRefresh}>
+          Refresh
+        </Button>
+      </div>
+
+      <div className="border-b">
+        <div className="inline-block border-b-2 border-primary px-4 py-2 text-sm font-semibold text-primary">
+          {roomName}
+        </div>
+      </div>
+    </div>
+  );
+}
