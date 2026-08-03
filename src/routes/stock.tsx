@@ -393,6 +393,8 @@ function StockPage() {
                     cash_price: getFormNumber(formData, "cash_price"),
                     insurance_price: getFormNumber(formData, "insurance_price"),
                     unit_price: getFormNumber(formData, "cash_price"),
+                    strength: getFormNumber(formData, "strength") || null,
+                    strength_unit: getFormString(formData, "strength_unit") || null,
                     notes: getFormString(formData, "notes"),
                   });
                 }}
