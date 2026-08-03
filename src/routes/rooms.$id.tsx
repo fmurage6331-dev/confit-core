@@ -131,6 +131,8 @@ type StockItem = {
   kind: string | null;
   current_quantity: number | null;
   unit_price?: number | null;
+  strength: number | null;
+  strength_unit: string | null;
 };
 type Prescription = {
   id: string;
