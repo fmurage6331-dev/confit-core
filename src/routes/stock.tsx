@@ -457,6 +457,17 @@ function StockPage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Strength (per unit)</Label>
+                    <Input type="number" step="0.01" name="strength" placeholder="e.g. 500" />
+                  </div>
+                  <div>
+                    <Label>Strength unit</Label>
+                    <Input name="strength_unit" placeholder="mg, g, ml, mcg" />
+                  </div>
+                </div>
+
                 <div>
                   <Label>Notes</Label>
                   <Textarea name="notes" />
