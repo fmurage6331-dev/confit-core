@@ -546,11 +546,30 @@ function RoomPage() {
               </tbody>
                       </table>
           )}
-          {kind === "consultation" && rows.map((r) => (
-            <ConsultationPatientCard key={r.id} reg={r} onOpen={() => setOpenReg(r)} />
-          ))}
+          {kind === "consultation" && (
+            <ConsultationOverview
+              rows={rows}
+              roomName={room.name}
+              roomId={id}
+              filter={consultFilter}
+              onFilter={setConsultFilter}
+              onRefresh={loadRequests}
+            />
+          )}
+          {kind === "consultation" &&
+            rows
+              .filter((r) => !consultFilter || consultPriority(r) === consultFilter)
+              .map((r) => (
+                <ConsultationPatientCard key={r.id} reg={r} onOpen={() => setOpenReg(r)} />
+              ))}
+          {kind === "consultation" && rows.length === 0 && (
+            <div className="rounded-lg bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
+              No patients awaiting service
+            </div>
+          )}
         </div>
       )}
+
       {openReg && kind === "triage" && (
         <TriageDialog
           reg={openReg}
