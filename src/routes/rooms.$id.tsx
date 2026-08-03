@@ -193,6 +193,8 @@ function RoomPage() {
   const [loading, setLoading] = useState(true);
   const [openReg, setOpenReg] = useState<Reg | null>(null);
   const [rxByReg, setRxByReg] = useState<Map<string, Prescription[]>>(new Map());
+  const [consultFilter, setConsultFilter] = useState<ConsultPriority | null>(null);
+
 
   useEffect(() => {
     (async () => {
