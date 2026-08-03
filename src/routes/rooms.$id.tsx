@@ -197,7 +197,6 @@ function RoomPage() {
   const [rxByReg, setRxByReg] = useState<Map<string, Prescription[]>>(new Map());
   const [consultFilter, setConsultFilter] = useState<ConsultPriority | null>(null);
 
-
   useEffect(() => {
     (async () => {
       if (!user) return;
@@ -470,7 +469,7 @@ function RoomPage() {
                   const cleared = r.payment_status === "paid" || r.payment_status === "waived";
                   const hasTests = (r.tests ?? []).length > 0;
 
-                                    return (
+                  return (
                     <tr key={r.id} className="border-t">
                       <td className="px-4 py-3">
                         <div className="font-medium">{r.patient_name}</div>
@@ -548,7 +547,7 @@ function RoomPage() {
                   );
                 })}
               </tbody>
-                      </table>
+            </table>
           )}
           {kind === "consultation" && (
             <>
@@ -658,6 +657,27 @@ function TriageDialog({
     return +(w / Math.pow(h / 100, 2)).toFixed(1);
   }, [v.height_cm, v.weight_kg]);
 
+  const alerts = useMemo(() => {
+    const a: { severity: "critical" | "warning"; message: string }[] = [];
+    const sys = Number(v.bp_systolic);
+    const dia = Number(v.bp_diastolic);
+    const temp = Number(v.temperature_c);
+    const spo2 = Number(v.spo2);
+    const pulse = Number(v.pulse_bpm);
+    const pain = Number(v.pain_score);
+
+    if (sys > 140) a.push({ severity: "critical", message: "Systolic BP elevated (>140 mmHg)" });
+    if (dia > 90) a.push({ severity: "critical", message: "Diastolic BP elevated (>90 mmHg)" });
+    if (temp > 38.5) a.push({ severity: "critical", message: "Fever detected (>38.5°C)" });
+    if (spo2 > 0 && spo2 < 94)
+      a.push({ severity: "critical", message: "Low oxygen saturation (<94%)" });
+    if (pulse > 100) a.push({ severity: "warning", message: "Tachycardia (pulse >100 bpm)" });
+    if (pulse > 0 && pulse < 60)
+      a.push({ severity: "warning", message: "Bradycardia (pulse <60 bpm)" });
+    if (pain > 7) a.push({ severity: "warning", message: "Severe pain reported (>7/10)" });
+
+    return a;
+  }, [v]);
   function set<K extends keyof Vitals>(k: K, val: Vitals[K]) {
     setV((p) => ({ ...p, [k]: val }));
   }
@@ -754,6 +774,25 @@ function TriageDialog({
               />
             </div>
           </Section>
+          {alerts.length > 0 && (
+            <Section title="⚠️ Clinical Alerts">
+              <div className="space-y-2">
+                {alerts.map((alert, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 rounded-md border p-3 ${
+                      alert.severity === "critical"
+                        ? "border-red-600 bg-red-50 text-red-900"
+                        : "border-amber-600 bg-amber-50 text-amber-900"
+                    }`}
+                  >
+                    <span className="text-lg">{alert.severity === "critical" ? "🔴" : "⚠️"}</span>
+                    <div className="flex-1 text-sm font-medium">{alert.message}</div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
           <Section title="Send to">
             <Select value={nextRoomId} onValueChange={setNextRoomId}>
               <SelectTrigger>
@@ -849,7 +888,7 @@ function ConsultationDialog({
       .select("id,name,kind,current_quantity,strength,strength_unit")
       .eq("kind", "pharmaceutical")
       .order("name")
-            .then(({ data }) => setStock((data ?? []) as unknown as StockItem[]));
+      .then(({ data }) => setStock((data ?? []) as unknown as StockItem[]));
     loadAdmission();
   }, [reg.id]);
 
@@ -1516,7 +1555,8 @@ function PrescriptionEditor({
                 ℹ {unitsPerDose} {unitWord}
                 {freq === "STAT"
                   ? " once"
-                  : ` × ${FREQUENCY_MAP[freq]}×/day × ${durationDays} days`} = {autoQty}
+                  : ` × ${FREQUENCY_MAP[freq]}×/day × ${durationDays} days`}{" "}
+                = {autoQty}
               </p>
             )}
             {freq === "PRN" && (
