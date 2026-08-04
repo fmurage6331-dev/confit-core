@@ -258,8 +258,19 @@ function RegisterPatient() {
       return;
     }
 
-    setSubmitting(true);
+    if (!nationalIdType) {
+      toast.error("ID type is required");
+      scrollTo("demographics");
+      return;
+    }
 
+    if (!nationalId.trim()) {
+      toast.error("ID number is required");
+      scrollTo("demographics");
+      return;
+    }
+
+    setSubmitting(true);
     const patientName = [firstName, middleName, familyName].filter(Boolean).join(" ").trim();
     const hasTests = selectedTests.length > 0;
 
@@ -547,7 +558,7 @@ function RegisterPatient() {
                   onChange={(event) => setNationality(event.target.value)}
                 />
               </Field>
-              <Field label="ID Type">
+              <Field label="ID Type *">
                 <Select value={nationalIdType} onValueChange={setNationalIdType}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select ID type" />
@@ -559,7 +570,7 @@ function RegisterPatient() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="ID Number">
+              <Field label="ID Number *">
                 <Input
                   value={nationalId}
                   onChange={(event) => setNationalId(event.target.value)}
