@@ -1,9 +1,9 @@
 /**
  * LabTrack — Laboratory order detail.
- * Enter results (reusing the same structured-parameter templates as
- * Records), finalize, and route the patient back automatically once every
- * requested test for the visit is complete — same routing RPCs records.new.tsx
- * already uses.
+ * Enter results with a template-driven dynamic parameter form (numeric /
+ * text / select), finalize, and route the patient back automatically once
+ * every requested test for the visit is complete — same routing RPCs
+ * records.new.tsx already uses.
  */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -16,13 +16,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Wand2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ParameterTable } from "@/components/parameter-table";
-import { type StructuredResult, type Parameter } from "@/lib/test-parameters";
+import { type StructuredResult } from "@/lib/test-parameters";
 import { fetchTemplateFor } from "@/lib/test-templates";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/laboratory/$id")({
   component: () => (
@@ -33,6 +40,36 @@ export const Route = createFileRoute("/laboratory/$id")({
     </AppShell>
   ),
 });
+
+/** Parameter template shape stored in lab_test_catalog.parameters (JSONB). */
+type CatalogParameter = {
+  name: string;
+  unit?: string | null;
+  low?: string | number | null;
+  high?: string | number | null;
+  type?: "numeric" | "text" | "select";
+  options?: string[] | null;
+};
+
+type FieldSpec = {
+  name: string;
+  unit: string;
+  low: number | null;
+  high: number | null;
+  type: "numeric" | "text" | "select";
+  options: string[];
+};
+
+type SavedParameter = {
+  name: string;
+  value: string;
+  unit: string;
+  low: number | null;
+  high: number | null;
+  flag?: Flag;
+};
+
+type Flag = "High" | "Low" | "Normal" | "";
 
 type OrderRow = {
   id: string;
@@ -50,17 +87,57 @@ type OrderRow = {
     sex: string | null;
     estimated_age: number | null;
   } | null;
-  lab_test_catalog: { name: string | null; category: string | null } | null;
+  lab_test_catalog: {
+    name: string | null;
+    category: string | null;
+    loinc_code: string | null;
+    parameters: CatalogParameter[] | null;
+  } | null;
   rooms: { name: string | null } | null;
 };
 
 type ResultRow = {
   id: string;
   order_id: string;
-  result: StructuredResult | null;
+  result: (StructuredResult & { parameters: SavedParameter[] }) | null;
   performed_by: string | null;
   reported_at: string | null;
 };
+
+function toNum(v: string | number | null | undefined): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function flagFor(value: string, low: number | null, high: number | null): Flag {
+  const n = parseFloat(value);
+  if (!Number.isFinite(n)) return "";
+  if (high !== null && n > high) return "High";
+  if (low !== null && n < low) return "Low";
+  if (low === null && high === null) return "";
+  return "Normal";
+}
+
+function normalizeSpecs(params: CatalogParameter[]): FieldSpec[] {
+  return params
+    .filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
+    .map((p) => ({
+      name: p.name,
+      unit: p.unit ?? "",
+      low: toNum(p.low),
+      high: toNum(p.high),
+      type: p.type === "text" || p.type === "select" ? p.type : "numeric",
+      options: Array.isArray(p.options) ? p.options.filter(Boolean) : [],
+    }));
+}
+
+/** datetime-local value from an ISO string (or now). */
+function toLocalInput(iso?: string | null): string {
+  const d = iso ? new Date(iso) : new Date();
+  if (Number.isNaN(d.getTime())) return format(new Date(), "yyyy-MM-dd'T'HH:mm");
+  return format(d, "yyyy-MM-dd'T'HH:mm");
+}
 
 function LaboratoryDetail() {
   const { id } = Route.useParams();
@@ -76,7 +153,7 @@ function LaboratoryDetail() {
       const { data, error } = await supabase
         .from("lab_orders")
         .select(
-          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,requested_by_room_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name)",
+          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,requested_by_room_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category,loinc_code,parameters),rooms(name)",
         )
         .eq("id", id)
         .single();
@@ -96,53 +173,107 @@ function LaboratoryDetail() {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return (data ?? null) as ResultRow | null;
+      return (data ?? null) as unknown as ResultRow | null;
     },
     enabled: !!order,
   });
 
-  const [template, setTemplate] = useState<Parameter[] | null>(null);
-  const [structured, setStructured] = useState<StructuredResult | null>(null);
-  const [freeText, setFreeText] = useState("");
+  const loinc = order?.lab_test_catalog?.loinc_code ?? null;
+
+  /** Specs straight from the catalog template. */
+  const catalogSpecs = useMemo<FieldSpec[]>(
+    () => normalizeSpecs(order?.lab_test_catalog?.parameters ?? []),
+    [order?.lab_test_catalog?.parameters],
+  );
+
+  const [fallbackSpecs, setFallbackSpecs] = useState<FieldSpec[] | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState("");
   const [performedBy, setPerformedBy] = useState("");
+  const [reportedAt, setReportedAt] = useState(() => toLocalInput());
 
-  useEffect(() => {
-    setPerformedBy(result?.performed_by ?? user?.email ?? "");
-    if (result?.result) {
-      setStructured(result.result);
-      setFreeText(result.result.summary ?? "");
-    }
-  }, [result, user?.email]);
-
+  // Legacy fallback: reuse the saved test_templates / built-in ranges when the
+  // catalog carries no parameter template.
   useEffect(() => {
     const testName = order?.lab_test_catalog?.name;
-    if (!testName || result) return; // don't clobber an already-saved result
+    if (!testName || catalogSpecs.length > 0) {
+      setFallbackSpecs(null);
+      return;
+    }
     let cancelled = false;
     fetchTemplateFor(testName)
       .then((tpl) => {
         if (cancelled) return;
-        setTemplate(tpl);
-        if (tpl) {
-          setStructured({
-            version: 1,
-            parameters: tpl.map((p) => ({
-              name: p.name,
-              value: "",
-              unit: p.unit,
-              low: p.low,
-              high: p.high,
-            })),
-            summary: "",
-          });
-        }
+        setFallbackSpecs(
+          tpl && tpl.length
+            ? normalizeSpecs(tpl.map((p) => ({ ...p, type: "numeric" as const })))
+            : null,
+        );
       })
       .catch(() => {
-        if (!cancelled) setTemplate(null);
+        if (!cancelled) setFallbackSpecs(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [order?.lab_test_catalog?.name, result]);
+  }, [order?.lab_test_catalog?.name, catalogSpecs.length]);
+
+  const specs = catalogSpecs.length > 0 ? catalogSpecs : (fallbackSpecs ?? []);
+  const hasTemplate = specs.length > 0;
+  const hasNumeric = specs.some((s) => s.type === "numeric");
+
+  // Hydrate from a saved result (values keyed by parameter name).
+  useEffect(() => {
+    setPerformedBy(result?.performed_by ?? user?.email ?? "");
+    setReportedAt(toLocalInput(result?.reported_at));
+    if (result?.result) {
+      setSummary(result.result.summary ?? "");
+      const next: Record<string, string> = {};
+      for (const p of result.result.parameters ?? []) next[p.name] = p.value ?? "";
+      setValues(next);
+    }
+  }, [result, user?.email]);
+
+  const savedParameters = useMemo<SavedParameter[]>(
+    () =>
+      specs.map((s) => {
+        const value = values[s.name] ?? "";
+        return {
+          name: s.name,
+          value,
+          unit: s.unit,
+          low: s.low,
+          high: s.high,
+          flag: s.type === "numeric" ? flagFor(value, s.low, s.high) : "",
+        };
+      }),
+    [specs, values],
+  );
+
+  const abnormalCount = savedParameters.filter(
+    (p) => p.flag === "High" || p.flag === "Low",
+  ).length;
+
+  const setValue = (name: string, value: string) =>
+    setValues((prev) => ({ ...prev, [name]: value }));
+
+  const fillAllNormal = () => {
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const s of specs) {
+        if (s.type !== "numeric") continue;
+        if (s.low !== null && s.high !== null) {
+          const mid = (s.low + s.high) / 2;
+          next[s.name] = String(Number(mid.toFixed(2)));
+        } else if (s.low !== null) {
+          next[s.name] = String(s.low);
+        } else if (s.high !== null) {
+          next[s.name] = String(s.high);
+        }
+      }
+      return next;
+    });
+  };
 
   const updateStatus = useMutation({
     mutationFn: async (status: string) => {
@@ -158,14 +289,16 @@ function LaboratoryDetail() {
 
   const saveResult = useMutation({
     mutationFn: async (opts?: { finalize?: boolean }) => {
+      const reportedIso = reportedAt ? new Date(reportedAt).toISOString() : new Date().toISOString();
       const payload = {
         order_id: id,
-        result:
-          template && structured
-            ? { ...structured, summary: freeText }
-            : ({ version: 1, parameters: [], summary: freeText } as StructuredResult),
+        result: {
+          version: 1,
+          parameters: hasTemplate ? savedParameters : [],
+          summary,
+        } as unknown as StructuredResult,
         performed_by: performedBy.trim() || null,
-        reported_at: opts?.finalize ? new Date().toISOString() : (result?.reported_at ?? null),
+        reported_at: opts?.finalize ? reportedIso : (result?.reported_at ?? null),
       };
       if (result?.id) {
         const { error } = await supabase.from("lab_results").update(payload).eq("id", result.id);
@@ -251,9 +384,12 @@ function LaboratoryDetail() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">{order.lab_test_catalog?.name ?? "Lab order"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {order.order_number ?? ""} · Ordered{" "}
-            {format(new Date(order.ordered_at), "dd MMM yyyy, HH:mm")}
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>
+              {order.order_number ?? ""} · Ordered{" "}
+              {format(new Date(order.ordered_at), "dd MMM yyyy, HH:mm")}
+            </span>
+            {loinc && <LoincBadge code={loinc} />}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -301,10 +437,44 @@ function LaboratoryDetail() {
         </div>
       </div>
 
+      {/* Completed-result summary card */}
+      {result?.reported_at && (
+        <div className="rounded-xl border bg-muted/30 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">
+                  {order.lab_test_catalog?.name ?? "Lab result"}
+                </span>
+                {loinc && <LoincBadge code={loinc} />}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Reported {format(new Date(result.reported_at), "dd MMM yyyy, HH:mm")}
+                {result.performed_by ? ` · by ${result.performed_by}` : ""}
+              </div>
+            </div>
+            <Badge
+              className={
+                abnormalCount > 0
+                  ? "bg-rose-100 text-rose-700 hover:bg-rose-100"
+                  : "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+              }
+            >
+              {abnormalCount > 0
+                ? `${abnormalCount} abnormal value${abnormalCount === 1 ? "" : "s"}`
+                : "All values normal"}
+            </Badge>
+          </div>
+        </div>
+      )}
+
       {order.status !== "declined" ? (
-        <div className="space-y-4 rounded-xl border bg-card p-6 shadow-[var(--shadow-card)]">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Result</h2>
+        <div className="space-y-5 rounded-xl border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold">Result entry</h2>
+              {loinc && <LoincBadge code={loinc} />}
+            </div>
             {result?.reported_at && (
               <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
                 Finalized {format(new Date(result.reported_at), "dd MMM, HH:mm")}
@@ -312,10 +482,27 @@ function LaboratoryDetail() {
             )}
           </div>
 
-          {template && structured ? (
-            <div className="space-y-2">
-              <Label>Parameters</Label>
-              <ParameterTable value={structured} onChange={setStructured} />
+          {hasTemplate ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Parameters</Label>
+                {hasNumeric && canWrite && (
+                  <Button type="button" variant="outline" size="sm" onClick={fillAllNormal}>
+                    <Wand2 className="mr-1 h-4 w-4" /> All normal
+                  </Button>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {specs.map((s) => (
+                  <ParameterField
+                    key={s.name}
+                    spec={s}
+                    value={values[s.name] ?? ""}
+                    disabled={!canWrite}
+                    onChange={(v) => setValue(s.name, v)}
+                  />
+                ))}
+              </div>
             </div>
           ) : (
             <div>
@@ -323,33 +510,48 @@ function LaboratoryDetail() {
               <Textarea
                 id="result"
                 rows={5}
-                value={freeText}
-                onChange={(e) => setFreeText(e.target.value)}
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
                 disabled={!canWrite}
                 placeholder="e.g. Negative / Hb: 12.4 g/dL …"
               />
             </div>
           )}
-          {template && structured && (
+
+          {hasTemplate && (
             <div>
-              <Label htmlFor="summary">Summary / comment</Label>
+              <Label htmlFor="summary">Summary / Interpretation</Label>
               <Textarea
                 id="summary"
-                rows={2}
-                value={freeText}
-                onChange={(e) => setFreeText(e.target.value)}
+                rows={3}
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
                 disabled={!canWrite}
+                placeholder="Overall interpretation, clinical comment…"
               />
             </div>
           )}
-          <div>
-            <Label htmlFor="performed_by">Performed by</Label>
-            <Input
-              id="performed_by"
-              value={performedBy}
-              onChange={(e) => setPerformedBy(e.target.value)}
-              disabled={!canWrite}
-            />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="performed_by">Performed by</Label>
+              <Input
+                id="performed_by"
+                value={performedBy}
+                onChange={(e) => setPerformedBy(e.target.value)}
+                disabled={!canWrite}
+              />
+            </div>
+            <div>
+              <Label htmlFor="reported_at">Reported at</Label>
+              <Input
+                id="reported_at"
+                type="datetime-local"
+                value={reportedAt}
+                onChange={(e) => setReportedAt(e.target.value)}
+                disabled={!canWrite}
+              />
+            </div>
           </div>
 
           {canWrite && (
@@ -372,8 +574,8 @@ function LaboratoryDetail() {
               </Button>
               <Button
                 onClick={() => {
-                  const hasParam = structured?.parameters?.some((p) => p.value?.toString().trim());
-                  if (!hasParam && !freeText.trim()) {
+                  const hasParam = savedParameters.some((p) => p.value.trim() !== "");
+                  if (!hasParam && !summary.trim()) {
                     toast.error("Enter a result before finalizing");
                     return;
                   }
@@ -392,6 +594,95 @@ function LaboratoryDetail() {
         </div>
       )}
     </div>
+  );
+}
+
+function ParameterField({
+  spec,
+  value,
+  disabled,
+  onChange,
+}: {
+  spec: FieldSpec;
+  value: string;
+  disabled: boolean;
+  onChange: (v: string) => void;
+}) {
+  const flag = spec.type === "numeric" ? flagFor(value, spec.low, spec.high) : "";
+  const abnormal = flag === "High" || flag === "Low";
+  const ref =
+    spec.low !== null || spec.high !== null
+      ? `Ref: ${spec.low ?? "—"} – ${spec.high ?? "—"}${spec.unit ? ` ${spec.unit}` : ""}`
+      : spec.unit
+        ? spec.unit
+        : "";
+
+  return (
+    <div className="rounded-lg border bg-background p-3">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <Label className="text-sm font-medium">{spec.name}</Label>
+        <FlagBadge flag={flag} />
+      </div>
+
+      {spec.type === "select" ? (
+        <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {spec.options.map((o) => (
+              <SelectItem key={o} value={o}>
+                {o}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          inputMode={spec.type === "numeric" ? "decimal" : "text"}
+          type={spec.type === "numeric" ? "number" : "text"}
+          step="any"
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            spec.type === "numeric" && "font-mono",
+            abnormal && "border-destructive bg-destructive/10 focus-visible:ring-destructive",
+          )}
+        />
+      )}
+
+      {ref && <div className="mt-1 text-xs text-muted-foreground">{ref}</div>}
+    </div>
+  );
+}
+
+function FlagBadge({ flag }: { flag: Flag }) {
+  if (!flag) return null;
+  if (flag === "High")
+    return (
+      <span className="rounded bg-rose-100 px-1.5 py-0.5 text-xs font-semibold text-rose-700">
+        ▲ High
+      </span>
+    );
+  if (flag === "Low")
+    return (
+      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-semibold text-blue-700">
+        ▼ Low
+      </span>
+    );
+  return (
+    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">
+      ✓ Normal
+    </span>
+  );
+}
+
+function LoincBadge({ code }: { code: string }) {
+  return (
+    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+      LOINC: {code}
+    </span>
   );
 }
 
