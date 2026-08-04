@@ -1260,10 +1260,13 @@ export type Database = {
           insurance_price: number | null
           is_active: boolean
           kind: string
+          loinc_code: string | null
           name: string
+          parameters: Json | null
           price: number
           target_room_id: string | null
           updated_at: string
+          who_edl: boolean | null
         }
         Insert: {
           cash_price?: number | null
@@ -1274,10 +1277,13 @@ export type Database = {
           insurance_price?: number | null
           is_active?: boolean
           kind?: string
+          loinc_code?: string | null
           name: string
+          parameters?: Json | null
           price?: number
           target_room_id?: string | null
           updated_at?: string
+          who_edl?: boolean | null
         }
         Update: {
           cash_price?: number | null
@@ -1288,10 +1294,13 @@ export type Database = {
           insurance_price?: number | null
           is_active?: boolean
           kind?: string
+          loinc_code?: string | null
           name?: string
+          parameters?: Json | null
           price?: number
           target_room_id?: string | null
           updated_at?: string
+          who_edl?: boolean | null
         }
         Relationships: [
           {
@@ -1936,6 +1945,8 @@ export type Database = {
           is_deceased: boolean | null
           marital_status: string | null
           middle_name: string | null
+          national_id: string | null
+          national_id_type: string | null
           nationality: string | null
           next_of_kin: Json | null
           occupation: string | null
@@ -1969,6 +1980,8 @@ export type Database = {
           is_deceased?: boolean | null
           marital_status?: string | null
           middle_name?: string | null
+          national_id?: string | null
+          national_id_type?: string | null
           nationality?: string | null
           next_of_kin?: Json | null
           occupation?: string | null
@@ -2002,6 +2015,8 @@ export type Database = {
           is_deceased?: boolean | null
           marital_status?: string | null
           middle_name?: string | null
+          national_id?: string | null
+          national_id_type?: string | null
           nationality?: string | null
           next_of_kin?: Json | null
           occupation?: string | null
