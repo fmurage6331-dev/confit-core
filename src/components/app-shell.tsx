@@ -5,6 +5,7 @@
  */
 
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode, Fragment } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useBranding } from "@/lib/branding-context";
@@ -135,6 +136,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     })();
   }, [user, isAdmin]);
 
+  const { data: lowStockCount } = useQuery({
+    queryKey: ["low-stock-count"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("stock_items")
+        .select("id, current_quantity, reorder_level")
+        .gt("reorder_level", 0);
+      return (data ?? []).filter((i) => (i.current_quantity ?? 0) <= (i.reorder_level ?? 0)).length;
+    },
+    refetchInterval: 60000,
+  });
+
   if (loading || !user || rolesLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
@@ -225,7 +238,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const moduleItems = [
     { to: "/machines", label: "Machines", icon: Wrench, show: hasPerm("machines") },
     { to: "/deliveries", label: "Deliveries", icon: Truck, show: hasPerm("deliveries") },
-    { to: "/stock", label: "Stock", icon: Package, show: hasPerm("stock") },
+    {
+      to: "/stock",
+      label: "Stock",
+      icon: Package,
+      show: hasPerm("stock"),
+      badge: lowStockCount ?? 0,
+    },
     ...(isAdmin
       ? [
           { to: "/admin/users", label: "Users", icon: Users, show: true },
@@ -480,7 +499,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-type ModuleItem = { to: string; label: string; icon: typeof LayoutDashboard };
+type ModuleItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: number };
 
 function ModulesLauncher({ items }: { items: ModuleItem[] }) {
   const [open, setOpen] = useState(false);
@@ -513,14 +532,23 @@ function ModulesLauncher({ items }: { items: ModuleItem[] }) {
           />
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 max-h-[60vh] overflow-y-auto pr-1">
-          {filtered.map(({ to, label, icon: Icon }) => (
+          {filtered.map(({ to, label, icon: Icon, badge }) => (
             <Link
               key={to}
               to={to as "/dashboard"}
               onClick={() => setOpen(false)}
-              className="flex flex-col items-center justify-center gap-2 rounded-lg border bg-card px-3 py-6 text-center text-sm font-medium hover:bg-accent hover:border-primary/40 transition-colors"
+              className="relative flex flex-col items-center justify-center gap-2 rounded-lg border bg-card px-3 py-6 text-center text-sm font-medium hover:bg-accent hover:border-primary/40 transition-colors"
             >
-              <Icon className="h-6 w-6 text-primary" />
+              {badge && badge > 0 ? (
+                <div className="relative">
+                  <Icon className="h-6 w-6 text-primary" />
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                    {badge > 9 ? "9+" : badge}
+                  </span>
+                </div>
+              ) : (
+                <Icon className="h-6 w-6 text-primary" />
+              )}
               <span className="truncate w-full">{label}</span>
             </Link>
           ))}

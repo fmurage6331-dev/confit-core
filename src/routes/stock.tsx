@@ -30,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertTriangle,
   ArrowRightLeft,
   Boxes,
   ClipboardCheck,
@@ -38,6 +39,7 @@ import {
   Printer,
   Search,
   Store,
+  Trash2,
   Warehouse,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -248,6 +250,15 @@ function StockPage() {
     return (usageRows ?? []).filter((row) => row.location_id === activeLocationId);
   }, [usageRows, activeLocationId]);
 
+  const lowStockItems = useMemo(() => {
+    return (items ?? []).filter(
+      (item) =>
+        item.reorder_level !== null &&
+        item.reorder_level > 0 &&
+        (item.current_quantity ?? 0) <= item.reorder_level,
+    );
+  }, [items]);
+
   const addItem = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
       const { error } = await db.from("stock_items").insert(payload);
@@ -341,6 +352,19 @@ function StockPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const deleteItem = useMutation({
+    mutationFn: async (itemId: string) => {
+      const { error } = await db.from("stock_items").delete().eq("id", itemId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Item deleted.");
+      qc.invalidateQueries({ queryKey: ["stock-items"] });
+      qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const pageLoading = locationsLoading || itemsLoading || balancesLoading;
 
   return (
@@ -355,6 +379,20 @@ function StockPage() {
             Main Store and department stores for Lab, Pharmacy, Radiology, Reception, MCH and FP.
           </p>
         </div>
+
+        {lowStockItems.length > 0 && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold text-amber-900">
+                {lowStockItems.length} item{lowStockItems.length > 1 ? "s" : ""} below reorder level
+              </div>
+              <div className="text-sm text-amber-700 mt-1">
+                {lowStockItems.map((i) => i.name).join(", ")}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => window.print()}>
@@ -870,6 +908,7 @@ function StockPage() {
                     <th className="px-4 py-2">Unit</th>
                     <th className="px-4 py-2 text-right">Quantity</th>
                     <th className="px-4 py-2">Updated</th>
+                    <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
 
@@ -898,6 +937,25 @@ function StockPage() {
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">
                           {formatDate(row.updated_at)}
+                        </td>
+                        <td className="px-4 py-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            disabled={deleteItem.isPending}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Delete "${row.item_name}" from stock? This cannot be undone.`,
+                                )
+                              ) {
+                                deleteItem.mutate(row.item_id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
