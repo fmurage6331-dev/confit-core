@@ -250,9 +250,7 @@ function LaboratoryDetail() {
     [specs, values],
   );
 
-  const abnormalCount = savedParameters.filter(
-    (p) => p.flag === "High" || p.flag === "Low",
-  ).length;
+  const abnormalCount = savedParameters.filter((p) => p.flag === "High" || p.flag === "Low").length;
 
   const setValue = (name: string, value: string) =>
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -289,7 +287,9 @@ function LaboratoryDetail() {
 
   const saveResult = useMutation({
     mutationFn: async (opts?: { finalize?: boolean }) => {
-      const reportedIso = reportedAt ? new Date(reportedAt).toISOString() : new Date().toISOString();
+      const reportedIso = reportedAt
+        ? new Date(reportedAt).toISOString()
+        : new Date().toISOString();
       const payload = {
         order_id: id,
         result: {
