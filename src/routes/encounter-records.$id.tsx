@@ -79,6 +79,7 @@ function EncounterRecordDetail() {
   ].filter((t) => t.show);
 
   const [active, setActive] = useState(tabs[0]?.key ?? "encounter");
+  const [printDischarge, setPrintDischarge] = useState(false);
 
   const enc = useQuery({
     queryKey: ["encounter-detail", id],
@@ -150,6 +151,20 @@ function EncounterRecordDetail() {
     },
   });
 
+  const printDischargeNotes = useQuery({
+    queryKey: ["enc-print-discharge-notes", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clinical_notes")
+        .select("id,content,authored_at,authored_by")
+        .eq("encounter_id", id)
+        .eq("note_type", "discharge_note")
+        .order("authored_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const patientName =
     (enc.data as { patients?: { patient_name?: string } } | null)?.patients?.patient_name ??
     "Encounter";
@@ -184,10 +199,25 @@ function EncounterRecordDetail() {
             <p className="text-sm text-muted-foreground">Encounter records</p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => window.print()}>
-          <Printer className="mr-2 h-4 w-4" />
-          Print full encounter
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setPrintDischarge(true);
+              setTimeout(() => {
+                window.print();
+                setPrintDischarge(false);
+              }, 100);
+            }}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print discharge summary
+          </Button>
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print full encounter
+          </Button>
+        </div>
       </div>
 
       {/* ── screen tabs ── */}
@@ -250,13 +280,21 @@ function EncounterRecordDetail() {
           PRINT-ONLY VIEW — hidden on screen, visible when printing
           ══════════════════════════════════════════════════════════ */}
       <div className="hidden print:block">
-        <PrintableEncounterView
-          enc={enc.data}
-          labOrders={(printLab.data ?? []) as unknown as LabOrderPrint[]}
-          radOrders={printRad.data ?? []}
-          radResultMap={radResultMap}
-          prescriptions={printRx.data ?? []}
-        />
+        {printDischarge ? (
+          <DischargeSummaryPrintView
+            enc={enc.data}
+            prescriptions={printRx.data ?? []}
+            dischargeNotes={(printDischargeNotes.data ?? []) as DischargeNote[]}
+          />
+        ) : (
+          <PrintableEncounterView
+            enc={enc.data}
+            labOrders={(printLab.data ?? []) as unknown as LabOrderPrint[]}
+            radOrders={printRad.data ?? []}
+            radResultMap={radResultMap}
+            prescriptions={printRx.data ?? []}
+          />
+        )}
       </div>
     </div>
   );
@@ -683,6 +721,166 @@ function PrintableEncounterView({
         <div>
           <div className="border-b border-black pb-8" />
           <div className="mt-1">Clinician Signature</div>
+        </div>
+        <div>
+          <div className="border-b border-black pb-8" />
+          <div className="mt-1">Designation</div>
+        </div>
+        <div>
+          <div className="border-b border-black pb-8" />
+          <div className="mt-1">Date</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Discharge Summary Print View ── */
+
+type DischargeNote = {
+  id: string;
+  content: string;
+  authored_at: string;
+  authored_by: string | null;
+};
+
+function DischargeSummaryPrintView({
+  enc,
+  prescriptions,
+  dischargeNotes,
+}: {
+  enc: unknown;
+  prescriptions: RxPrint[];
+  dischargeNotes: DischargeNote[];
+}) {
+  if (!enc) return null;
+
+  const e = enc as Record<string, unknown> & {
+    patients?: Record<string, unknown> | null;
+  };
+  const p = e.patients ?? {};
+
+  type DiagnosisType = {
+    icd11_code?: string;
+    description?: string;
+    notes?: string;
+  };
+
+  const diagnoses = (e.diagnoses ?? []) as DiagnosisType[];
+
+  return (
+    <div className="text-sm text-black space-y-6 font-sans">
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between border-b-2 border-black pb-3">
+        <div>
+          <div className="text-xl font-bold">AegisCare / LabTrack</div>
+          <div className="text-xs text-gray-500 font-semibold uppercase tracking-widest">
+            Discharge Summary
+          </div>
+        </div>
+        <div className="text-right text-xs text-gray-500">
+          <div>Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}</div>
+          <div>
+            Encounter ID:{" "}
+            {String(e.id ?? "—")
+              .slice(0, 8)
+              .toUpperCase()}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Patient info ── */}
+      <PrintSection title="Patient Information">
+        <PrintGrid>
+          <PrintField label="Patient name" value={String(p.patient_name ?? "—")} />
+          <PrintField label="File #" value={String(p.file_number ?? "—")} />
+          <PrintField label="Sex" value={String(p.sex ?? "—")} />
+          <PrintField label="Phone" value={String(p.phone ?? "—")} />
+          <PrintField label="Date of birth" value={fmtDate(p.date_of_birth as string)} />
+          <PrintField label="Encounter date" value={fmt(e.created_at as string)} />
+          <PrintField label="Discharge date" value={fmt(e.updated_at as string)} />
+          <PrintField label="Payment mode" value={String(e.payment_mode ?? "—")} />
+        </PrintGrid>
+      </PrintSection>
+
+      {/* ── Diagnoses ── */}
+      {diagnoses.length > 0 && (
+        <PrintSection title="Diagnoses (ICD-11)">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-gray-300 text-xs uppercase text-gray-500">
+                <th className="py-1 text-left pr-4">ICD-11 Code</th>
+                <th className="py-1 text-left pr-4">Description</th>
+                <th className="py-1 text-left">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {diagnoses.map((d, i) => (
+                <tr key={i} className="border-b border-gray-100">
+                  <td className="py-1.5 pr-4 font-mono font-medium">{d.icd11_code || "—"}</td>
+                  <td className="py-1.5 pr-4">{d.description || "—"}</td>
+                  <td className="py-1.5 text-gray-500">{d.notes || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </PrintSection>
+      )}
+
+      {/* ── Discharge notes / treatment ── */}
+      {dischargeNotes.length > 0 && (
+        <PrintSection title="Discharge Notes &amp; Treatment">
+          {dischargeNotes.map((n) => (
+            <div key={n.id} className="mb-3">
+              <div className="text-xs text-gray-400 mb-1">{fmt(n.authored_at)}</div>
+              <div className="whitespace-pre-wrap text-sm border-l-2 border-gray-300 pl-3">
+                {n.content}
+              </div>
+            </div>
+          ))}
+        </PrintSection>
+      )}
+
+      {/* ── Medications ── */}
+      {prescriptions.length > 0 && (
+        <PrintSection title="Medications Prescribed">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-gray-300 text-xs uppercase text-gray-500">
+                <th className="py-1 text-left pr-3">Drug</th>
+                <th className="py-1 text-left pr-3">Dosage</th>
+                <th className="py-1 text-left pr-3">Frequency</th>
+                <th className="py-1 text-left pr-3">Duration</th>
+                <th className="py-1 text-right">Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              {prescriptions.map((rx) => (
+                <tr key={rx.id} className="border-b border-gray-100">
+                  <td className="py-1.5 pr-3 font-medium">{rx.drug_name}</td>
+                  <td className="py-1.5 pr-3">{rx.dosage ?? "—"}</td>
+                  <td className="py-1.5 pr-3">{rx.frequency ?? "—"}</td>
+                  <td className="py-1.5 pr-3">{rx.duration ?? "—"}</td>
+                  <td className="py-1.5 text-right">{rx.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </PrintSection>
+      )}
+
+      {/* ── Follow-up ── */}
+      <PrintSection title="Follow-up Instructions">
+        <div className="border border-gray-300 rounded p-3 min-h-16 text-sm text-gray-400 italic">
+          As advised by clinician
+        </div>
+      </PrintSection>
+
+      {/* ── Signature block ── */}
+      <div className="mt-10 grid grid-cols-3 gap-8 text-xs text-gray-500 border-t border-gray-300 pt-4">
+        <div>
+          <div className="border-b border-black pb-8" />
+          <div className="mt-1">Discharging Clinician Signature</div>
         </div>
         <div>
           <div className="border-b border-black pb-8" />
