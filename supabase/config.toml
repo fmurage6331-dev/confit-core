@@ -1,3 +1,15 @@
 project_id = "tgynjasgnerucrlwedui"
 
 [functions.icd11-search]
+
+[functions.fhir-patient]
+verify_jwt = true
+
+[functions.fhir-encounter]
+verify_jwt = true
+
+[functions.fhir-condition]
+verify_jwt = true
+
+[functions.claims-dispatcher]
+verify_jwt = true
