@@ -218,7 +218,10 @@ function LaboratoryDetail() {
     };
   }, [order?.lab_test_catalog?.name, catalogSpecs.length]);
 
-  const specs = catalogSpecs.length > 0 ? catalogSpecs : (fallbackSpecs ?? []);
+  const specs = useMemo<FieldSpec[]>(
+    () => (catalogSpecs.length > 0 ? catalogSpecs : (fallbackSpecs ?? [])),
+    [catalogSpecs, fallbackSpecs],
+  );
   const hasTemplate = specs.length > 0;
   const hasNumeric = specs.some((s) => s.type === "numeric");
 
