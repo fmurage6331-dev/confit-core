@@ -1931,8 +1931,9 @@ function InsuranceDialog({
         .eq("id", reg.patient_id);
     }
 
+    // Update encounter claim fields (must update encounters directly — patient_registrations is a view)
     const { error } = await supabase
-      .from("patient_registrations")
+      .from("encounters")
       .update({
         sha_notification_number: shaNotificationNumber.trim() || null,
         preauth_number: preauthNumber.trim() || null,
@@ -1981,8 +1982,9 @@ function InsuranceDialog({
       return;
     }
 
+    // Update claim status on encounter
     await supabase
-      .from("patient_registrations")
+      .from("encounters")
       .update({ claim_status: "submitted", claim_submitted_at: new Date().toISOString() } as never)
       .eq("id", reg.id);
 
