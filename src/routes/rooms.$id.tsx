@@ -115,6 +115,14 @@ type Reg = {
   payment_status: "unpaid" | "paid" | "waived" | "partial";
   status: "waiting" | "in_progress" | "done" | "cancelled";
   created_at: string;
+  sha_member_number: string | null;
+  sha_relationship_to_principal: string | null;
+  sha_notification_number: string | null;
+  preauth_number: string | null;
+  claim_number: string | null;
+  claim_status: string | null;
+  insurance_provider_id: string | null;
+  insurer_type: string | null;
 };
 type Service = {
   id: string;
@@ -225,7 +233,7 @@ function RoomPage() {
     const { data, error } = await supabase
       .from("patient_registrations")
       .select(
-        "id,patient_id,patient_name,file_number,from_room,tests,vitals,history,diagnoses,payment_mode,insurance_coverage_percentage,payment_status,status,created_at",
+        "id,patient_id,patient_name,file_number,from_room,tests,vitals,history,diagnoses,payment_mode,insurance_coverage_percentage,payment_status,status,created_at,sha_member_number,sha_relationship_to_principal,sha_notification_number,preauth_number,claim_number,claim_status,insurance_provider_id,insurer_type",
       )
       .eq("current_room_id", id)
       .neq("status", "done")
@@ -335,6 +343,11 @@ function RoomPage() {
     if (kind === "consultation") return "Consult";
     if (kind === "pharmacy") return "Dispense";
     if (kind === "billing") return "Open in Accounting";
+    if (
+      kind === "general" &&
+      (room?.name?.toLowerCase().includes("insurance") || room?.name?.toLowerCase().includes("sha"))
+    )
+      return "Process Claim";
     return "Request services";
   }
 
@@ -605,17 +618,33 @@ function RoomPage() {
           }}
         />
       )}
-      {openReg && kind === "general" && (
-        <RequestServicesDialog
-          reg={openReg}
-          roomId={id}
-          onClose={() => setOpenReg(null)}
-          onSaved={() => {
-            setOpenReg(null);
-            loadRequests();
-          }}
-        />
-      )}
+      {openReg &&
+        kind === "general" &&
+        !room.name.toLowerCase().includes("insurance") &&
+        !room.name.toLowerCase().includes("sha") && (
+          <RequestServicesDialog
+            reg={openReg}
+            roomId={id}
+            onClose={() => setOpenReg(null)}
+            onSaved={() => {
+              setOpenReg(null);
+              loadRequests();
+            }}
+          />
+        )}
+      {openReg &&
+        kind === "general" &&
+        (room.name.toLowerCase().includes("insurance") ||
+          room.name.toLowerCase().includes("sha")) && (
+          <InsuranceDialog
+            reg={openReg}
+            onClose={() => setOpenReg(null)}
+            onSaved={() => {
+              setOpenReg(null);
+              loadRequests();
+            }}
+          />
+        )}
     </div>
   );
 }
@@ -1861,6 +1890,246 @@ function PharmacyDialog({
       <div className="hidden print:block fixed inset-0 bg-white p-8 z-50">
         <PrescriptionPrintSlip reg={reg} rxs={rxs} />
       </div>
+    </Dialog>
+  );
+}
+
+/* ======================== SHA / INSURANCE DESK ======================== */
+
+function InsuranceDialog({
+  reg,
+  onClose,
+  onSaved,
+}: {
+  reg: Reg;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [shaMemberNumber, setShaMemberNumber] = useState(reg.sha_member_number ?? "");
+  const [shaRelationship, setShaRelationship] = useState(reg.sha_relationship_to_principal ?? "");
+  const [shaNotificationNumber, setShaNotificationNumber] = useState(
+    reg.sha_notification_number ?? "",
+  );
+  const [preauthNumber, setPreauthNumber] = useState(reg.preauth_number ?? "");
+  const [claimNumber, setClaimNumber] = useState(reg.claim_number ?? "");
+  const [claimStatus, setClaimStatus] = useState(reg.claim_status ?? "pending");
+  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const isSha = reg.insurer_type === "sha_shif" || reg.payment_mode === "insurance";
+
+  async function save() {
+    setSaving(true);
+
+    if (reg.patient_id) {
+      await supabase
+        .from("patients")
+        .update({
+          sha_member_number: shaMemberNumber.trim() || null,
+          sha_relationship_to_principal: shaRelationship || null,
+        } as never)
+        .eq("id", reg.patient_id);
+    }
+
+    const { error } = await supabase
+      .from("patient_registrations")
+      .update({
+        sha_notification_number: shaNotificationNumber.trim() || null,
+        preauth_number: preauthNumber.trim() || null,
+        claim_number: claimNumber.trim() || null,
+        claim_status: claimStatus || null,
+      } as never)
+      .eq("id", reg.id);
+
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Claim details saved");
+    onSaved();
+  }
+
+  async function submitClaim() {
+    if (!shaNotificationNumber.trim() && isSha) {
+      toast.error("SHA notification number is required before submitting");
+      return;
+    }
+    setSubmitting(true);
+
+    const { error } = await supabase.from("dha_outbound_queue" as never).insert({
+      encounter_id: reg.id,
+      patient_id: reg.patient_id,
+      queue_type: reg.insurer_type === "sha_shif" ? "sha_claim" : "private_claim",
+      insurer_type: reg.insurer_type,
+      payload: {
+        sha_member_number: shaMemberNumber,
+        sha_notification_number: shaNotificationNumber,
+        preauth_number: preauthNumber,
+        claim_number: claimNumber,
+        patient_name: reg.patient_name,
+        file_number: reg.file_number,
+        submitted_from: "insurance_desk",
+      },
+      status: "pending",
+      attempts: 0,
+    } as never);
+
+    if (error) {
+      toast.error(error.message);
+      setSubmitting(false);
+      return;
+    }
+
+    await supabase
+      .from("patient_registrations")
+      .update({ claim_status: "submitted", claim_submitted_at: new Date().toISOString() } as never)
+      .eq("id", reg.id);
+
+    setClaimStatus("submitted");
+    setSubmitting(false);
+    toast.success("Claim submitted to queue — awaiting Phase 3 API activation");
+    onSaved();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>SHA / Insurance Desk — {reg.patient_name}</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+          <div className="rounded-lg bg-muted/30 border p-4 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">File #</div>
+              <div className="font-medium">{reg.file_number ?? "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">Payment mode</div>
+              <div className="font-medium capitalize">{reg.payment_mode}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">Claim status</div>
+              <div
+                className={`font-medium capitalize ${
+                  claimStatus === "approved"
+                    ? "text-emerald-600"
+                    : claimStatus === "rejected"
+                      ? "text-red-600"
+                      : claimStatus === "submitted"
+                        ? "text-blue-600"
+                        : "text-amber-600"
+                }`}
+              >
+                {claimStatus ?? "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">Payment status</div>
+              <div className="font-medium capitalize">{reg.payment_status}</div>
+            </div>
+          </div>
+
+          {isSha && (
+            <Section title="SHA Member Details">
+              <Grid>
+                <div>
+                  <Label>SHA Member Number</Label>
+                  <Input
+                    value={shaMemberNumber}
+                    onChange={(e) => setShaMemberNumber(e.target.value)}
+                    placeholder="e.g. SHA/M/123456"
+                  />
+                </div>
+                <div>
+                  <Label>Relationship to Principal</Label>
+                  <Select value={shaRelationship} onValueChange={setShaRelationship}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select relationship" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="self">Self (Principal)</SelectItem>
+                      <SelectItem value="spouse">Spouse</SelectItem>
+                      <SelectItem value="child">Child</SelectItem>
+                      <SelectItem value="other_dependent">Other Dependent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>SHA Notification Number</Label>
+                  <Input
+                    value={shaNotificationNumber}
+                    onChange={(e) => setShaNotificationNumber(e.target.value)}
+                    placeholder="e.g. SHA/N/2026/001234"
+                  />
+                </div>
+                <div>
+                  <Label>Pre-authorization Number</Label>
+                  <Input
+                    value={preauthNumber}
+                    onChange={(e) => setPreauthNumber(e.target.value)}
+                    placeholder="e.g. PA/2026/001234"
+                  />
+                </div>
+              </Grid>
+            </Section>
+          )}
+
+          <Section title="Claim Details">
+            <Grid>
+              <div>
+                <Label>Claim Number</Label>
+                <Input
+                  value={claimNumber}
+                  onChange={(e) => setClaimNumber(e.target.value)}
+                  placeholder="Auto-assigned or manual"
+                />
+              </div>
+              <div>
+                <Label>Claim Status</Label>
+                <Select value={claimStatus} onValueChange={setClaimStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="submitted">Submitted</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="appealed">Appealed</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </Grid>
+          </Section>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+            <div className="font-semibold mb-1">Phase 3 — API Integration Pending</div>
+            <div className="text-xs">
+              Claims are queued locally. External submission to SHA portal and private insurer
+              systems will activate automatically when API credentials are configured.
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="outline" onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save details"}
+          </Button>
+          <Button onClick={submitClaim} disabled={submitting || claimStatus === "submitted"}>
+            {submitting
+              ? "Submitting…"
+              : claimStatus === "submitted"
+                ? "Already submitted"
+                : "Submit claim"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }
