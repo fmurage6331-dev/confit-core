@@ -137,12 +137,17 @@ function ReportsPage() {
   const [quarter, setQuarter] = useState(Math.floor(now.getMonth() / 3) + 1);
   const [openFund, setOpenFund] = useState(false);
   const [selectedMohPrintReport, setSelectedMohPrintReport] = useState("/moh/705");
+  const [censusFrom, setCensusFrom] = useState(
+    new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10),
+  );
+  const [censusTo, setCensusTo] = useState(now.toISOString().slice(0, 10));
 
   const qc = useQueryClient();
 
   const q = QUARTERS.find((item) => item.v === quarter) ?? QUARTERS[0];
   const startDate = new Date(year, q.months[0], 1).toISOString().slice(0, 10);
   const endDate = new Date(year, q.months[2] + 1, 0).toISOString().slice(0, 10);
+  const hasValidCensusRange = censusFrom <= censusTo;
 
   const { data: tests } = useQuery({
     queryKey: ["report_tests", year, quarter],
@@ -189,6 +194,41 @@ function ReportsPage() {
       return (data ?? []) as RegistrationReportRow[];
     },
   });
+
+  const { data: census, isLoading: censusLoading } = useQuery({
+    queryKey: ["report_census", censusFrom, censusTo],
+    enabled: canRegistrations && hasValidCensusRange,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("daily_patient_census" as never)
+        .select("*")
+        .gte("visit_date", censusFrom)
+        .lte("visit_date", censusTo)
+        .order("visit_date", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as {
+        visit_date: string;
+        room_name: string | null;
+        room_kind: string | null;
+        patient_count: number;
+        emergency_count: number;
+        insurance_count: number;
+        cash_count: number;
+        free_count: number;
+      }[];
+    },
+  });
+
+  const censusTotals = useMemo(() => {
+    const rows = census ?? [];
+    return {
+      total: rows.reduce((s, r) => s + Number(r.patient_count), 0),
+      emergency: rows.reduce((s, r) => s + Number(r.emergency_count), 0),
+      insurance: rows.reduce((s, r) => s + Number(r.insurance_count), 0),
+      cash: rows.reduce((s, r) => s + Number(r.cash_count), 0),
+      free: rows.reduce((s, r) => s + Number(r.free_count), 0),
+    };
+  }, [census]);
 
   const { data: stockMoves } = useQuery({
     queryKey: ["report_stock", year, quarter],
@@ -702,6 +742,97 @@ function ReportsPage() {
               </tfoot>
             )}
           </table>
+        </div>
+      )}
+
+      {canRegistrations && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Daily Patient Census
+            </h2>
+            {!hasValidCensusRange && (
+              <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700">
+                Please choose a valid date range.
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">From</Label>
+              <Input
+                type="date"
+                value={censusFrom}
+                onChange={(e) => setCensusFrom(e.target.value)}
+                className="w-36 h-8 text-sm"
+              />
+              <Label className="text-xs">To</Label>
+              <Input
+                type="date"
+                value={censusTo}
+                onChange={(e) => setCensusTo(e.target.value)}
+                className="w-36 h-8 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <Stat label="Total visits" value={String(censusTotals.total)} />
+            <Stat label="Emergency" value={String(censusTotals.emergency)} tone="rose" />
+            <Stat label="Cash" value={String(censusTotals.cash)} />
+            <Stat label="Insurance" value={String(censusTotals.insurance)} />
+            <Stat label="Free / Waived" value={String(censusTotals.free)} />
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-2">Room</th>
+                  <th className="px-4 py-2">Kind</th>
+                  <th className="px-4 py-2 text-right">Patients</th>
+                  <th className="px-4 py-2 text-right">Emergency</th>
+                  <th className="px-4 py-2 text-right">Cash</th>
+                  <th className="px-4 py-2 text-right">Insurance</th>
+                  <th className="px-4 py-2 text-right">Free</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {censusLoading && (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                      Loading…
+                    </td>
+                  </tr>
+                )}
+                {!censusLoading && (census ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                      No data for selected date range.
+                    </td>
+                  </tr>
+                )}
+                {(census ?? []).map((row, i) => (
+                  <tr key={i} className="hover:bg-muted/40">
+                    <td className="px-4 py-2 font-medium">{row.visit_date}</td>
+                    <td className="px-4 py-2">{row.room_name ?? "—"}</td>
+                    <td className="px-4 py-2 text-muted-foreground capitalize">
+                      {row.room_kind ?? "—"}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono font-semibold">
+                      {row.patient_count}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-rose-600">
+                      {row.emergency_count || "—"}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono">{row.cash_count || "—"}</td>
+                    <td className="px-4 py-2 text-right font-mono">{row.insurance_count || "—"}</td>
+                    <td className="px-4 py-2 text-right font-mono">{row.free_count || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
