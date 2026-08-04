@@ -29,7 +29,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, ClipboardList, Banknote, Shield, HeartHandshake } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  ClipboardList,
+  Banknote,
+  Shield,
+  HeartHandshake,
+  Printer,
+} from "lucide-react";
 
 export const Route = createFileRoute("/patients/$id")({
   component: () => (
@@ -60,6 +68,8 @@ type Patient = {
   occupation: string | null;
   marital_status: string | null;
   nationality: string | null;
+  national_id: string | null;
+  national_id_type: string | null;
   next_of_kin: unknown;
   is_deceased: boolean | null;
   date_of_death: string | null;
@@ -133,15 +143,25 @@ function PatientProfile() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/patients" })}>
           <ArrowLeft className="mr-1 h-4 w-4" /> Patients
         </Button>
-        <NewEncounterDialog patientId={patient.id} patientName={name} />
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="mr-1 h-4 w-4" /> Print outpatient card
+          </Button>
+          <NewEncounterDialog patientId={patient.id} patientName={name} />
+        </div>
+      </div>
+
+      {/* Print-only outpatient card */}
+      <div className="hidden print:block">
+        <OutpatientCard patient={patient} name={name} kok={kok} />
       </div>
 
       {/* Demographics card */}
-      <div className="rounded-xl border bg-card p-6">
+      <div className="rounded-xl border bg-card p-6 print:hidden">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">{name}</h1>
@@ -189,7 +209,7 @@ function PatientProfile() {
       </div>
 
       {/* Encounter history */}
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-xl border bg-card print:hidden">
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
@@ -268,6 +288,126 @@ function PatientProfile() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function OutpatientCard({
+  patient,
+  name,
+  kok,
+}: {
+  patient: Patient;
+  name: string;
+  kok: { name?: string; relation?: string; phone?: string } | null;
+}) {
+  const idTypeLabel = (t: string | null) => {
+    if (t === "national_id") return "National ID";
+    if (t === "passport") return "Passport";
+    if (t === "birth_certificate") return "Birth Certificate";
+    return t ?? "—";
+  };
+
+  return (
+    <div className="text-sm text-black font-sans border-2 border-black rounded-lg p-6 max-w-2xl mx-auto">
+      <div className="flex items-start justify-between border-b-2 border-black pb-3 mb-4">
+        <div>
+          <div className="text-xl font-bold">AegisCare / LabTrack</div>
+          <div className="text-xs uppercase tracking-widest text-gray-500 font-semibold">
+            Outpatient Card
+          </div>
+        </div>
+        <div className="text-right text-xs text-gray-500">
+          <div>Printed: {new Date().toLocaleDateString()}</div>
+          {patient.file_number && (
+            <div className="font-mono font-bold text-black text-sm mt-1">
+              File # {patient.file_number}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
+        <CardField label="Full Name" value={name} />
+        <CardField label="Sex" value={patient.sex ?? "—"} />
+        <CardField
+          label="Date of Birth"
+          value={
+            patient.date_of_birth
+              ? new Date(patient.date_of_birth).toLocaleDateString()
+              : patient.estimated_age
+                ? `~${patient.estimated_age} yrs`
+                : "—"
+          }
+        />
+        <CardField label="Phone" value={patient.phone ?? "—"} />
+        <CardField label="Nationality" value={patient.nationality ?? "—"} />
+        <CardField label="Occupation" value={patient.occupation ?? "—"} />
+        <CardField label="Marital Status" value={patient.marital_status ?? "—"} />
+        <CardField
+          label="Address"
+          value={
+            [patient.address_line1, patient.city, patient.county].filter(Boolean).join(", ") || "—"
+          }
+        />
+        <CardField
+          label={idTypeLabel(patient.national_id_type)}
+          value={patient.national_id ?? "—"}
+        />
+        <CardField label="Registered" value={new Date(patient.created_at).toLocaleDateString()} />
+      </div>
+
+      {kok?.name && (
+        <div className="border-t border-gray-300 pt-3 mb-4">
+          <div className="text-xs uppercase tracking-wide text-gray-500 mb-2 font-semibold">
+            Next of Kin
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <CardField label="Name" value={kok.name ?? "—"} />
+            <CardField label="Relationship" value={kok.relation ?? "—"} />
+            <CardField label="Phone" value={kok.phone ?? "—"} />
+          </div>
+        </div>
+      )}
+
+      <div className="border-t border-gray-300 pt-3">
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2 font-semibold">
+          Visit Log
+        </div>
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-gray-400">
+              <th className="py-1 text-left pr-4">Date</th>
+              <th className="py-1 text-left pr-4">Clinician</th>
+              <th className="py-1 text-left pr-4">Diagnosis</th>
+              <th className="py-1 text-right">Signature</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <tr key={i} className="border-b border-gray-200">
+                <td className="py-2 pr-4 text-gray-300">— — —</td>
+                <td className="py-2 pr-4 text-gray-300">— — —</td>
+                <td className="py-2 pr-4 text-gray-300">— — —</td>
+                <td className="py-2 text-gray-300 text-right">— — —</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="border-t border-gray-300 pt-3 mt-3 text-xs text-gray-400 text-center">
+        This card is the property of AegisCare / LabTrack. Please bring it to every visit.
+      </div>
+    </div>
+  );
+}
+
+function CardField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wide text-gray-400">{label}</div>
+      <div className="font-medium">{value}</div>
     </div>
   );
 }
