@@ -157,7 +157,7 @@ function PatientProfile() {
 
       {/* Print-only outpatient card */}
       <div className="hidden print:block">
-        <OutpatientCard patient={patient} name={name} kok={kok} />
+        <OutpatientCard patient={patient} name={name} kok={kok} encounters={encounters ?? []} />
       </div>
 
       {/* Demographics card */}
@@ -296,10 +296,12 @@ function OutpatientCard({
   patient,
   name,
   kok,
+  encounters,
 }: {
   patient: Patient;
   name: string;
   kok: { name?: string; relation?: string; phone?: string } | null;
+  encounters: Encounter[];
 }) {
   const idTypeLabel = (t: string | null) => {
     if (t === "national_id") return "National ID";
@@ -378,18 +380,41 @@ function OutpatientCard({
           <thead>
             <tr className="border-b border-gray-400">
               <th className="py-1 text-left pr-4">Date</th>
-              <th className="py-1 text-left pr-4">Clinician</th>
-              <th className="py-1 text-left pr-4">Diagnosis</th>
-              <th className="py-1 text-right">Signature</th>
+              <th className="py-1 text-left pr-4">Type</th>
+              <th className="py-1 text-left pr-4">Status</th>
+              <th className="py-1 text-left pr-4">Payment</th>
+              <th className="py-1 text-right">Balance (KSh)</th>
             </tr>
           </thead>
           <tbody>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <tr key={i} className="border-b border-gray-200">
-                <td className="py-2 pr-4 text-gray-300">— — —</td>
-                <td className="py-2 pr-4 text-gray-300">— — —</td>
-                <td className="py-2 pr-4 text-gray-300">— — —</td>
-                <td className="py-2 text-gray-300 text-right">— — —</td>
+            {encounters.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-3 text-center text-gray-400">
+                  No visits recorded yet.
+                </td>
+              </tr>
+            )}
+            {encounters.map((e) => {
+              const bal = Number(e.patient_due ?? 0) - Number(e.amount_paid ?? 0);
+              return (
+                <tr key={e.id} className="border-b border-gray-200">
+                  <td className="py-1.5 pr-4">{new Date(e.created_at).toLocaleDateString()}</td>
+                  <td className="py-1.5 pr-4 capitalize">{e.encounter_type || "visit"}</td>
+                  <td className="py-1.5 pr-4 capitalize">{e.status || "—"}</td>
+                  <td className="py-1.5 pr-4 capitalize">{e.payment_mode || "—"}</td>
+                  <td className={`py-1.5 text-right tabular-nums ${bal > 0 ? "font-bold" : ""}`}>
+                    {bal.toFixed(2)}
+                  </td>
+                </tr>
+              );
+            })}
+            {[...Array(Math.max(0, 5 - encounters.length))].map((_, i) => (
+              <tr key={`blank-${i}`} className="border-b border-gray-200">
+                <td className="py-2 pr-4 text-gray-200">— — —</td>
+                <td className="py-2 pr-4 text-gray-200">— — —</td>
+                <td className="py-2 pr-4 text-gray-200">— — —</td>
+                <td className="py-2 pr-4 text-gray-200">— — —</td>
+                <td className="py-2 text-gray-200 text-right">— — —</td>
               </tr>
             ))}
           </tbody>
