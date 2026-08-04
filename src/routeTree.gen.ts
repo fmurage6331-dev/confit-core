@@ -23,6 +23,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DeliveriesRouteImport } from './routes/deliveries'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as AppointmentsRouteImport } from './routes/appointments'
 import { Route as AccountingRouteImport } from './routes/accounting'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
@@ -132,6 +133,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
   id: '/change-password',
   path: '/change-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppointmentsRoute = AppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountingRoute = AccountingRouteImport.update({
@@ -342,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/accounting': typeof AccountingRoute
+  '/appointments': typeof AppointmentsRoute
   '/change-password': typeof ChangePasswordRoute
   '/dashboard': typeof DashboardRoute
   '/deliveries': typeof DeliveriesRoute
@@ -398,6 +405,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/accounting': typeof AccountingRoute
+  '/appointments': typeof AppointmentsRoute
   '/change-password': typeof ChangePasswordRoute
   '/dashboard': typeof DashboardRoute
   '/deliveries': typeof DeliveriesRoute
@@ -454,6 +462,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/accounting': typeof AccountingRoute
+  '/appointments': typeof AppointmentsRoute
   '/change-password': typeof ChangePasswordRoute
   '/dashboard': typeof DashboardRoute
   '/deliveries': typeof DeliveriesRoute
@@ -512,6 +521,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/accounting'
+    | '/appointments'
     | '/change-password'
     | '/dashboard'
     | '/deliveries'
@@ -568,6 +578,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/accounting'
+    | '/appointments'
     | '/change-password'
     | '/dashboard'
     | '/deliveries'
@@ -623,6 +634,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/accounting'
+    | '/appointments'
     | '/change-password'
     | '/dashboard'
     | '/deliveries'
@@ -680,6 +692,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   AccountingRoute: typeof AccountingRoute
+  AppointmentsRoute: typeof AppointmentsRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
   DashboardRoute: typeof DashboardRoute
   DeliveriesRoute: typeof DeliveriesRoute
@@ -822,6 +835,13 @@ declare module '@tanstack/react-router' {
       path: '/change-password'
       fullPath: '/change-password'
       preLoaderRoute: typeof ChangePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/appointments': {
+      id: '/appointments'
+      path: '/appointments'
+      fullPath: '/appointments'
+      preLoaderRoute: typeof AppointmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accounting': {
@@ -1137,6 +1157,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   AccountingRoute: AccountingRoute,
+  AppointmentsRoute: AppointmentsRoute,
   ChangePasswordRoute: ChangePasswordRoute,
   DashboardRoute: DashboardRoute,
   DeliveriesRoute: DeliveriesRoute,

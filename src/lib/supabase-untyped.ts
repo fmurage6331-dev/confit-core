@@ -6,11 +6,18 @@ type SupabaseErrorLike = {
 
 type QueryResult<T = unknown> = {
   data: T | null;
+  count?: number | null;
   error: SupabaseErrorLike | null;
 };
 
 type QueryBuilder<T = unknown> = PromiseLike<QueryResult<T>> & {
-  select: (columns?: string) => QueryBuilder<T>;
+  select: (
+    columns?: string,
+    options?: {
+      count?: "exact" | "planned" | "estimated";
+      head?: boolean;
+    },
+  ) => QueryBuilder<T>;
   eq: (column: string, value: unknown) => QueryBuilder<T>;
   neq: (column: string, value: unknown) => QueryBuilder<T>;
   in: (column: string, values: readonly unknown[]) => QueryBuilder<T>;

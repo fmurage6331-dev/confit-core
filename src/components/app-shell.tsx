@@ -48,6 +48,7 @@ import {
   BedDouble,
   FolderOpen,
   Activity,
+  CalendarDays,
   ChevronDown,
 } from "lucide-react";
 
@@ -199,6 +200,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       show: hasPerm("register_patient"),
     },
     { to: "/queue", label: "Today's queue", icon: Users2, show: hasPerm("view_queue") },
+    {
+      to: "/appointments",
+      label: "Appointments",
+      icon: CalendarDays,
+      show: hasPerm("appointments_view") || hasPerm("register_patient"),
+    },
     { to: "/accounting", label: "Accounting", icon: Wallet, show: hasPerm("accounting") },
     { to: "/invoices", label: "Invoices", icon: FileText, show: hasPerm("accounting") },
 
