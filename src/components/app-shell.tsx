@@ -51,6 +51,7 @@ import {
   CalendarDays,
   ChevronDown,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, loading, signOut, isApproved, isAdmin, hasPerm, rolesLoading } = useAuth();
@@ -84,8 +85,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       timer = setTimeout(async () => {
         await signOut();
         navigate({ to: "/login" });
-        // Toast will show on login page if we pass a param — simple alert for now
-        alert("You have been logged out due to inactivity.");
+        // Toast will show on login page if we pass a param — simple toast for now
+        toast("You have been logged out due to inactivity.");
       }, TIMEOUT_MS);
     }
 
