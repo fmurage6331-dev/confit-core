@@ -50,6 +50,7 @@ import {
   Activity,
   CalendarDays,
   ChevronDown,
+  Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -262,7 +263,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           { to: "/admin/services", label: "Services", icon: Stethoscope, show: true },
           { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, show: true },
           { to: "/admin/test-templates", label: "Test templates", icon: FlaskConical, show: true },
-          { to: "/admin/settings", label: "Settings", icon: Settings, show: true },
+          { to: "/admin/audit-log", label: "Audit log", icon: ShieldCheck, show: true },
+          { to: "/admin/queue", label: "Claims queue", icon: Radio, show: true },
           { to: "/admin/moh-indicators", label: "MOH indicators", icon: Activity, show: true },
           { to: "/admin/audit-log", label: "Audit log", icon: ShieldCheck, show: true },
         ]
