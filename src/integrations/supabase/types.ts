@@ -930,7 +930,7 @@ export type Database = {
           encounter_type?: string | null
           from_room?: string | null
           history?: Json | null
-          id: string
+          id?: string
           insurance_coverage_percentage?: number | null
           insurance_covered?: number | null
           insurance_policy_number?: string | null
