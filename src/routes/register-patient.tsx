@@ -307,6 +307,14 @@ function RegisterPatient() {
       nationality: nationality.trim() || null,
       national_id: nationalId.trim() || null,
       national_id_type: nationalIdType || null,
+      sha_member_number:
+        mode === "insurance" && insurer?.insurer_type === "sha_shif"
+          ? shaMemberNumber.trim() || null
+          : null,
+      sha_relationship_to_principal:
+        mode === "insurance" && insurer?.insurer_type === "sha_shif"
+          ? shaRelationship || null
+          : null,
       religion: religion.trim() || null,
       education_level: education || null,
       is_deceased: isDeceased,
