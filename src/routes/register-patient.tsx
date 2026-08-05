@@ -361,8 +361,6 @@ function RegisterPatient() {
 
     // SHA member details are written by the view's INSTEAD OF INSERT trigger.
 
-
-
     setSubmitting(false);
 
     if (error) {
