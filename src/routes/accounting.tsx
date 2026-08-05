@@ -59,6 +59,8 @@ type Account = {
   paid_at: string | null;
   status: string;
   created_at: string;
+  sha_fund_type: string | null;
+  insurer_type: string | null;
 };
 
 function StatusPill({ s }: { s: Account["payment_status"] }) {
@@ -103,7 +105,7 @@ function Accounting() {
     const { data, error } = await supabase
       .from("patient_registrations")
       .select(
-        "id,patient_name,phone,file_number,payment_mode,tests,subtotal,insurance_covered,patient_due,payment_status,amount_paid,payment_method,payment_reference,paid_at,status,created_at",
+        "id,patient_name,phone,file_number,payment_mode,tests,subtotal,insurance_covered,patient_due,payment_status,amount_paid,payment_method,payment_reference,paid_at,status,created_at,sha_fund_type,insurer_type",
       )
       .order("created_at", { ascending: false })
       .limit(500);
@@ -293,7 +295,22 @@ function Accounting() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <PaymentBadge mode={r.payment_mode} />
+                    <div className="flex flex-col gap-1">
+                      <PaymentBadge mode={r.payment_mode} />
+                      {r.sha_fund_type && (
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                            r.sha_fund_type === "eccif"
+                              ? "bg-red-100 text-red-700 border-red-200"
+                              : r.sha_fund_type === "shif"
+                                ? "bg-blue-100 text-blue-700 border-blue-200"
+                                : "bg-green-100 text-green-700 border-green-200"
+                          }`}
+                        >
+                          {r.sha_fund_type.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     KSh {Number(r.patient_due).toFixed(2)}

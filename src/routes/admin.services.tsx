@@ -8,6 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { Guard } from "@/lib/require-access";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ type Service = {
   cash_price: number | null;
   insurance_price: number | null;
   is_active: boolean;
+  sha_tariff_code: string | null;
 };
 
 const KINDS = [
@@ -71,13 +73,13 @@ function ServicesAdmin() {
   const { data: rows, isLoading } = useQuery({
     queryKey: ["services"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("lab_test_catalog")
-        .select("id,name,kind,category,price,cash_price,insurance_price,is_active")
+        .select("id,name,kind,category,price,cash_price,insurance_price,is_active,sha_tariff_code")
         .order("kind")
         .order("name");
       if (error) throw error;
-      return (data ?? []) as Service[];
+      return (data ?? []) as unknown as Service[];
     },
   });
 
@@ -91,15 +93,13 @@ function ServicesAdmin() {
         insurance_price: v.insurance_price ?? null,
         price: v.cash_price ?? 0, // keep legacy in sync
         is_active: v.is_active ?? true,
+        sha_tariff_code: v.sha_tariff_code || null,
       };
       if (editing) {
-        const { error } = await supabase
-          .from("lab_test_catalog")
-          .update(payload)
-          .eq("id", editing.id);
+        const { error } = await db.from("lab_test_catalog").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("lab_test_catalog").insert(payload);
+        const { error } = await db.from("lab_test_catalog").insert(payload);
         if (error) throw error;
       }
     },
@@ -274,29 +274,39 @@ function ServiceDialog({
             cash_price: Number(f.get("cash_price") || 0),
             insurance_price: f.get("insurance_price") ? Number(f.get("insurance_price")) : null,
             is_active: f.get("is_active") === "on",
+            sha_tariff_code: (f.get("sha_tariff_code") as string) || null,
           });
 
           // Create MOH indicator definition if checked
           if (createIndicator && !initial && category) {
-            const indicatorCode = (f.get("moh_indicator_code") as string) || 
-              name.toUpperCase().replace(/[^A-Z0-9]/g, "_").substring(0, 20);
+            const indicatorCode =
+              (f.get("moh_indicator_code") as string) ||
+              name
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "_")
+                .substring(0, 20);
             const description = (f.get("moh_description") as string) || name;
             const formNumber = (f.get("moh_form_number") as string) || "MOH_706";
             const criteriaType = kind === "lab" ? "lab_test" : "drug_class";
 
-            supabase.from("moh_indicator_definitions").insert({
-              form_number: formNumber,
-              indicator_code: indicatorCode,
-              description: description,
-              criteria_type: criteriaType,
-              criteria_value: category,
-            }).then(({ error }) => {
-              if (error) {
-                toast.error("Service saved, but failed to create MOH indicator: " + error.message);
-              } else {
-                toast.success("MOH indicator created: " + indicatorCode);
-              }
-            });
+            supabase
+              .from("moh_indicator_definitions")
+              .insert({
+                form_number: formNumber,
+                indicator_code: indicatorCode,
+                description: description,
+                criteria_type: criteriaType,
+                criteria_value: category,
+              })
+              .then(({ error }) => {
+                if (error) {
+                  toast.error(
+                    "Service saved, but failed to create MOH indicator: " + error.message,
+                  );
+                } else {
+                  toast.success("MOH indicator created: " + indicatorCode);
+                }
+              });
           }
         }}
         className="space-y-3"
@@ -353,6 +363,19 @@ function ServiceDialog({
             />
           </div>
         </div>
+
+        <div>
+          <Label>SHA Tariff Code</Label>
+          <Input
+            name="sha_tariff_code"
+            defaultValue={initial?.sha_tariff_code ?? ""}
+            placeholder="e.g. SHA-PHF-LAB-01"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Link to SHA benefit package. PHF = free to patient. Find codes in Admin → Claims queue.
+          </p>
+        </div>
+
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="is_active" defaultChecked={initial?.is_active ?? true} />{" "}
           Active
@@ -377,16 +400,16 @@ function ServiceDialog({
             {createMohIndicator && (
               <div className="mt-3 space-y-3 pl-6">
                 <p className="text-xs text-muted-foreground">
-                  Automatically create an indicator definition so this service is tracked in MOH reports.
-                  The indicator will link to the category above.
+                  Automatically create an indicator definition so this service is tracked in MOH
+                  reports. The indicator will link to the category above.
                 </p>
                 <input type="checkbox" name="create_moh_indicator" defaultChecked={true} hidden />
-                
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Form Number</Label>
-                    <Select 
-                      name="moh_form_number" 
+                    <Select
+                      name="moh_form_number"
                       value={mohFormNumber}
                       onValueChange={setMohFormNumber}
                       defaultValue="MOH_706"
@@ -404,18 +427,12 @@ function ServiceDialog({
                   </div>
                   <div>
                     <Label>Indicator Code</Label>
-                    <Input
-                      name="moh_indicator_code"
-                      placeholder="Auto-generated"
-                    />
+                    <Input name="moh_indicator_code" placeholder="Auto-generated" />
                   </div>
                 </div>
                 <div>
                   <Label>Description</Label>
-                  <Input
-                    name="moh_description"
-                    placeholder="Description for this indicator"
-                  />
+                  <Input name="moh_description" placeholder="Description for this indicator" />
                 </div>
               </div>
             )}
