@@ -1,6 +1,7 @@
 project_id = "tgynjasgnerucrlwedui"
 
 [functions.icd11-search]
+verify_jwt = true
 
 [functions.fhir-patient]
 verify_jwt = true
