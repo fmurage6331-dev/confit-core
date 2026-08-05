@@ -359,26 +359,9 @@ function RegisterPatient() {
       .select("id,patient_id,patient_name,phone")
       .maybeSingle();
 
-    // Save SHA member details to patient record
-    if (!error && mode === "insurance" && insurer?.insurer_type === "sha_shif") {
-      const { data: patientData } = await supabase
-        .from("patients")
-        .select("id")
-        .ilike("patient_name", patientName)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // SHA member details are written by the view's INSTEAD OF INSERT trigger.
 
-      if (patientData?.id) {
-        await supabase
-          .from("patients")
-          .update({
-            sha_member_number: shaMemberNumber.trim() || null,
-            sha_relationship_to_principal: shaRelationship || null,
-          } as never)
-          .eq("id", patientData.id);
-      }
-    }
+
 
     setSubmitting(false);
 
