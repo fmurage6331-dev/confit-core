@@ -1915,8 +1915,28 @@ function InsuranceDialog({
   const [claimStatus, setClaimStatus] = useState(reg.claim_status ?? "pending");
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [fhirPayload, setFhirPayload] = useState<Record<string, unknown> | null>(null);
+  const [fhirLoading, setFhirLoading] = useState(false);
+  const [fhirOpen, setFhirOpen] = useState(false);
 
   const isSha = reg.insurer_type === "sha_shif" || reg.payment_mode === "insurance";
+
+  async function previewFhir() {
+    setFhirLoading(true);
+    setFhirOpen(true);
+    setFhirPayload(null);
+    const { data, error } = await supabase.rpc(
+      "generate_fhir_encounter" as never,
+      { p_encounter_id: reg.id } as never,
+    );
+    setFhirLoading(false);
+    if (error) {
+      toast.error(error.message);
+      setFhirOpen(false);
+      return;
+    }
+    setFhirPayload(data as Record<string, unknown>);
+  }
 
   async function save() {
     setSaving(true);
@@ -1958,6 +1978,14 @@ function InsuranceDialog({
     }
     setSubmitting(true);
 
+    // Generate FHIR payload to include in queue
+    let fhirEncounter: Record<string, unknown> | null = null;
+    const { data: fhirData } = await supabase.rpc(
+      "generate_fhir_encounter" as never,
+      { p_encounter_id: reg.id } as never,
+    );
+    if (fhirData) fhirEncounter = fhirData as Record<string, unknown>;
+
     const { error } = await supabase.from("dha_outbound_queue" as never).insert({
       encounter_id: reg.id,
       patient_id: reg.patient_id,
@@ -1971,6 +1999,7 @@ function InsuranceDialog({
         patient_name: reg.patient_name,
         file_number: reg.file_number,
         submitted_from: "insurance_desk",
+        fhir_encounter: fhirEncounter,
       },
       status: "pending",
       attempts: 0,
@@ -1995,144 +2024,186 @@ function InsuranceDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>SHA / Insurance Desk — {reg.patient_name}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>SHA / Insurance Desk — {reg.patient_name}</DialogTitle>
+          </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-6 pr-1">
-          <div className="rounded-lg bg-muted/30 border p-4 grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <div className="text-xs uppercase text-muted-foreground">File #</div>
-              <div className="font-medium">{reg.file_number ?? "—"}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-muted-foreground">Payment mode</div>
-              <div className="font-medium capitalize">{reg.payment_mode}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-muted-foreground">Claim status</div>
-              <div
-                className={`font-medium capitalize ${
-                  claimStatus === "approved"
-                    ? "text-emerald-600"
-                    : claimStatus === "rejected"
-                      ? "text-red-600"
-                      : claimStatus === "submitted"
-                        ? "text-blue-600"
-                        : "text-amber-600"
-                }`}
-              >
-                {claimStatus ?? "—"}
+          <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+            <div className="rounded-lg bg-muted/30 border p-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">File #</div>
+                <div className="font-medium">{reg.file_number ?? "—"}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Payment mode</div>
+                <div className="font-medium capitalize">{reg.payment_mode}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Claim status</div>
+                <div
+                  className={`font-medium capitalize ${
+                    claimStatus === "approved"
+                      ? "text-emerald-600"
+                      : claimStatus === "rejected"
+                        ? "text-red-600"
+                        : claimStatus === "submitted"
+                          ? "text-blue-600"
+                          : "text-amber-600"
+                  }`}
+                >
+                  {claimStatus ?? "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Payment status</div>
+                <div className="font-medium capitalize">{reg.payment_status}</div>
               </div>
             </div>
-            <div>
-              <div className="text-xs uppercase text-muted-foreground">Payment status</div>
-              <div className="font-medium capitalize">{reg.payment_status}</div>
-            </div>
-          </div>
 
-          {isSha && (
-            <Section title="SHA Member Details">
+            {isSha && (
+              <Section title="SHA Member Details">
+                <Grid>
+                  <div>
+                    <Label>SHA Member Number</Label>
+                    <Input
+                      value={shaMemberNumber}
+                      onChange={(e) => setShaMemberNumber(e.target.value)}
+                      placeholder="e.g. SHA/M/123456"
+                    />
+                  </div>
+                  <div>
+                    <Label>Relationship to Principal</Label>
+                    <Select value={shaRelationship} onValueChange={setShaRelationship}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select relationship" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="self">Self (Principal)</SelectItem>
+                        <SelectItem value="spouse">Spouse</SelectItem>
+                        <SelectItem value="child">Child</SelectItem>
+                        <SelectItem value="other_dependent">Other Dependent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>SHA Notification Number</Label>
+                    <Input
+                      value={shaNotificationNumber}
+                      onChange={(e) => setShaNotificationNumber(e.target.value)}
+                      placeholder="e.g. SHA/N/2026/001234"
+                    />
+                  </div>
+                  <div>
+                    <Label>Pre-authorization Number</Label>
+                    <Input
+                      value={preauthNumber}
+                      onChange={(e) => setPreauthNumber(e.target.value)}
+                      placeholder="e.g. PA/2026/001234"
+                    />
+                  </div>
+                </Grid>
+              </Section>
+            )}
+
+            <Section title="Claim Details">
               <Grid>
                 <div>
-                  <Label>SHA Member Number</Label>
+                  <Label>Claim Number</Label>
                   <Input
-                    value={shaMemberNumber}
-                    onChange={(e) => setShaMemberNumber(e.target.value)}
-                    placeholder="e.g. SHA/M/123456"
+                    value={claimNumber}
+                    onChange={(e) => setClaimNumber(e.target.value)}
+                    placeholder="Auto-assigned or manual"
                   />
                 </div>
                 <div>
-                  <Label>Relationship to Principal</Label>
-                  <Select value={shaRelationship} onValueChange={setShaRelationship}>
+                  <Label>Claim Status</Label>
+                  <Select value={claimStatus} onValueChange={setClaimStatus}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select relationship" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="self">Self (Principal)</SelectItem>
-                      <SelectItem value="spouse">Spouse</SelectItem>
-                      <SelectItem value="child">Child</SelectItem>
-                      <SelectItem value="other_dependent">Other Dependent</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="submitted">Submitted</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="appealed">Appealed</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>SHA Notification Number</Label>
-                  <Input
-                    value={shaNotificationNumber}
-                    onChange={(e) => setShaNotificationNumber(e.target.value)}
-                    placeholder="e.g. SHA/N/2026/001234"
-                  />
-                </div>
-                <div>
-                  <Label>Pre-authorization Number</Label>
-                  <Input
-                    value={preauthNumber}
-                    onChange={(e) => setPreauthNumber(e.target.value)}
-                    placeholder="e.g. PA/2026/001234"
-                  />
-                </div>
               </Grid>
             </Section>
-          )}
 
-          <Section title="Claim Details">
-            <Grid>
-              <div>
-                <Label>Claim Number</Label>
-                <Input
-                  value={claimNumber}
-                  onChange={(e) => setClaimNumber(e.target.value)}
-                  placeholder="Auto-assigned or manual"
-                />
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              <div className="font-semibold mb-1">Phase 3 — API Integration Pending</div>
+              <div className="text-xs">
+                Claims are queued locally. External submission to SHA portal and private insurer
+                systems will activate automatically when API credentials are configured.
               </div>
-              <div>
-                <Label>Claim Status</Label>
-                <Select value={claimStatus} onValueChange={setClaimStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="appealed">Appealed</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </Grid>
-          </Section>
-
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-            <div className="font-semibold mb-1">Phase 3 — API Integration Pending</div>
-            <div className="text-xs">
-              Claims are queued locally. External submission to SHA portal and private insurer
-              systems will activate automatically when API credentials are configured.
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="outline" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save details"}
-          </Button>
-          <Button onClick={submitClaim} disabled={submitting || claimStatus === "submitted"}>
-            {submitting
-              ? "Submitting…"
-              : claimStatus === "submitted"
-                ? "Already submitted"
-                : "Submit claim"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="outline" onClick={previewFhir} disabled={fhirLoading}>
+              {fhirLoading ? "Loading…" : "Preview FHIR"}
+            </Button>
+            <Button variant="outline" onClick={save} disabled={saving}>
+              {saving ? "Saving…" : "Save details"}
+            </Button>
+            <Button onClick={submitClaim} disabled={submitting || claimStatus === "submitted"}>
+              {submitting
+                ? "Submitting…"
+                : claimStatus === "submitted"
+                  ? "Already submitted"
+                  : "Submit claim"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {fhirOpen && (
+        <Dialog open onOpenChange={(o) => !o && setFhirOpen(false)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>FHIR R4 Encounter Preview</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              This payload will be sent to DHA AfyaLink HIE when Phase 3 is activated.
+            </p>
+            <div className="flex-1 overflow-y-auto pr-1">
+              {fhirLoading && (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Generating FHIR payload…
+                </div>
+              )}
+              {!fhirLoading && fhirPayload && (
+                <>
+                  <pre className="rounded-lg bg-muted p-3 text-xs overflow-x-auto whitespace-pre-wrap">
+                    {JSON.stringify(fhirPayload, null, 2)}
+                  </pre>
+                  <Button
+                    className="mt-3 w-full"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(fhirPayload, null, 2));
+                      toast.success("Copied to clipboard");
+                    }}
+                  >
+                    Copy to clipboard
+                  </Button>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
