@@ -71,6 +71,11 @@ type Patient = {
   nationality: string | null;
   national_id: string | null;
   national_id_type: string | null;
+  identity_verified: boolean | null;
+  identity_verified_at: string | null;
+  sha_membership_status: string | null;
+  sha_membership_verified_at: string | null;
+  sha_member_number: string | null;
   next_of_kin: unknown;
   is_deceased: boolean | null;
   date_of_death: string | null;
@@ -185,6 +190,24 @@ function PatientProfile() {
               )}
               <span>{ageStr(patient)}</span>
               {patient.is_deceased && <Badge variant="destructive">Deceased</Badge>}
+              {patient.identity_verified && (
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                  ✅ Identity verified
+                </Badge>
+              )}
+              {patient.sha_membership_status && (
+                <Badge
+                  className={
+                    patient.sha_membership_status === "active"
+                      ? "bg-green-100 text-green-700 border-green-200"
+                      : patient.sha_membership_status === "suspended"
+                        ? "bg-amber-100 text-amber-700 border-amber-200"
+                        : "bg-red-100 text-red-700 border-red-200"
+                  }
+                >
+                  SHA: {patient.sha_membership_status.toUpperCase()}
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right text-xs text-muted-foreground">

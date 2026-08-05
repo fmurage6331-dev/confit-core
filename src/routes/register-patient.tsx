@@ -89,6 +89,12 @@ function RegisterPatient() {
   const [shaMemberNumber, setShaMemberNumber] = useState("");
   const [shaRelationship, setShaRelationship] = useState("");
 
+  // identity verification state
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [shaMembershipStatus, setShaMembershipStatus] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [showVerifyConsent, setShowVerifyConsent] = useState(false);
+
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [familyName, setFamilyName] = useState("");
@@ -205,6 +211,53 @@ function RegisterPatient() {
       block: "start",
     });
   };
+
+  async function verifyIdentity() {
+    if (!nationalId.trim() || !nationalIdType) {
+      toast.error("Enter ID type and number first");
+      return;
+    }
+    setShowVerifyConsent(true);
+  }
+
+  async function doVerification() {
+    setShowVerifyConsent(false);
+    setVerifying(true);
+    const { data, error } = await supabase.rpc(
+      "verify_patient_identity" as never,
+      {
+        p_national_id: nationalId.trim(),
+        p_id_type: nationalIdType,
+        p_patient_id: null,
+        p_verified_by: null,
+      } as never,
+    );
+    setVerifying(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const result = data as Record<string, unknown>;
+    if (!result.connected) {
+      toast.info("Identity registry not yet connected — enter details manually");
+    } else {
+      const iprs = result.iprs_data as Record<string, unknown>;
+      const sha = result.sha_data as Record<string, unknown>;
+      if (iprs) {
+        setFirstName((iprs.first_name as string) ?? firstName);
+        setMiddleName((iprs.middle_name as string) ?? middleName);
+        setFamilyName((iprs.family_name as string) ?? familyName);
+        if (iprs.date_of_birth) setDob(iprs.date_of_birth as string);
+        if (iprs.sex) setSex(iprs.sex as "male" | "female");
+      }
+      if (sha) {
+        setShaMemberNumber((sha.member_number as string) ?? "");
+        setShaMembershipStatus((sha.status as string) ?? null);
+      }
+      setIdentityVerified(true);
+      toast.success("Identity verified ✅");
+    }
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -618,12 +671,69 @@ function RegisterPatient() {
                 </Select>
               </Field>
               <Field label="ID Number *">
-                <Input
-                  value={nationalId}
-                  onChange={(event) => setNationalId(event.target.value)}
-                  placeholder="e.g. 12345678"
-                />
+                <div className="space-y-2">
+                  <Input
+                    value={nationalId}
+                    onChange={(event) => setNationalId(event.target.value)}
+                    placeholder="e.g. 12345678"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={verifyIdentity}
+                    disabled={verifying || !nationalId.trim() || !nationalIdType}
+                  >
+                    {verifying ? "Verifying…" : "Verify identity & SHA status"}
+                  </Button>
+
+                  {identityVerified && (
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700">
+                      ✅ Identity verified
+                      {shaMembershipStatus && (
+                        <span
+                          className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            shaMembershipStatus === "active"
+                              ? "bg-green-100 text-green-700"
+                              : shaMembershipStatus === "suspended"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          SHA: {shaMembershipStatus.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {!identityVerified && (
+                    <div className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-xs text-blue-700">
+                      Identity registry not yet connected. Details will be verified when DHA
+                      credentials are configured.
+                    </div>
+                  )}
+                </div>
               </Field>
+
+              {showVerifyConsent && (
+                <div className="col-span-full rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+                  <div className="text-sm font-semibold text-amber-900">Consent Required</div>
+                  <div className="text-xs text-amber-800">
+                    Before fetching patient details from the national registry (IPRS) and verifying
+                    SHA membership status, the patient must consent. This action will query
+                    government databases with their ID number.
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={doVerification}>
+                      Patient consents — proceed
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowVerifyConsent(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <Field label="Religion (optional)">
                 <Input value={religion} onChange={(event) => setReligion(event.target.value)} />
               </Field>
@@ -644,6 +754,7 @@ function RegisterPatient() {
             </Group>
           </Section>
 
+          {/* rest of form unchanged... */}
           <Section id="death" number="4" title="Death Info">
             <Group title="Deceased">
               <div className="space-y-2">
@@ -1004,24 +1115,22 @@ function RegisterPatient() {
   );
 }
 
+/* helper components unchanged below... (YesNo, Section, Group, Field, Row, ModeBtn, PaymentBadge) */
+
 function YesNo({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
   return (
     <div className="inline-flex overflow-hidden rounded-md border">
       <button
         type="button"
         onClick={() => onChange(true)}
-        className={`px-4 py-1.5 text-sm ${
-          value ? "bg-primary/10 text-primary border-primary" : "bg-background"
-        }`}
+        className={`px-4 py-1.5 text-sm ${value ? "bg-primary/10 text-primary border-primary" : "bg-background"}`}
       >
         Yes
       </button>
       <button
         type="button"
         onClick={() => onChange(false)}
-        className={`border-l px-4 py-1.5 text-sm ${
-          !value ? "bg-primary/10 text-primary border-primary" : "bg-background"
-        }`}
+        className={`border-l px-4 py-1.5 text-sm ${!value ? "bg-primary/10 text-primary border-primary" : "bg-background"}`}
       >
         No
       </button>
@@ -1095,6 +1204,7 @@ function Row({ label, value, muted }: { label: string; value: string; muted?: bo
 }
 
 function ModeBtn({
+  value,
   label,
   icon: Icon,
   active,
@@ -1103,7 +1213,7 @@ function ModeBtn({
 }: {
   value: PaymentMode;
   label: string;
-  icon: LucideIcon;
+  icon: typeof Banknote;
   active: boolean;
   on: () => void;
   cls: string;
@@ -1112,7 +1222,7 @@ function ModeBtn({
     <button
       type="button"
       onClick={on}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition ${
+      className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition ${
         active ? `${cls} border-transparent text-white shadow-sm` : "bg-background hover:bg-accent"
       }`}
     >
