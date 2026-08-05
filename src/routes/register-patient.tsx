@@ -380,9 +380,20 @@ function RegisterPatient() {
     }
 
     toast.success(hasTests ? "Patient registered" : "Patient sent to consultation");
+    // patient_registrations is a VIEW; its INSTEAD OF INSERT trigger returns the
+    // encounter id (inserted.id) but NOT patient_id — resolve it from the encounter.
+    let consentPatientId = inserted?.patient_id ?? "";
+    if (!consentPatientId && inserted?.id) {
+      const { data: enc } = await supabase
+        .from("encounters")
+        .select("patient_id")
+        .eq("id", inserted.id)
+        .maybeSingle();
+      consentPatientId = enc?.patient_id ?? "";
+    }
     setConsentCtx({
       encounterId: inserted?.id ?? "",
-      patientId: inserted?.patient_id ?? "",
+      patientId: consentPatientId,
       patientName: inserted?.patient_name ?? patientName,
       phone: inserted?.phone ?? phone.trim(),
     });
