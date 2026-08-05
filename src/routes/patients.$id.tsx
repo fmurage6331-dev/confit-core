@@ -38,6 +38,7 @@ import {
   HeartHandshake,
   Printer,
 } from "lucide-react";
+import { ConsentDialog } from "@/components/consent-dialog";
 
 export const Route = createFileRoute("/patients/$id")({
   component: () => (
@@ -151,6 +152,14 @@ function PatientProfile() {
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="mr-1 h-4 w-4" /> Print outpatient card
           </Button>
+          <ConsentDialog
+            patientId={patient.id}
+            patientName={name}
+            patientPhone={patient.phone}
+            triggerLabel="Record consent"
+            triggerVariant="outline"
+            triggerSize="sm"
+          />
           <NewEncounterDialog patientId={patient.id} patientName={name} />
         </div>
       </div>

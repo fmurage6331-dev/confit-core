@@ -8,8 +8,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PermGuard } from "@/lib/require-access";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
+import { ConsentDialog } from "@/components/consent-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +42,7 @@ type Insurer = {
   name: string;
   code: string;
   coverage_percentage: number;
+  insurer_type: string | null;
 };
 
 type TestRow = {
@@ -83,6 +86,8 @@ function RegisterPatient() {
   const [insurers, setInsurers] = useState<Insurer[]>([]);
   const [tests, setTests] = useState<TestRow[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [shaMemberNumber, setShaMemberNumber] = useState("");
+  const [shaRelationship, setShaRelationship] = useState("");
 
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
@@ -130,14 +135,20 @@ function RegisterPatient() {
   const [referralDirection, setReferralDirection] = useState<"" | "in" | "out">("");
   const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [consentCtx, setConsentCtx] = useState<{
+    encounterId: string;
+    patientId: string;
+    patientName: string;
+    phone: string;
+  } | null>(null);
 
   useEffect(() => {
-    supabase
-      .from("insurance_providers")
-      .select("id,name,code,coverage_percentage")
+    db.from("insurance_providers")
+      .select("id,name,code,coverage_percentage,insurer_type")
       .eq("is_active", true)
       .order("name")
-      .then(({ data }) => setInsurers(data ?? []));
+      .then(({ data }) => setInsurers((data ?? []) as Insurer[]));
 
     supabase
       .from("lab_test_catalog")
@@ -314,6 +325,11 @@ function RegisterPatient() {
       insurance_provider_id: mode === "insurance" ? insurer?.id : null,
       insurance_coverage_percentage: mode === "insurance" ? coveragePct : null,
       insurance_policy_number: mode === "insurance" ? insurancePolicyNumber.trim() : null,
+      insurer_type: mode === "insurance" ? (insurer?.insurer_type ?? "private") : null,
+      sha_notification_number:
+        mode === "insurance" && insurer?.insurer_type === "sha_shif"
+          ? insurancePolicyNumber.trim() || null
+          : null,
       is_emergency: isEmergency,
       referral_direction: referralDirection || null,
       tests: selectedTests.map((test) => ({
@@ -329,7 +345,32 @@ function RegisterPatient() {
       created_by: user?.id,
     };
 
-    const { error } = await supabase.from("patient_registrations").insert(payload as never);
+    const { data: inserted, error } = await supabase
+      .from("patient_registrations")
+      .insert(payload as never)
+      .select("id,patient_id,patient_name,phone")
+      .maybeSingle();
+
+    // Save SHA member details to patient record
+    if (!error && mode === "insurance" && insurer?.insurer_type === "sha_shif") {
+      const { data: patientData } = await supabase
+        .from("patients")
+        .select("id")
+        .ilike("patient_name", patientName)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (patientData?.id) {
+        await supabase
+          .from("patients")
+          .update({
+            sha_member_number: shaMemberNumber.trim() || null,
+            sha_relationship_to_principal: shaRelationship || null,
+          } as never)
+          .eq("id", patientData.id);
+      }
+    }
 
     setSubmitting(false);
 
@@ -339,7 +380,13 @@ function RegisterPatient() {
     }
 
     toast.success(hasTests ? "Patient registered" : "Patient sent to consultation");
-    navigate({ to: "/queue" });
+    setConsentCtx({
+      encounterId: inserted?.id ?? "",
+      patientId: inserted?.patient_id ?? "",
+      patientName: inserted?.patient_name ?? patientName,
+      phone: inserted?.phone ?? phone.trim(),
+    });
+    setConsentOpen(true);
   }
 
   return (
@@ -847,6 +894,31 @@ function RegisterPatient() {
                       placeholder="Enter insurance policy or member number"
                     />
                   </Field>
+
+                  {insurer?.insurer_type === "sha_shif" && (
+                    <>
+                      <Field label="SHA Member Number *">
+                        <Input
+                          value={shaMemberNumber}
+                          onChange={(e) => setShaMemberNumber(e.target.value)}
+                          placeholder="e.g. SHA/M/123456"
+                        />
+                      </Field>
+                      <Field label="Relationship to Principal *">
+                        <Select value={shaRelationship} onValueChange={setShaRelationship}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select relationship" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="self">Self (Principal)</SelectItem>
+                            <SelectItem value="spouse">Spouse</SelectItem>
+                            <SelectItem value="child">Child</SelectItem>
+                            <SelectItem value="other_dependent">Other Dependent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </>
+                  )}
                 </>
               )}
             </Group>
@@ -914,6 +986,20 @@ function RegisterPatient() {
           </Section>
         </div>
       </div>
+
+      {consentCtx && (
+        <ConsentDialog
+          open={consentOpen}
+          onOpenChange={(o) => {
+            setConsentOpen(o);
+            if (!o) navigate({ to: "/queue" });
+          }}
+          patientId={consentCtx.patientId}
+          patientName={consentCtx.patientName}
+          patientPhone={consentCtx.phone}
+          encounterId={consentCtx.encounterId}
+        />
+      )}
     </form>
   );
 }
