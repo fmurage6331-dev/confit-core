@@ -35,6 +35,7 @@ import {
   ScanLine,
   ArrowRight,
   ShieldAlert,
+  ShieldHalf,
   ClipboardPlus,
   Activity,
   Stethoscope,
@@ -68,7 +69,8 @@ type RoomKind =
   | "triage"
   | "consultation"
   | "pharmacy"
-  | "billing";
+  | "billing"
+  | "insurance";
 type Room = { id: string; name: string; code: string | null; kind: RoomKind };
 type TestItem = { id: string; name: string; price: number; requested_by_room_id?: string | null };
 type Vitals = {
@@ -173,6 +175,7 @@ const kindIcon: Record<RoomKind, React.ReactNode> = {
   consultation: <Stethoscope className="h-7 w-7 text-primary" />,
   pharmacy: <Pill className="h-7 w-7 text-primary" />,
   billing: <Receipt className="h-7 w-7 text-primary" />,
+  insurance: <ShieldHalf className="h-7 w-7 text-primary" />,
 };
 const kindBlurb: Record<RoomKind, string> = {
   general:
@@ -185,6 +188,8 @@ const kindBlurb: Record<RoomKind, string> = {
   pharmacy: "Dispense prescriptions. Dispensing deducts stock automatically.",
   billing:
     "Patients waiting for the accountant to acknowledge payment. Open Accounting to record payment or waive — the patient is then forwarded automatically.",
+  insurance:
+    "SHA / Insurance desk. Review member details, pre-authorization, FHIR preview and submit claims to the queue.",
 };
 const KIND_LABELS: Record<string, string> = {
   service: "Services",
@@ -639,9 +644,10 @@ function RoomPage() {
           />
         )}
       {openReg &&
-        kind === "general" &&
-        (room.name.toLowerCase().includes("insurance") ||
-          room.name.toLowerCase().includes("sha")) && (
+        (kind === "insurance" ||
+          (kind === "general" &&
+            (room.name.toLowerCase().includes("insurance") ||
+              room.name.toLowerCase().includes("sha")))) && (
           <InsuranceDialog
             reg={openReg}
             onClose={() => setOpenReg(null)}

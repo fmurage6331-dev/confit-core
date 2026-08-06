@@ -44,13 +44,30 @@ export const Route = createFileRoute("/admin/rooms")({
   ),
 });
 
-type RoomKind = "general" | "lab" | "radiology" | "triage" | "consultation" | "pharmacy";
+type RoomKind =
+  | "general"
+  | "lab"
+  | "radiology"
+  | "triage"
+  | "consultation"
+  | "pharmacy"
+  | "insurance"
+  | "billing";
 type Room = { id: string; name: string; code: string | null; is_active: boolean; kind: RoomKind };
 
 const schema = z.object({
   name: z.string().trim().min(1).max(80),
   code: z.string().trim().max(20).optional(),
-  kind: z.enum(["general", "lab", "radiology", "triage", "consultation", "pharmacy"]),
+  kind: z.enum([
+    "general",
+    "lab",
+    "radiology",
+    "triage",
+    "consultation",
+    "pharmacy",
+    "insurance",
+    "billing",
+  ]),
   is_active: z.boolean(),
 });
 
@@ -267,6 +284,8 @@ function AdminRooms() {
                     <SelectItem value="lab">Laboratory (receives test requests)</SelectItem>
                     <SelectItem value="radiology">Radiology (receives imaging requests)</SelectItem>
                     <SelectItem value="pharmacy">Pharmacy (dispense prescriptions)</SelectItem>
+                    <SelectItem value="insurance">Insurance / SHA Desk</SelectItem>
+                    <SelectItem value="billing">Billing / Accounting</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-xs text-muted-foreground">
