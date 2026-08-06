@@ -44,3 +44,4 @@ out/
 *.rpm
 LabTrack-*/
 **/Electron Framework*
+build.out
