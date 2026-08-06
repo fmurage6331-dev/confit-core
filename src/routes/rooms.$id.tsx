@@ -1998,6 +1998,35 @@ function InsuranceDialog({
 
   const isSha = reg.insurer_type === "sha_shif" || reg.payment_mode === "insurance";
 
+  // Pre-authorization enforcement — SHA requires preauth for major procedures
+  const PREAUTH_KEYWORDS = [
+    { keyword: "surgery", label: "Surgery" },
+    { keyword: "theater", label: "Theater / Surgery" },
+    { keyword: "theatre", label: "Theater / Surgery" },
+    { keyword: "icu", label: "ICU / Intensive Care" },
+    { keyword: "intensive care", label: "ICU / Intensive Care" },
+    { keyword: "dialysis", label: "Dialysis" },
+    { keyword: "specialist", label: "Specialist Referral" },
+    { keyword: "ct scan", label: "CT Scan" },
+    { keyword: "mri", label: "MRI" },
+    { keyword: "ct/mri", label: "CT / MRI" },
+  ];
+
+  const tests = (reg.tests ?? []) as { name?: string; id?: string }[];
+
+  const preauthProcedures: string[] = [];
+  for (const test of tests) {
+    const name = (test.name ?? "").toLowerCase();
+    for (const { keyword, label } of PREAUTH_KEYWORDS) {
+      if (name.includes(keyword) && !preauthProcedures.includes(label)) {
+        preauthProcedures.push(label);
+      }
+    }
+  }
+
+  const requiresPreauth = preauthProcedures.length > 0;
+  const preauthMissing = requiresPreauth && !preauthNumber.trim();
+
   async function previewFhir() {
     setFhirLoading(true);
     setFhirOpen(true);
@@ -2214,6 +2243,28 @@ function InsuranceDialog({
               </Grid>
             </Section>
 
+            {preauthMissing && isSha && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400">
+                <div className="font-semibold mb-1 flex items-center gap-1.5">
+                  <span>⚠ Pre-Authorization Required</span>
+                </div>
+                <div className="text-xs space-y-1">
+                  <p>
+                    This encounter includes a procedure that requires SHA pre-authorization before a
+                    claim can be submitted:
+                  </p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {preauthProcedures.map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 font-medium">
+                    Enter the Pre-authorization Number above to unlock claim submission.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
               <div className="font-semibold mb-1">Phase 3 — API Integration Pending</div>
               <div className="text-xs">
@@ -2233,7 +2284,15 @@ function InsuranceDialog({
             <Button variant="outline" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save details"}
             </Button>
-            <Button onClick={submitClaim} disabled={submitting || claimStatus === "submitted"}>
+            <Button
+              onClick={submitClaim}
+              disabled={submitting || claimStatus === "submitted" || (preauthMissing && isSha)}
+              title={
+                preauthMissing && isSha
+                  ? "Pre-authorization number required before submitting"
+                  : undefined
+              }
+            >
               {submitting
                 ? "Submitting…"
                 : claimStatus === "submitted"
