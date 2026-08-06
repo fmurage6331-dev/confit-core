@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ServicePicker } from "@/components/service-picker";
 import { DischargeButton, ReferOutButton } from "@/routes/inpatient";
 
 export const Route = createFileRoute("/rooms/$id")({

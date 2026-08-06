@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ServicePicker } from "@/components/service-picker";
 import { toast } from "sonner";
 import { Banknote, HeartHandshake, Plus, Shield, Trash2, type LucideIcon } from "lucide-react";
 
