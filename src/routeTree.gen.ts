@@ -56,11 +56,11 @@ import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminServicesRouteImport } from './routes/admin.services'
 import { Route as AdminRoomsRouteImport } from './routes/admin.rooms'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
+import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminPermissionsRouteImport } from './routes/admin.permissions'
 import { Route as AdminMohIndicatorsRouteImport } from './routes/admin.moh-indicators'
 import { Route as AdminInsuranceRouteImport } from './routes/admin.insurance'
 import { Route as AdminAuditLogRouteImport } from './routes/admin.audit-log'
-import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -301,6 +301,11 @@ const AdminRequestsRoute = AdminRequestsRouteImport.update({
   path: '/admin/requests',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminQueueRoute = AdminQueueRouteImport.update({
+  id: '/admin/queue',
+  path: '/admin/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminPermissionsRoute = AdminPermissionsRouteImport.update({
   id: '/admin/permissions',
   path: '/admin/permissions',
@@ -319,11 +324,6 @@ const AdminInsuranceRoute = AdminInsuranceRouteImport.update({
 const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
   id: '/admin/audit-log',
   path: '/admin/audit-log',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminQueueRoute = AdminQueueRouteImport.update({
-  id: '/admin/queue',
-  path: '/admin/queue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -372,10 +372,10 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
-  '/admin/queue': typeof AdminQueueRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
@@ -429,10 +429,10 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
-  '/admin/queue': typeof AdminQueueRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
@@ -488,10 +488,10 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
-  '/admin/queue': typeof AdminQueueRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
@@ -516,7 +516,7 @@ export interface FileRoutesById {
   '/rooms/$id': typeof RoomsIdRoute
   '/encounter-records/': typeof EncounterRecordsIndexRoute
   '/invoices/': typeof InvoicesIndexRoute
-  '/laboratory/': typeof LaboratoryIdRoute
+  '/laboratory/': typeof LaboratoryIndexRoute
   '/moh/': typeof MohIndexRoute
   '/patients/': typeof PatientsIndexRoute
   '/radiology/': typeof RadiologyIndexRoute
@@ -548,10 +548,10 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/audit-log'
-    | '/admin/queue'
     | '/admin/insurance'
     | '/admin/moh-indicators'
     | '/admin/permissions'
+    | '/admin/queue'
     | '/admin/requests'
     | '/admin/rooms'
     | '/admin/services'
@@ -605,10 +605,10 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/audit-log'
-    | '/admin/queue'
     | '/admin/insurance'
     | '/admin/moh-indicators'
     | '/admin/permissions'
+    | '/admin/queue'
     | '/admin/requests'
     | '/admin/rooms'
     | '/admin/services'
@@ -663,10 +663,10 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/audit-log'
-    | '/admin/queue'
     | '/admin/insurance'
     | '/admin/moh-indicators'
     | '/admin/permissions'
+    | '/admin/queue'
     | '/admin/requests'
     | '/admin/rooms'
     | '/admin/services'
@@ -722,10 +722,10 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
-  AdminQueueRoute: typeof AdminQueueRoute
   AdminInsuranceRoute: typeof AdminInsuranceRoute
   AdminMohIndicatorsRoute: typeof AdminMohIndicatorsRoute
   AdminPermissionsRoute: typeof AdminPermissionsRoute
+  AdminQueueRoute: typeof AdminQueueRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminRoomsRoute: typeof AdminRoomsRoute
   AdminServicesRoute: typeof AdminServicesRoute
@@ -1081,6 +1081,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/queue': {
+      id: '/admin/queue'
+      path: '/admin/queue'
+      fullPath: '/admin/queue'
+      preLoaderRoute: typeof AdminQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/permissions': {
       id: '/admin/permissions'
       path: '/admin/permissions'
@@ -1107,13 +1114,6 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit-log'
       fullPath: '/admin/audit-log'
       preLoaderRoute: typeof AdminAuditLogRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/queue': {
-      id: '/admin/queue'
-      path: '/admin/queue'
-      fullPath: '/admin/queue'
-      preLoaderRoute: typeof AdminQueueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -1196,10 +1196,10 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
-  AdminQueueRoute: AdminQueueRoute,
   AdminInsuranceRoute: AdminInsuranceRoute,
   AdminMohIndicatorsRoute: AdminMohIndicatorsRoute,
   AdminPermissionsRoute: AdminPermissionsRoute,
+  AdminQueueRoute: AdminQueueRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminRoomsRoute: AdminRoomsRoute,
   AdminServicesRoute: AdminServicesRoute,
