@@ -79,25 +79,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-    let timer: ReturnType<typeof setTimeout>;
+    const ACTIVITY_KEY = "aegiscare_last_active";
 
-    function resetTimer() {
-      clearTimeout(timer);
-      timer = setTimeout(async () => {
+    // Initialize/update last active time
+    const updateActivity = () => localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+    updateActivity();
+
+    // Listen for real user interactions (removed mousemove to reduce performance noise)
+    const events = ["mousedown", "keydown", "touchstart", "scroll"];
+    events.forEach((e) => window.addEventListener(e, updateActivity, { passive: true }));
+
+    // Check the clock every 1 minute
+    const interval = setInterval(async () => {
+      const lastActive = parseInt(localStorage.getItem(ACTIVITY_KEY) || "0", 10);
+      if (Date.now() - lastActive > TIMEOUT_MS) {
+        clearInterval(interval);
+        events.forEach((e) => window.removeEventListener(e, updateActivity));
         await signOut();
         navigate({ to: "/login" });
-        // Toast will show on login page if we pass a param — simple toast for now
         toast("You have been logged out due to inactivity.");
-      }, TIMEOUT_MS);
-    }
-
-    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
-    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
-    resetTimer(); // start the timer immediately
+      }
+    }, 60_000);
 
     return () => {
-      clearTimeout(timer);
-      events.forEach((e) => window.removeEventListener(e, resetTimer));
+      clearInterval(interval);
+      events.forEach((e) => window.removeEventListener(e, updateActivity));
     };
   }, [user, signOut, navigate]);
 
