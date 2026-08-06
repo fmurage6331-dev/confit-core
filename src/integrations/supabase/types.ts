@@ -309,6 +309,36 @@ export type Database = {
           },
         ]
       }
+      audit_archive_runs: {
+        Row: {
+          error_message: string | null
+          id: string
+          newest_row: string | null
+          oldest_row: string | null
+          rows_archived: number
+          run_at: string
+          status: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          newest_row?: string | null
+          oldest_row?: string | null
+          rows_archived?: number
+          run_at?: string
+          status?: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          newest_row?: string | null
+          oldest_row?: string | null
+          rows_archived?: number
+          run_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -333,6 +363,42 @@ export type Database = {
         Update: {
           action?: string
           changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
+      audit_log_archive: {
+        Row: {
+          action: string
+          archived_at: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          archived_at?: string
+          changed_at: string
+          changed_by?: string | null
+          id: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          archived_at?: string
+          changed_at?: string
           changed_by?: string | null
           id?: string
           new_data?: Json | null
@@ -2218,6 +2284,8 @@ export type Database = {
         Row: {
           address_line1: string | null
           address_line2: string | null
+          allergies: Json | null
+          blood_group: string | null
           cause_of_death: string | null
           city: string | null
           country: string | null
@@ -2261,6 +2329,8 @@ export type Database = {
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
+          allergies?: Json | null
+          blood_group?: string | null
           cause_of_death?: string | null
           city?: string | null
           country?: string | null
@@ -2304,6 +2374,8 @@ export type Database = {
         Update: {
           address_line1?: string | null
           address_line2?: string | null
+          allergies?: Json | null
+          blood_group?: string | null
           cause_of_death?: string | null
           city?: string | null
           country?: string | null
@@ -2685,6 +2757,48 @@ export type Database = {
           service_code?: string
           service_description?: string | null
           tariff_amount?: number
+        }
+        Relationships: []
+      }
+      shr_transmission_log: {
+        Row: {
+          created_at: string
+          encounter_id: string | null
+          error_message: string | null
+          id: string
+          patient_id: string | null
+          payload_summary: Json | null
+          queue_id: string
+          response_code: string | null
+          status: string
+          transmission_type: string
+          transmitted_at: string
+        }
+        Insert: {
+          created_at?: string
+          encounter_id?: string | null
+          error_message?: string | null
+          id?: string
+          patient_id?: string | null
+          payload_summary?: Json | null
+          queue_id: string
+          response_code?: string | null
+          status: string
+          transmission_type: string
+          transmitted_at?: string
+        }
+        Update: {
+          created_at?: string
+          encounter_id?: string | null
+          error_message?: string | null
+          id?: string
+          patient_id?: string | null
+          payload_summary?: Json | null
+          queue_id?: string
+          response_code?: string | null
+          status?: string
+          transmission_type?: string
+          transmitted_at?: string
         }
         Relationships: []
       }
@@ -3510,6 +3624,7 @@ export type Database = {
     }
     Functions: {
       accrue_daily_bed_charges: { Args: never; Returns: undefined }
+      archive_old_audit_logs: { Args: never; Returns: undefined }
       can_access_room: {
         Args: { _room: string; _user: string }
         Returns: boolean
@@ -3589,6 +3704,15 @@ export type Database = {
         | { Args: { allowed_roles: string[] }; Returns: boolean }
       is_admin_user: { Args: { _user_id: string }; Returns: boolean }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
+      log_break_glass_access: {
+        Args: {
+          p_accessed_by: string
+          p_accessor_email: string
+          p_justification: string
+          p_patient_id: string
+        }
+        Returns: undefined
+      }
       receive_stock_to_location: {
         Args: {
           note?: string
