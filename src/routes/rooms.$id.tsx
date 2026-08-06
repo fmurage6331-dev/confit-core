@@ -99,7 +99,12 @@ type History = {
   family_history?: string;
   ros?: string;
 };
-type Diagnosis = { icd11_code: string; description: string; notes?: string };
+type Diagnosis = {
+  icd11_code: string;
+  description: string;
+  notes?: string;
+  idsr_indicator_code?: string;
+};
 type Reg = {
   id: string;
   patient_id: string | null;
@@ -927,6 +932,7 @@ function ConsultationDialog({
 
   async function saveNotes() {
     setSaving(true);
+
     const { error } = await supabase
       .from("patient_registrations")
       .update({
@@ -934,11 +940,42 @@ function ConsultationDialog({
         diagnoses: dxs,
       } as never)
       .eq("id", reg.id);
-    setSaving(false);
+
     if (error) {
+      setSaving(false);
       toast.error(error.message);
       return;
     }
+
+    // Write IDSR indicator tags for any flagged diagnoses (idempotent)
+    const idsrDxs = dxs.filter((d) => d.idsr_indicator_code);
+    if (idsrDxs.length > 0) {
+      // Remove existing IDSR tags for this encounter before re-inserting
+      await supabase
+        .from("encounter_indicator_tags")
+        .delete()
+        .eq("encounter_id", reg.id)
+        .like("indicator_code", "IDSR_%");
+
+      const tags = idsrDxs.map((d) => ({
+        encounter_id: reg.id,
+        indicator_code: d.idsr_indicator_code!,
+        tagged_by: user?.email ?? "unknown",
+        tagged_at: new Date().toISOString(),
+      }));
+
+      const { error: tagError } = await supabase
+        .from("encounter_indicator_tags")
+        .insert(tags as never);
+
+      if (tagError) {
+        setSaving(false);
+        toast.error("Consultation saved but IDSR tag failed: " + tagError.message);
+        return;
+      }
+    }
+
+    setSaving(false);
     toast.success("Consultation saved");
   }
 
@@ -1182,6 +1219,7 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
   >([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [idsr, setIdsr] = useState<string>("");
 
   // Debounced search: local icd11_codes cache first, WHO live API as fallback
   useEffect(() => {
@@ -1260,11 +1298,17 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
     }
     setDxs([
       ...dxs,
-      { icd11_code: code.trim(), description: desc.trim(), notes: notes.trim() || undefined },
+      {
+        icd11_code: code.trim(),
+        description: desc.trim(),
+        notes: notes.trim() || undefined,
+        idsr_indicator_code: idsr || undefined,
+      },
     ]);
     setCode("");
     setDesc("");
     setNotes("");
+    setIdsr("");
     setSuggestions([]);
   }
 
@@ -1319,6 +1363,38 @@ function DiagnosisEditor({ dxs, setDxs }: { dxs: Diagnosis[]; setDxs: (d: Diagno
         <div>
           <Label>Notes</Label>
           <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+        <div>
+          <Label className="flex items-center gap-1.5">
+            IDSR Reportable Condition
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              MOH 505
+            </span>
+          </Label>
+          <select
+            value={idsr}
+            onChange={(e) => setIdsr(e.target.value)}
+            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">— Not a reportable condition —</option>
+            <option value="IDSR_MEASLES">Measles (suspected)</option>
+            <option value="IDSR_CHOLERA">Acute Watery Diarrhoea / Cholera</option>
+            <option value="IDSR_AFP">Acute Flaccid Paralysis</option>
+            <option value="IDSR_NEONATAL_TETANUS">Neonatal Tetanus</option>
+            <option value="IDSR_BLOODY_DIARRHOEA">Bloody Diarrhoea (Dysentery)</option>
+            <option value="IDSR_MENINGITIS">Meningitis (suspected)</option>
+            <option value="IDSR_VHF">Viral Haemorrhagic Fever (suspected)</option>
+            <option value="IDSR_PLAGUE">Plague (suspected)</option>
+            <option value="IDSR_RABIES">Animal Bites / Suspected Rabies</option>
+            <option value="IDSR_MALARIA">Malaria (confirmed)</option>
+            <option value="IDSR_TYPHOID">Typhoid Fever</option>
+            <option value="IDSR_SARI">Severe Acute Respiratory Infection</option>
+          </select>
+          {idsr && (
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+              ⚠ This diagnosis will be flagged in the IDSR weekly report (MOH 505).
+            </p>
+          )}
         </div>
         <div className="flex justify-end">
           <Button size="sm" onClick={add}>
