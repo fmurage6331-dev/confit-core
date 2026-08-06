@@ -20,7 +20,18 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { HelpCircle } from "lucide-react";
+import {
+  HelpCircle,
+  FlaskConical,
+  Package,
+  Radio,
+  AlertTriangle,
+  Users,
+  TrendingUp,
+  Banknote,
+  ShieldCheck,
+  Clock,
+} from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   component: () => (
@@ -34,10 +45,103 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function formatKES(value: number) {
+  return `KES ${value.toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+// ─── Queries ────────────────────────────────────────────────────────────────
+
+function useTodayEncounters() {
+  return useQuery({
+    queryKey: ["dashboard-today-encounters"],
+    queryFn: async () => {
+      const today = todayISO();
+      const { data, error } = await supabase
+        .from("encounters")
+        .select("id, sha_fund_type")
+        .gte("created_at", `${today}T00:00:00+00:00`)
+        .lte("created_at", `${today}T23:59:59+00:00`);
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function usePendingLabs() {
+  return useQuery({
+    queryKey: ["dashboard-pending-labs"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("lab_orders")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function useRevenueToday() {
+  return useQuery({
+    queryKey: ["dashboard-revenue-today"],
+    queryFn: async () => {
+      const today = todayISO();
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("amount_paid, insurance_covered, total_due, balance")
+        .gte("created_at", `${today}T00:00:00+00:00`)
+        .lte("created_at", `${today}T23:59:59+00:00`);
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function useClaimsQueue() {
+  return useQuery({
+    queryKey: ["dashboard-claims-queue"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dha_outbound_queue")
+        .select("status, queue_type");
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function useLowStock() {
+  return useQuery({
+    queryKey: ["dashboard-low-stock"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("stock_items")
+        .select("id, current_quantity, reorder_level")
+        .gt("reorder_level", 0);
+      return (data ?? []).filter((i) => (i.current_quantity ?? 0) <= (i.reorder_level ?? 0)).length;
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
+
 function Dashboard() {
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
 
+  // Operational queries
+  const { data: encounters, isLoading: loadingEncounters } = useTodayEncounters();
+  const { data: pendingLabs, isLoading: loadingLabs } = usePendingLabs();
+  const { data: invoices, isLoading: loadingRevenue } = useRevenueToday();
+  const { data: claimsQueue, isLoading: loadingClaims } = useClaimsQueue();
+  const { data: lowStock, isLoading: loadingStock } = useLowStock();
+
+  // MOH queries (existing — unchanged)
   const { data: diseases, isLoading: loadingDiseases } = useQuery({
     queryKey: ["dashboard-top-diseases", from, to],
     queryFn: async () => {
@@ -49,7 +153,6 @@ function Dashboard() {
       return data ?? [];
     },
   });
-
   const { data: opd, isLoading: loadingOpd } = useQuery({
     queryKey: ["dashboard-opd-attendance", from, to],
     queryFn: async () => {
@@ -61,7 +164,6 @@ function Dashboard() {
       return data ?? [];
     },
   });
-
   const { data: trend, isLoading: loadingTrend } = useQuery({
     queryKey: ["dashboard-admitted-opd-trend", from, to],
     queryFn: async () => {
@@ -73,7 +175,6 @@ function Dashboard() {
       return data ?? [];
     },
   });
-
   const { data: emergencyReferrals, isLoading: loadingEmergencyReferrals } = useQuery({
     queryKey: ["dashboard-emergency-referrals", from, to],
     queryFn: async () => {
@@ -86,46 +187,198 @@ function Dashboard() {
     },
   });
 
+  // ── Derived — patient flow ────────────────────────────────────────────────
+  const totalToday = (encounters ?? []).length;
+  const phfToday = (encounters ?? []).filter((e) => e.sha_fund_type === "phf").length;
+  const shifToday = (encounters ?? []).filter((e) => e.sha_fund_type === "shif").length;
+  const eccifToday = (encounters ?? []).filter((e) => e.sha_fund_type === "eccif").length;
+  const privateToday = (encounters ?? []).filter((e) => e.sha_fund_type === null).length;
+
+  // ── Derived — revenue ─────────────────────────────────────────────────────
+  const totalCollected = (invoices ?? []).reduce((s, i) => s + Number(i.amount_paid ?? 0), 0);
+  const insuranceCovered = (invoices ?? []).reduce(
+    (s, i) => s + Number(i.insurance_covered ?? 0),
+    0,
+  );
+  const cashCollected = (invoices ?? []).reduce(
+    (s, i) => s + Number(i.amount_paid ?? 0) - Number(i.insurance_covered ?? 0),
+    0,
+  );
+  const outstanding = (invoices ?? []).reduce((s, i) => s + Number(i.balance ?? 0), 0);
+
+  // ── Derived — claims ──────────────────────────────────────────────────────
+  const pendingClaims = (claimsQueue ?? []).filter((q) => q.status === "pending").length;
+  const failedClaims = (claimsQueue ?? []).filter((q) => q.status === "failed").length;
+  const sentClaims = (claimsQueue ?? []).filter(
+    (q) => q.status === "sent" || q.status === "acknowledged",
+  ).length;
+
+  // ── Derived — MOH charts ──────────────────────────────────────────────────
   const under5 = (diseases ?? [])
     .filter((d) => d.age_band === "under5")
     .map((d) => ({ name: d.icd11_title, count: Number(d.disease_count) }));
   const over5 = (diseases ?? [])
     .filter((d) => d.age_band === "over5")
     .map((d) => ({ name: d.icd11_title, count: Number(d.disease_count) }));
-
   const opdUnder5 = Number(opd?.find((o) => o.age_band === "under5")?.attendance_count ?? 0);
   const opdOver5 = Number(opd?.find((o) => o.age_band === "over5")?.attendance_count ?? 0);
-
   const trendData = (trend ?? []).map((t) => ({
     day: format(new Date(t.day), "dd MMM"),
     Admitted: Number(t.admitted_count),
     OPD: Number(t.opd_count),
   }));
 
+  const loading =
+    loadingEncounters || loadingLabs || loadingRevenue || loadingClaims || loadingStock;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Facility activity overview.</p>
+    <div className="space-y-8">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {format(new Date(), "EEEE, d MMMM yyyy")} — live facility snapshot
+        </p>
+      </div>
+
+      {/* ── Section 1: Patient Flow Today ───────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionLabel icon={Users} label="Patient Flow — Today" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <OpCard label="Total Patients" value={loading ? "—" : totalToday} accent="primary" />
+          <OpCard
+            label="PHF (Outpatient SHA)"
+            value={loading ? "—" : phfToday}
+            accent="blue"
+            sub="Level 2-3 capitation"
+          />
+          <OpCard
+            label="SHIF (Inpatient)"
+            value={loading ? "—" : shifToday}
+            accent="green"
+            sub="Inpatient / specialist"
+          />
+          <OpCard
+            label="ECCIF (Emergency)"
+            value={loading ? "—" : eccifToday}
+            accent="amber"
+            sub="Emergency / ICU"
+          />
+          <OpCard
+            label="Private / Cash"
+            value={loading ? "—" : privateToday}
+            accent="muted"
+            sub="Non-SHA"
+          />
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="rounded-md border bg-card px-3 py-2 text-sm"
+      </section>
+
+      {/* ── Section 2: Operational Alerts ───────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionLabel icon={AlertTriangle} label="Operational Alerts" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <AlertCard
+            icon={FlaskConical}
+            label="Pending Labs"
+            value={loadingLabs ? "—" : (pendingLabs ?? 0)}
+            severity={(pendingLabs ?? 0) > 10 ? "high" : (pendingLabs ?? 0) > 0 ? "medium" : "ok"}
           />
-          <span className="text-muted-foreground">to</span>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="rounded-md border bg-card px-3 py-2 text-sm"
+          <AlertCard
+            icon={Package}
+            label="Low Stock Items"
+            value={loadingStock ? "—" : (lowStock ?? 0)}
+            severity={(lowStock ?? 0) > 5 ? "high" : (lowStock ?? 0) > 0 ? "medium" : "ok"}
           />
+          <AlertCard
+            icon={Clock}
+            label="Pending Claims"
+            value={loadingClaims ? "—" : pendingClaims}
+            severity={pendingClaims > 20 ? "high" : pendingClaims > 0 ? "medium" : "ok"}
+          />
+          <AlertCard
+            icon={AlertTriangle}
+            label="Failed Claims"
+            value={loadingClaims ? "—" : failedClaims}
+            severity={failedClaims > 0 ? "high" : "ok"}
+          />
+        </div>
+      </section>
+
+      {/* ── Section 3: Revenue Today ─────────────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionLabel icon={TrendingUp} label="Revenue — Today" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <RevenueCard
+            label="Total Collected"
+            value={loadingRevenue ? "—" : formatKES(totalCollected)}
+            icon={Banknote}
+            accent="primary"
+          />
+          <RevenueCard
+            label="SHA / Insurance"
+            value={loadingRevenue ? "—" : formatKES(insuranceCovered)}
+            icon={ShieldCheck}
+            accent="green"
+          />
+          <RevenueCard
+            label="Cash Collected"
+            value={loadingRevenue ? "—" : formatKES(Math.max(0, cashCollected))}
+            icon={Banknote}
+            accent="blue"
+          />
+          <RevenueCard
+            label="Outstanding Balance"
+            value={loadingRevenue ? "—" : formatKES(outstanding)}
+            icon={AlertTriangle}
+            accent={outstanding > 0 ? "amber" : "ok"}
+          />
+        </div>
+      </section>
+
+      {/* ── Section 4: Claims Queue Summary ─────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionLabel icon={Radio} label="Claims Queue" />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <OpCard label="Pending" value={loadingClaims ? "—" : pendingClaims} accent="amber" />
+          <OpCard
+            label="Sent / Acknowledged"
+            value={loadingClaims ? "—" : sentClaims}
+            accent="green"
+          />
+          <OpCard
+            label="Failed"
+            value={loadingClaims ? "—" : failedClaims}
+            accent={failedClaims > 0 ? "red" : "muted"}
+          />
+        </div>
+      </section>
+
+      {/* ── Divider ─────────────────────────────────────────────────────── */}
+      <div className="border-t pt-2">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-base font-semibold">MOH Analysis</p>
+            <p className="text-sm text-muted-foreground">Disease burden and attendance trends</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="rounded-md border bg-card px-3 py-2 text-sm"
+            />
+            <span className="text-muted-foreground">to</span>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="rounded-md border bg-card px-3 py-2 text-sm"
+            />
+          </div>
         </div>
       </div>
 
+      {/* ── Section 5: MOH Charts (unchanged) ───────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <DiseaseChartCard title="Top 10 Diseases under 5" data={under5} loading={loadingDiseases} />
         <DiseaseChartCard title="Top 10 Diseases over 5" data={over5} loading={loadingDiseases} />
@@ -178,6 +431,113 @@ function Dashboard() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function SectionLabel({ icon: Icon, label }: { icon: typeof Users; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+type Accent = "primary" | "blue" | "green" | "amber" | "red" | "muted" | "ok";
+
+const accentClasses: Record<Accent, string> = {
+  primary: "text-primary",
+  blue: "text-blue-600",
+  green: "text-emerald-600",
+  amber: "text-amber-500",
+  red: "text-red-600",
+  muted: "text-muted-foreground",
+  ok: "text-emerald-600",
+};
+
+function OpCard({
+  label,
+  value,
+  accent = "primary",
+  sub,
+}: {
+  label: string;
+  value: number | string;
+  accent?: Accent;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className={`mt-2 text-3xl font-bold ${accentClasses[accent]}`}>{value}</div>
+      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+    </div>
+  );
+}
+
+function AlertCard({
+  icon: Icon,
+  label,
+  value,
+  severity,
+}: {
+  icon: typeof FlaskConical;
+  label: string;
+  value: number | string;
+  severity: "ok" | "medium" | "high";
+}) {
+  const bg =
+    severity === "high"
+      ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900"
+      : severity === "medium"
+        ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900"
+        : "bg-card";
+  const textColor =
+    severity === "high"
+      ? "text-red-600"
+      : severity === "medium"
+        ? "text-amber-600"
+        : "text-emerald-600";
+  const iconColor =
+    severity === "high"
+      ? "text-red-500"
+      : severity === "medium"
+        ? "text-amber-500"
+        : "text-emerald-500";
+  return (
+    <div className={`rounded-xl border p-5 shadow-[var(--shadow-card)] ${bg}`}>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Icon className={`h-4 w-4 ${iconColor}`} />
+        {label}
+      </div>
+      <div className={`mt-2 text-3xl font-bold ${textColor}`}>{value}</div>
+    </div>
+  );
+}
+
+function RevenueCard({
+  icon: Icon,
+  label,
+  value,
+  accent = "primary",
+}: {
+  icon: typeof Banknote;
+  label: string;
+  value: string;
+  accent?: Accent;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        {label}
+      </div>
+      <div className={`mt-2 text-2xl font-bold ${accentClasses[accent]}`}>{value}</div>
     </div>
   );
 }

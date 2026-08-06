@@ -209,15 +209,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       show: hasPerm("appointments_view") || hasPerm("register_patient"),
     },
     { to: "/accounting", label: "Accounting", icon: Wallet, show: hasPerm("accounting") },
-    { to: "/invoices", label: "Invoices", icon: FileText, show: hasPerm("accounting") },
-
-    { to: "/records", label: "Records", icon: ClipboardList, show: hasPerm("records_view") },
-    {
-      to: "/encounter-records",
-      label: "Encounter records",
-      icon: FolderOpen,
-      show: hasPerm("records_view"),
-    },
     {
       to: "/laboratory",
       label: "Laboratory",
@@ -233,13 +224,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         hasPerm("radiology_results_create") ||
         hasPerm("radiology_update"),
     },
-    {
-      to: "/inpatient",
-      label: "Inpatient",
-      icon: BedDouble,
-      show: hasPerm("admissions_view") || hasPerm("admit_patient") || hasPerm("bed_management"),
-    },
-    { to: "/reports", label: "Reports", icon: BarChart3, show: canAnyReport },
     { to: "/moh", label: "MOH reports", icon: Activity, show: canAnyReport || isAdmin },
   ].filter((i) => i.show);
 
@@ -254,11 +238,41 @@ export function AppShell({ children }: { children: ReactNode }) {
       show: hasPerm("stock"),
       badge: lowStockCount ?? 0,
     },
+    {
+      to: "/records",
+      label: "Records",
+      icon: ClipboardList,
+      show: hasPerm("records_view"),
+    },
+    {
+      to: "/encounter-records",
+      label: "Encounter records",
+      icon: FolderOpen,
+      show: hasPerm("records_view"),
+    },
+    {
+      to: "/invoices",
+      label: "Invoices",
+      icon: FileText,
+      show: hasPerm("accounting"),
+    },
+    {
+      to: "/inpatient",
+      label: "Inpatient",
+      icon: BedDouble,
+      show: hasPerm("admissions_view") || hasPerm("admit_patient") || hasPerm("bed_management"),
+    },
+    {
+      to: "/reports",
+      label: "Reports",
+      icon: BarChart3,
+      show: canAnyReport,
+    },
     ...(isAdmin
       ? [
           { to: "/admin/users", label: "Users", icon: Users, show: true },
           { to: "/admin/permissions", label: "Permissions", icon: ShieldCheck, show: true },
-          { to: "/admin/requests", label: "Requests", icon: ShieldCheck, show: true },
+          { to: "/admin/requests", label: "Requests", icon: FileText, show: true },
           { to: "/admin/insurance", label: "Insurance", icon: ShieldHalf, show: true },
           { to: "/admin/services", label: "Services", icon: Stethoscope, show: true },
           { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, show: true },
@@ -266,7 +280,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           { to: "/admin/audit-log", label: "Audit log", icon: ShieldCheck, show: true },
           { to: "/admin/queue", label: "Claims queue", icon: Radio, show: true },
           { to: "/admin/moh-indicators", label: "MOH indicators", icon: Activity, show: true },
-          { to: "/admin/audit-log", label: "Audit log", icon: ShieldCheck, show: true },
         ]
       : []),
   ].filter((i) => i.show);
