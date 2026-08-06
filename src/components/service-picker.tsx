@@ -97,9 +97,7 @@ export function ServicePicker<T extends PickerService>({
                         value={`${s.name} ${s.category ?? ""}`}
                         onSelect={() => onToggle(s.id)}
                       >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${active ? "opacity-100" : "opacity-0"}`}
-                        />
+                        <Check className={`mr-2 h-4 w-4 ${active ? "opacity-100" : "opacity-0"}`} />
                         <span className="flex-1 truncate">{s.name}</span>
                         {priceFor && (
                           <span className="ml-2 text-xs tabular-nums text-muted-foreground">
