@@ -1476,6 +1476,7 @@ export type Database = {
           name: string
           parameters: Json | null
           price: number
+          sha_tariff_code: string | null
           target_room_id: string | null
           updated_at: string
           who_edl: boolean | null
@@ -1493,6 +1494,7 @@ export type Database = {
           name: string
           parameters?: Json | null
           price?: number
+          sha_tariff_code?: string | null
           target_room_id?: string | null
           updated_at?: string
           who_edl?: boolean | null
@@ -1510,6 +1512,7 @@ export type Database = {
           name?: string
           parameters?: Json | null
           price?: number
+          sha_tariff_code?: string | null
           target_room_id?: string | null
           updated_at?: string
           who_edl?: boolean | null
@@ -2231,6 +2234,9 @@ export type Database = {
           file_number: string | null
           first_name: string | null
           id: string
+          identity_verified: boolean | null
+          identity_verified_at: string | null
+          identity_verified_by: string | null
           is_deceased: boolean | null
           marital_status: string | null
           middle_name: string | null
@@ -2241,11 +2247,14 @@ export type Database = {
           occupation: string | null
           patient_name: string | null
           phone: string | null
+          photo_url: string | null
           postal_code: string | null
           relationships: Json | null
           religion: string | null
           sex: string | null
           sha_member_number: string | null
+          sha_membership_status: string | null
+          sha_membership_verified_at: string | null
           sha_relationship_to_principal: string | null
           updated_at: string | null
         }
@@ -2268,6 +2277,9 @@ export type Database = {
           file_number?: string | null
           first_name?: string | null
           id?: string
+          identity_verified?: boolean | null
+          identity_verified_at?: string | null
+          identity_verified_by?: string | null
           is_deceased?: boolean | null
           marital_status?: string | null
           middle_name?: string | null
@@ -2278,11 +2290,14 @@ export type Database = {
           occupation?: string | null
           patient_name?: string | null
           phone?: string | null
+          photo_url?: string | null
           postal_code?: string | null
           relationships?: Json | null
           religion?: string | null
           sex?: string | null
           sha_member_number?: string | null
+          sha_membership_status?: string | null
+          sha_membership_verified_at?: string | null
           sha_relationship_to_principal?: string | null
           updated_at?: string | null
         }
@@ -2305,6 +2320,9 @@ export type Database = {
           file_number?: string | null
           first_name?: string | null
           id?: string
+          identity_verified?: boolean | null
+          identity_verified_at?: string | null
+          identity_verified_by?: string | null
           is_deceased?: boolean | null
           marital_status?: string | null
           middle_name?: string | null
@@ -2315,11 +2333,14 @@ export type Database = {
           occupation?: string | null
           patient_name?: string | null
           phone?: string | null
+          photo_url?: string | null
           postal_code?: string | null
           relationships?: Json | null
           religion?: string | null
           sex?: string | null
           sha_member_number?: string | null
+          sha_membership_status?: string | null
+          sha_membership_verified_at?: string | null
           sha_relationship_to_principal?: string | null
           updated_at?: string | null
         }
@@ -2395,6 +2416,13 @@ export type Database = {
       }
       profiles: {
         Row: {
+          council_full_name: string | null
+          council_qualification: string | null
+          council_registration_number: string | null
+          council_status: string | null
+          council_type: string | null
+          council_verified: boolean | null
+          council_verified_at: string | null
           created_at: string | null
           first_name: string
           id: string
@@ -2403,6 +2431,13 @@ export type Database = {
           username: string
         }
         Insert: {
+          council_full_name?: string | null
+          council_qualification?: string | null
+          council_registration_number?: string | null
+          council_status?: string | null
+          council_type?: string | null
+          council_verified?: boolean | null
+          council_verified_at?: string | null
           created_at?: string | null
           first_name: string
           id: string
@@ -2411,6 +2446,13 @@ export type Database = {
           username: string
         }
         Update: {
+          council_full_name?: string | null
+          council_qualification?: string | null
+          council_registration_number?: string | null
+          council_status?: string | null
+          council_type?: string | null
+          council_verified?: boolean | null
+          council_verified_at?: string | null
           created_at?: string | null
           first_name?: string
           id?: string
@@ -3297,6 +3339,8 @@ export type Database = {
           from_room: string | null
           history: Json | null
           id: string | null
+          identity_verified: boolean | null
+          identity_verified_at: string | null
           insurance_coverage_percentage: number | null
           insurance_covered: number | null
           insurance_policy_number: string | null
@@ -3333,6 +3377,8 @@ export type Database = {
           sex: string | null
           sha_fund_type: string | null
           sha_member_number: string | null
+          sha_membership_status: string | null
+          sha_membership_verified_at: string | null
           sha_notification_number: string | null
           sha_relationship_to_principal: string | null
           status: string | null
@@ -3635,6 +3681,23 @@ export type Database = {
           p_title: string
           p_uri: string
         }[]
+      }
+      verify_patient_identity: {
+        Args: {
+          p_id_type: string
+          p_national_id: string
+          p_patient_id: string
+          p_verified_by: string
+        }
+        Returns: Json
+      }
+      verify_practitioner: {
+        Args: {
+          p_council_type: string
+          p_profile_id: string
+          p_registration_number: string
+        }
+        Returns: Json
       }
     }
     Enums: {
