@@ -1035,37 +1035,15 @@ function RegisterPatient() {
             </Group>
 
             <Group title="Services / Tests (optional — can be added at consultation)">
-              <div className="col-span-full grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {tests.length === 0 && (
-                  <p className="col-span-full text-sm text-muted-foreground">
-                    No services or tests configured yet.
-                  </p>
-                )}
-
-                {tests.map((test) => {
-                  const active = selectedTestIds.has(test.id);
-
-                  return (
-                    <button
-                      key={test.id}
-                      type="button"
-                      onClick={() => toggleTest(test.id)}
-                      className={`flex flex-col rounded-lg border p-3 text-left transition ${
-                        active
-                          ? "border-primary bg-primary/5 ring-1 ring-primary"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <span className="text-sm font-medium">{test.name}</span>
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {test.category || test.kind}
-                      </span>
-                      <span className="mt-1 text-xs text-muted-foreground">
-                        KSh {priceFor(test).toFixed(2)}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="col-span-full">
+                <ServicePicker
+                  items={tests}
+                  selectedIds={selectedTestIds}
+                  onToggle={toggleTest}
+                  priceFor={priceFor}
+                  placeholder="Search and add services or tests…"
+                  emptyLabel="No services or tests configured yet."
+                />
               </div>
             </Group>
 
