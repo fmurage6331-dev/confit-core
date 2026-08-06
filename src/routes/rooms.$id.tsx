@@ -2401,56 +2401,21 @@ function RequestServicesInline({
     onSaved();
   }
 
-  const grouped = useMemo(() => {
-    const g: Record<string, Service[]> = {};
-    services.forEach((s) => {
-      const k = s.kind || "service";
-      (g[k] ??= []).push(s);
-    });
-    return g;
-  }, [services]);
-
   return (
     <div className="space-y-4">
       <div className="text-xs text-muted-foreground">
         Payment mode: <span className="font-medium uppercase">{reg.payment_mode}</span>
         {reg.payment_mode === "insurance" && <> · Cover {coveragePct}%</>}
       </div>
-      {services.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No services configured. Ask an admin to add them under Services.
-        </p>
-      )}
-      {Object.entries(grouped).map(([kind, list]) => (
-        <div key={kind}>
-          <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-            {kindLabel(kind)}
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {list.map((s) => {
-              const active = selected.has(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => toggle(s.id)}
-                  className={`flex items-start justify-between rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-accent"}`}
-                >
-                  <div>
-                    <div className="text-sm font-medium">{s.name}</div>
-                    {s.category && (
-                      <div className="text-[10px] uppercase text-muted-foreground">
-                        {s.category}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-xs tabular-nums">KSh {priceFor(s).toFixed(2)}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      <ServicePicker
+        items={services}
+        selectedIds={selected}
+        onToggle={toggle}
+        priceFor={priceFor}
+        placeholder="Search and add services or tests…"
+        emptyLabel="No services configured. Ask an admin to add them under Services."
+      />
+
       <div className="rounded-lg border bg-muted/30 p-3 text-sm">
         <div className="flex justify-between">
           <span>Subtotal</span>
