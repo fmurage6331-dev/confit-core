@@ -9,6 +9,7 @@ import { PermGuard } from "@/lib/require-access";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -37,6 +38,7 @@ import {
   Shield,
   HeartHandshake,
   Printer,
+  ShieldAlert,
 } from "lucide-react";
 import { ConsentDialog } from "@/components/consent-dialog";
 
@@ -100,6 +102,7 @@ type Encounter = {
 function PatientProfile() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { user, hasPerm, isAdmin } = useAuth();
 
   const { data: patient, isLoading: pLoading } = useQuery({
     queryKey: ["patient", id],
@@ -166,6 +169,14 @@ function PatientProfile() {
             triggerSize="sm"
           />
           <NewEncounterDialog patientId={patient.id} patientName={name} />
+          {(isAdmin || hasPerm("records_view")) && (
+            <BreakGlassDialog
+              patientId={patient.id}
+              patientName={name}
+              userId={user?.id ?? ""}
+              userEmail={user?.email ?? ""}
+            />
+          )}
         </div>
       </div>
 
@@ -502,6 +513,122 @@ type TestRow = {
 };
 type Room = { id: string; name: string; kind: string };
 type PaymentMode = "cash" | "insurance" | "free";
+
+function BreakGlassDialog({
+  patientId,
+  patientName,
+  userId,
+  userEmail,
+}: {
+  patientId: string;
+  patientName: string;
+  userId: string;
+  userEmail: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [justification, setJustification] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [accessed, setAccessed] = useState(false);
+
+  async function handleAccess() {
+    if (!justification.trim()) {
+      toast.error("A justification is required to proceed.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await db.rpc("log_break_glass_access", {
+      p_patient_id: patientId,
+      p_justification: justification.trim(),
+      p_accessed_by: userId,
+      p_accessor_email: userEmail,
+    } as never);
+    setSaving(false);
+    if (error) {
+      toast.error("Failed to log access: " + error.message);
+      return;
+    }
+    setAccessed(true);
+    toast.warning(`Break-glass access granted for ${patientName}. This access has been logged.`);
+  }
+
+  function handleClose() {
+    setOpen(false);
+    setJustification("");
+    setAccessed(false);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) handleClose();
+        else setOpen(true);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="destructive" size="sm">
+          <ShieldAlert className="mr-1 h-4 w-4" />
+          Emergency Access
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <ShieldAlert className="h-5 w-5" />
+            Break-Glass Emergency Access
+          </DialogTitle>
+        </DialogHeader>
+        {!accessed ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              ⚠ This access will be permanently logged in the audit trail with your name, timestamp,
+              and justification. Use only in a clinical emergency.
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bg-justification">
+                Emergency justification <span className="text-destructive">*</span>
+              </Label>
+              <textarea
+                id="bg-justification"
+                rows={4}
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                placeholder="Describe the clinical emergency requiring immediate access to this patient record…"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                Minimum detail required: clinical reason, patient condition, your role in this
+                emergency.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleAccess}
+                disabled={saving || !justification.trim()}
+              >
+                {saving ? "Logging access…" : "Confirm Emergency Access"}
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-400">
+              ✅ Access granted and logged. Your justification has been permanently recorded in the
+              audit trail under event type BREAK_GLASS.
+            </div>
+            <DialogFooter>
+              <Button onClick={handleClose}>Close</Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function NewEncounterDialog({
   patientId,
