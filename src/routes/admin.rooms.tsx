@@ -52,7 +52,11 @@ type RoomKind =
   | "consultation"
   | "pharmacy"
   | "insurance"
-  | "billing";
+  | "billing"
+  | "ward"
+  | "theatre"
+  | "mortuary"
+  | "mch";
 type Room = { id: string; name: string; code: string | null; is_active: boolean; kind: RoomKind };
 
 const schema = z.object({
@@ -67,6 +71,10 @@ const schema = z.object({
     "pharmacy",
     "insurance",
     "billing",
+    "ward",
+    "theatre",
+    "mortuary",
+    "mch",
   ]),
   is_active: z.boolean(),
 });
@@ -286,6 +294,10 @@ function AdminRooms() {
                     <SelectItem value="pharmacy">Pharmacy (dispense prescriptions)</SelectItem>
                     <SelectItem value="insurance">Insurance / SHA Desk</SelectItem>
                     <SelectItem value="billing">Billing / Accounting</SelectItem>
+                    <SelectItem value="ward">Ward (inpatient bed management)</SelectItem>
+                    <SelectItem value="theatre">Theatre (surgical)</SelectItem>
+                    <SelectItem value="mortuary">Mortuary</SelectItem>
+                    <SelectItem value="mch">MCH / Family Planning</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-xs text-muted-foreground">

@@ -5,7 +5,7 @@
  */
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
@@ -48,6 +48,9 @@ import {
   BedDouble,
   Printer,
   Clock,
+  Scissors,
+  Archive,
+  Baby,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -70,8 +73,18 @@ type RoomKind =
   | "consultation"
   | "pharmacy"
   | "billing"
-  | "insurance";
-type Room = { id: string; name: string; code: string | null; kind: RoomKind };
+  | "insurance"
+  | "ward"
+  | "theatre"
+  | "mortuary"
+  | "mch";
+type Room = {
+  id: string;
+  name: string;
+  code: string | null;
+  kind: RoomKind;
+  ward_id: string | null;
+};
 type TestItem = { id: string; name: string; price: number; requested_by_room_id?: string | null };
 type Vitals = {
   height_cm?: number | "";
@@ -176,6 +189,10 @@ const kindIcon: Record<RoomKind, React.ReactNode> = {
   pharmacy: <Pill className="h-7 w-7 text-primary" />,
   billing: <Receipt className="h-7 w-7 text-primary" />,
   insurance: <ShieldHalf className="h-7 w-7 text-primary" />,
+  ward: <BedDouble className="h-7 w-7 text-primary" />,
+  theatre: <Scissors className="h-7 w-7 text-primary" />,
+  mortuary: <Archive className="h-7 w-7 text-primary" />,
+  mch: <Baby className="h-7 w-7 text-primary" />,
 };
 const kindBlurb: Record<RoomKind, string> = {
   general:
@@ -190,6 +207,10 @@ const kindBlurb: Record<RoomKind, string> = {
     "Patients waiting for the accountant to acknowledge payment. Open Accounting to record payment or waive — the patient is then forwarded automatically.",
   insurance:
     "SHA / Insurance desk. Review member details, pre-authorization, FHIR preview and submit claims to the queue.",
+  ward: "Inpatient ward. View bed occupancy, active admissions and open patient clinical charts.",
+  theatre: "Surgical theatre. Manage active cases and pre-op patients.",
+  mortuary: "Deceased storage and release management. Daily charges accrue automatically.",
+  mch: "Maternal and Child Health / Family Planning. MOH 642 and FP reports draw from this room.",
 };
 const KIND_LABELS: Record<string, string> = {
   service: "Services",
@@ -221,7 +242,7 @@ function RoomPage() {
       if (!user) return;
       const { data: r } = await supabase
         .from("rooms")
-        .select("id,name,code,kind")
+        .select("id,name,code,kind,ward_id")
         .eq("id", id)
         .maybeSingle();
       setRoom(r as unknown as Room | null);
@@ -360,6 +381,70 @@ function RoomPage() {
     )
       return "Process Claim";
     return "Request services";
+  }
+
+  if (kind === "ward") {
+    return <WardRoomView room={room} navigate={navigate} />;
+  }
+
+  if (kind === "theatre") {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6 flex items-center gap-3">
+          <Scissors className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">{room.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Surgical theatre. Manage active cases and pre-op patients.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
+          Theatre workflow coming in next sprint.
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === "mortuary") {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6 flex items-center gap-3">
+          <Archive className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">{room.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Deceased storage and release management. Daily charges accrue automatically.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
+          Mortuary workflow coming in next sprint.
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === "mch") {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <h1 className="flex items-center gap-2 text-3xl font-bold">
+              <Baby className="h-7 w-7 text-primary" />
+              {room.name}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Maternal and Child Health / Family Planning. MOH 642 and FP reports draw from this
+              room.
+            </p>
+          </div>
+          <Button variant="outline" onClick={loadRequests}>
+            Refresh
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -3441,6 +3526,244 @@ export function ConsultationOverview({
           {roomName}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── WardRoomView ─────────────────────────────────────────────────────────────
+// Renders when room.kind === 'ward'. Shows bed grid for the specific ward
+// linked via rooms.ward_id → wards.id. Click a bed → /inpatient/$admissionId
+
+type WardBed = {
+  id: string;
+  ward_id: string;
+  bed_number: string;
+  status: string | null;
+};
+
+type WardAdmission = {
+  id: string;
+  bed_id: string | null;
+  encounter_id: string | null;
+  admitted_at: string | null;
+  expected_discharge_date: string | null;
+  admitting_doctor: string | null;
+  admission_reason: string | null;
+  status: string | null;
+  patients: {
+    patient_name: string | null;
+    file_number: string | null;
+  } | null;
+};
+
+function bedColor(status: string | null) {
+  if (status === "occupied") return "bg-rose-100 border-rose-300 text-rose-800";
+  if (status === "available") return "bg-emerald-50 border-emerald-200 text-emerald-800";
+  return "bg-muted border-border text-muted-foreground";
+}
+
+function WardRoomView({
+  room,
+  navigate,
+}: {
+  room: Room;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const [beds, setBeds] = useState<WardBed[]>([]);
+  const [admissions, setAdmissions] = useState<WardAdmission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBed, setSelectedBed] = useState<WardBed | null>(null);
+
+  const wardId = room.ward_id;
+
+  const load = useCallback(async () => {
+    if (!wardId) return;
+    setLoading(true);
+    const [bedRes, admRes] = await Promise.all([
+      supabase
+        .from("beds")
+        .select("id,ward_id,bed_number,status")
+        .eq("ward_id", wardId)
+        .order("bed_number"),
+      supabase
+        .from("admissions")
+        .select(
+          "id,bed_id,encounter_id,admitted_at,expected_discharge_date,admitting_doctor,admission_reason,status,patients(patient_name,file_number)",
+        )
+        .eq("ward_id", wardId)
+        .eq("status", "admitted"),
+    ]);
+    setBeds((bedRes.data ?? []) as WardBed[]);
+    setAdmissions((admRes.data ?? []) as unknown as WardAdmission[]);
+    setLoading(false);
+  }, [wardId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const admissionByBed = useMemo(() => {
+    const map = new Map<string, WardAdmission>();
+    admissions.forEach((a) => {
+      if (a.bed_id) map.set(a.bed_id, a);
+    });
+    return map;
+  }, [admissions]);
+
+  const occupied = beds.filter((b) => b.status === "occupied").length;
+  const available = beds.filter((b) => b.status === "available").length;
+
+  const selectedAdmission = selectedBed ? (admissionByBed.get(selectedBed.id) ?? null) : null;
+
+  if (!wardId) {
+    return (
+      <div className="mx-auto max-w-5xl p-8 text-center text-muted-foreground">
+        <BedDouble className="h-10 w-10 mx-auto mb-3 opacity-20" />
+        <p>This ward room is not linked to a ward record.</p>
+        <p className="text-xs mt-1">Ask an admin to link it in Admin → Rooms.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <BedDouble className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">{room.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              Inpatient ward · View bed occupancy and open patient clinical charts.
+            </p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={load}>
+          Refresh
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground">Total beds</p>
+          <p className="text-3xl font-light mt-1">{beds.length}</p>
+        </div>
+        <div className="rounded-xl border bg-rose-50 p-4 text-center">
+          <p className="text-xs text-rose-600">Occupied</p>
+          <p className="text-3xl font-light mt-1 text-rose-700">{occupied}</p>
+        </div>
+        <div className="rounded-xl border bg-emerald-50 p-4 text-center">
+          <p className="text-xs text-emerald-600">Available</p>
+          <p className="text-3xl font-light mt-1 text-emerald-700">{available}</p>
+        </div>
+      </div>
+
+      {/* Bed grid */}
+      {loading ? (
+        <div className="flex items-center gap-2 text-muted-foreground py-8">
+          <Archive className="h-4 w-4 animate-pulse" />
+          Loading beds…
+        </div>
+      ) : beds.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
+          No beds configured for this ward yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+          {beds.map((bed) => {
+            const adm = admissionByBed.get(bed.id);
+            return (
+              <button
+                key={bed.id}
+                onClick={() => setSelectedBed(bed)}
+                className={`rounded-lg border p-3 text-center text-xs font-medium transition hover:opacity-80 ${bedColor(bed.status)}`}
+              >
+                <BedDouble className="h-5 w-5 mx-auto mb-1 opacity-60" />
+                <div className="font-semibold">{bed.bed_number}</div>
+                <div className="mt-0.5 truncate">
+                  {adm?.patients?.patient_name
+                    ? adm.patients.patient_name.split(" ")[0]
+                    : (bed.status ?? "—")}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Bed detail dialog */}
+      <Dialog open={!!selectedBed} onOpenChange={(o) => !o && setSelectedBed(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Bed {selectedBed?.bed_number} — {room.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedBed && (
+            <div className="space-y-3 text-sm">
+              <div>
+                Status:{" "}
+                <Badge
+                  className={
+                    selectedBed.status === "occupied"
+                      ? "bg-rose-100 text-rose-700 hover:bg-rose-100"
+                      : "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                  }
+                >
+                  {selectedBed.status ?? "unknown"}
+                </Badge>
+              </div>
+              {selectedAdmission && selectedAdmission.patients ? (
+                <div className="rounded-md border p-3 space-y-1">
+                  <div className="font-medium">
+                    {selectedAdmission.patients.patient_name ?? "Patient"}
+                  </div>
+                  {selectedAdmission.patients.file_number && (
+                    <div className="text-xs text-muted-foreground">
+                      File #{selectedAdmission.patients.file_number}
+                    </div>
+                  )}
+                  {selectedAdmission.admitted_at && (
+                    <div className="text-xs">
+                      Admitted: {format(new Date(selectedAdmission.admitted_at), "dd MMM yyyy")}
+                    </div>
+                  )}
+                  {selectedAdmission.admitting_doctor && (
+                    <div className="text-xs">Doctor: {selectedAdmission.admitting_doctor}</div>
+                  )}
+                  {selectedAdmission.admission_reason && (
+                    <div className="text-xs">Reason: {selectedAdmission.admission_reason}</div>
+                  )}
+                  {selectedAdmission.expected_discharge_date && (
+                    <div className="text-xs">
+                      Expected D/C: {selectedAdmission.expected_discharge_date}
+                    </div>
+                  )}
+                  <div className="pt-2">
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedBed(null);
+                        navigate({
+                          to: "/inpatient/$admissionId",
+                          params: { admissionId: selectedAdmission.id },
+                        });
+                      }}
+                    >
+                      <BedDouble className="h-4 w-4 mr-2" />
+                      Open patient chart
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-muted-foreground">No active admission on this bed.</div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
