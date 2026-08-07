@@ -60,6 +60,37 @@ const KINDS = [
   { value: "consumable", label: "Consumable" },
 ] as const;
 
+const MOH_CATEGORIES = [
+  "Antibiotics",
+  "Analgesics & NSAIDs",
+  "Antifungals",
+  "Antivirals & Antiretrovirals",
+  "Antimalarials",
+  "Antihypertensives",
+  "Antidiabetics",
+  "Antiparasitics & Antihelminthics",
+  "Cardiovascular Drugs",
+  "CNS & Psychiatric Drugs",
+  "Corticosteroids",
+  "Dermatologicals",
+  "Ear, Nose & Throat",
+  "Eye Preparations",
+  "Gastrointestinal Drugs",
+  "Hormones & Endocrine",
+  "IV Fluids & Electrolytes",
+  "Nutritional Supplements & Vitamins",
+  "Respiratory Drugs",
+  "Vaccines & Immunologicals",
+  "Surgical & Anaesthetic Agents",
+  "Reproductive Health",
+  "Diagnostic Reagents & Test Kits",
+  "Disinfectants & Antiseptics",
+  "Consumables & Sundries",
+  "Medical Equipment & Devices",
+  "Contraceptives",
+  "Other",
+] as const;
+
 const USAGE_REASONS = [
   { value: "used", label: "Used" },
   { value: "dispensed", label: "Dispensed" },
@@ -461,7 +492,18 @@ function StockPage() {
 
                   <div>
                     <Label>Category</Label>
-                    <Input name="category" placeholder="e.g. Test kits, Antibiotic" />
+                    <Select name="category">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MOH_CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
