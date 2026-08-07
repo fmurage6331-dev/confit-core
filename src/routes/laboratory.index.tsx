@@ -45,6 +45,8 @@ type Row = {
   } | null;
   lab_test_catalog: { name: string | null; category: string | null } | null;
   rooms: { name: string | null } | null;
+  encounter_type: string | null;
+  admission_id: string | null;
 };
 
 function StatusBadge({ s }: { s: string | null }) {
@@ -88,7 +90,7 @@ function LaboratoryWorklist() {
       const { data, error } = await supabase
         .from("lab_orders")
         .select(
-          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name)",
+          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,encounter_type,admission_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name)",
         )
         .gte("ordered_at", `${from}T00:00:00`)
         .lte("ordered_at", `${to}T23:59:59`)
@@ -346,7 +348,16 @@ function OrderCard({
         </Field>
         <Field label="Order number">{r.order_number ?? "—"}</Field>
         <Field label="Order date">{format(new Date(r.ordered_at), "dd-MMM-yyyy")}</Field>
-        <Field label="Ordered by">{r.rooms?.name ?? "—"}</Field>
+        <Field label="Ordered by">
+          <span className="flex items-center gap-2">
+            {r.rooms?.name ?? "—"}
+            {r.encounter_type === "inpatient" && (
+              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs">
+                INPATIENT
+              </Badge>
+            )}
+          </span>
+        </Field>
         <div className="sm:col-span-2">
           <Field label="Instructions">{r.instructions || "NONE"}</Field>
         </div>

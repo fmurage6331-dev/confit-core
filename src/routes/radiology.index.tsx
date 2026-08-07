@@ -39,6 +39,8 @@ type Row = {
   encounter_id: string | null;
   patients: { patient_name: string | null; file_number: string | null } | null;
   lab_test_catalog: { name: string | null; category: string | null } | null;
+  encounter_type: string | null;
+  admission_id: string | null;
 };
 
 function StatusBadge({ s }: { s: string | null }) {
@@ -71,7 +73,7 @@ function RadiologyWorklist() {
       const { data, error } = await supabase
         .from("radiology_orders")
         .select(
-          "id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,patients(patient_name,file_number),lab_test_catalog(name,category)",
+          "id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,encounter_type,admission_id,patients(patient_name,file_number),lab_test_catalog(name,category)",
         )
         .order("ordered_at", { ascending: false })
         .limit(500);
@@ -197,7 +199,14 @@ function RadiologyWorklist() {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div>{r.lab_test_catalog?.name ?? "—"}</div>
+                  <div className="flex items-center gap-2">
+                    {r.lab_test_catalog?.name ?? "—"}
+                    {r.encounter_type === "inpatient" && (
+                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs">
+                        INPATIENT
+                      </Badge>
+                    )}
+                  </div>
                   {r.clinical_indication && (
                     <div className="text-xs text-muted-foreground line-clamp-1">
                       {r.clinical_indication}

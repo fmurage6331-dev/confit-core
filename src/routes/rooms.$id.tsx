@@ -52,6 +52,7 @@ import {
   Scissors,
   Archive,
   Baby,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -389,22 +390,7 @@ function RoomPage() {
   }
 
   if (kind === "theatre") {
-    return (
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center gap-3">
-          <Scissors className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">{room.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Surgical theatre. Manage active cases and pre-op patients.
-            </p>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
-          Theatre workflow coming in next sprint.
-        </div>
-      </div>
-    );
+    return <TheatreView room={room} navigate={navigate} />;
   }
 
   if (kind === "mortuary") {
@@ -4318,6 +4304,232 @@ function MortuaryView({ room }: { room: Room }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── TheatreView ──────────────────────────────────────────────────────────────
+// Renders when room.kind === 'theatre'
+// Shows active surgical admissions from all surgical wards
+
+type TheatreAdmission = {
+  id: string;
+  encounter_id: string | null;
+  admitted_at: string | null;
+  expected_discharge_date: string | null;
+  admitting_doctor: string | null;
+  admission_reason: string | null;
+  admission_type: string | null;
+  status: string | null;
+  patients: {
+    patient_name: string | null;
+    file_number: string | null;
+    sex: string | null;
+  } | null;
+  wards: { id: string; name: string; ward_type: string | null } | null;
+  beds: { bed_number: string } | null;
+};
+
+function TheatreView({ room, navigate }: { room: Room; navigate: ReturnType<typeof useNavigate> }) {
+  const [admissions, setAdmissions] = useState<TheatreAdmission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  const SURGICAL_WARD_IDS = [
+    "027fdf0c-10ef-4de5-add9-ff393f5f87db",
+    "3343f364-bc93-4448-8ae7-ab11111d7582",
+    "257c9b9d-680a-4ef2-912f-d0b6f6a38b6b",
+  ];
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("admissions")
+      .select(
+        "id,encounter_id,admitted_at,expected_discharge_date,admitting_doctor,admission_reason,admission_type,status,patients(patient_name,file_number,sex),wards(id,name,ward_type),beds(bed_number)",
+      )
+      .in("ward_id", SURGICAL_WARD_IDS)
+      .eq("status", "admitted")
+      .order("admitted_at", { ascending: false });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setAdmissions((data ?? []) as unknown as TheatreAdmission[]);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return admissions;
+    const q = search.toLowerCase();
+    return admissions.filter(
+      (a) =>
+        (a.patients?.patient_name ?? "").toLowerCase().includes(q) ||
+        (a.patients?.file_number ?? "").toLowerCase().includes(q) ||
+        (a.wards?.name ?? "").toLowerCase().includes(q) ||
+        (a.admitting_doctor ?? "").toLowerCase().includes(q),
+    );
+  }, [admissions, search]);
+
+  const elective = filtered.filter((a) => a.admission_type === "elective");
+  const emergency = filtered.filter((a) => a.admission_type === "emergency");
+  const other = filtered.filter(
+    (a) => a.admission_type !== "elective" && a.admission_type !== "emergency",
+  );
+
+  function AdmissionCard({ a }: { a: TheatreAdmission }) {
+    return (
+      <div className="rounded-xl border bg-card p-4 space-y-2">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <p className="font-semibold">{a.patients?.patient_name ?? "Unknown"}</p>
+            <p className="text-xs text-muted-foreground">
+              {a.patients?.file_number ? `File #${a.patients.file_number} · ` : ""}
+              {a.patients?.sex ?? ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge
+              className={
+                a.admission_type === "emergency"
+                  ? "bg-rose-100 text-rose-700 hover:bg-rose-100 text-xs"
+                  : "bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs"
+              }
+            >
+              {a.admission_type ?? "—"}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {a.wards?.name ?? "—"}
+            </Badge>
+            {a.beds?.bed_number && (
+              <Badge variant="outline" className="text-xs">
+                Bed {a.beds.bed_number}
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          {a.admitting_doctor && <p>Surgeon: {a.admitting_doctor}</p>}
+          {a.admission_reason && <p>Reason: {a.admission_reason}</p>}
+          {a.admitted_at && (
+            <p>Admitted: {format(parseISO(a.admitted_at), "dd MMM yyyy, HH:mm")}</p>
+          )}
+          {a.expected_discharge_date && <p>Expected D/C: {a.expected_discharge_date}</p>}
+        </div>
+        {a.id && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={() =>
+              navigate({
+                to: "/inpatient/$admissionId",
+                params: { admissionId: a.id },
+              })
+            }
+          >
+            Open patient chart
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <Scissors className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">{room.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              Active surgical admissions across all surgical wards.
+            </p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={load}>
+          Refresh
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground">Total active</p>
+          <p className="text-3xl font-light mt-1">{admissions.length}</p>
+        </div>
+        <div className="rounded-xl border bg-blue-50 p-4 text-center">
+          <p className="text-xs text-blue-600">Elective</p>
+          <p className="text-3xl font-light mt-1 text-blue-700">
+            {admissions.filter((a) => a.admission_type === "elective").length}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-rose-50 p-4 text-center">
+          <p className="text-xs text-rose-600">Emergency</p>
+          <p className="text-3xl font-light mt-1 text-rose-700">
+            {admissions.filter((a) => a.admission_type === "emergency").length}
+          </p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          className="pl-9"
+          placeholder="Search patient, file #, ward, surgeon…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-muted-foreground py-8 text-center">
+          Loading surgical admissions…
+        </div>
+      ) : admissions.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
+          No active surgical admissions.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {emergency.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-rose-600">
+                Emergency ({emergency.length})
+              </h2>
+              {emergency.map((a) => (
+                <AdmissionCard key={a.id} a={a} />
+              ))}
+            </div>
+          )}
+          {elective.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                Elective ({elective.length})
+              </h2>
+              {elective.map((a) => (
+                <AdmissionCard key={a.id} a={a} />
+              ))}
+            </div>
+          )}
+          {other.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Other ({other.length})
+              </h2>
+              {other.map((a) => (
+                <AdmissionCard key={a.id} a={a} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
