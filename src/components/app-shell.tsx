@@ -284,6 +284,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           { to: "/admin/services", label: "Services", icon: Stethoscope, show: true },
           { to: "/admin/pricing", label: "Pricing", icon: Tag, show: true },
           { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, show: true },
+          { to: "/admin/wards", label: "Wards", icon: BedDouble, show: true },
           { to: "/admin/test-templates", label: "Test templates", icon: FlaskConical, show: true },
           { to: "/admin/audit-log", label: "Audit log", icon: ShieldCheck, show: true },
           { to: "/admin/queue", label: "Claims queue", icon: Radio, show: true },

@@ -56,6 +56,7 @@ import { Route as AdminTestTemplatesRouteImport } from './routes/admin.test-temp
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminPricingRouteImport } from './routes/admin.pricing'
 import { Route as AdminServicesRouteImport } from './routes/admin.services'
+import { Route as AdminWardsRouteImport } from './routes/admin.wards'
 import { Route as AdminRoomsRouteImport } from './routes/admin.rooms'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
@@ -303,6 +304,11 @@ const AdminServicesRoute = AdminServicesRouteImport.update({
   path: '/admin/services',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWardsRoute = AdminWardsRouteImport.update({
+  id: '/admin/wards',
+  path: '/admin/wards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoomsRoute = AdminRoomsRouteImport.update({
   id: '/admin/rooms',
   path: '/admin/rooms',
@@ -391,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/pricing': typeof AdminPricingRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -450,6 +457,7 @@ export interface FileRoutesByTo {
   '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/pricing': typeof AdminPricingRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -511,6 +519,7 @@ export interface FileRoutesById {
   '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/pricing': typeof AdminPricingRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -1104,6 +1113,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/wards': {
+      id: '/admin/wards'
+      path: '/admin/wards'
+      fullPath: '/admin/wards'
+      preLoaderRoute: typeof AdminWardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/rooms': {
       id: '/admin/rooms'
       path: '/admin/rooms'
@@ -1240,6 +1256,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminQueueRoute: AdminQueueRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminPricingRoute: AdminPricingRoute,
+  AdminWardsRoute: AdminWardsRoute,
   AdminRoomsRoute: AdminRoomsRoute,
   AdminServicesRoute: AdminServicesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
