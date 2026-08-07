@@ -7,6 +7,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { AccessDenied } from "@/lib/require-access";
@@ -53,7 +54,7 @@ import {
   Baby,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, differenceInDays, parseISO } from "date-fns";
 import { ServicePicker } from "@/components/service-picker";
 import { DischargeButton, ReferOutButton } from "@/routes/inpatient";
 
@@ -407,22 +408,7 @@ function RoomPage() {
   }
 
   if (kind === "mortuary") {
-    return (
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center gap-3">
-          <Archive className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">{room.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Deceased storage and release management. Daily charges accrue automatically.
-            </p>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
-          Mortuary workflow coming in next sprint.
-        </div>
-      </div>
-    );
+    return <MortuaryView room={room} />;
   }
 
   if (kind === "mch") {
@@ -3762,6 +3748,574 @@ function WardRoomView({
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── MortuaryView ─────────────────────────────────────────────────────────────
+// Renders when room.kind === 'mortuary'
+// Supports internal (facility death) and external (received from outside) bodies
+
+type MortuaryRecord = {
+  id: string;
+  reference_number: string | null;
+  intake_type: string;
+  deceased_name: string;
+  age_years: number | null;
+  sex: string | null;
+  national_id: string | null;
+  date_of_death: string | null;
+  cause_of_death: string | null;
+  admitted_to_mortuary_at: string;
+  received_by: string | null;
+  notes: string | null;
+  daily_storage_rate: number;
+  total_storage_charges: number;
+  status: string;
+  released_at: string | null;
+  released_to_name: string | null;
+  released_to_relationship: string | null;
+  release_notes: string | null;
+  encounter_id: string | null;
+  patient_id: string | null;
+  invoice_id: string | null;
+};
+
+const EMPTY_RECORD: Omit<
+  MortuaryRecord,
+  | "id"
+  | "reference_number"
+  | "total_storage_charges"
+  | "status"
+  | "released_at"
+  | "released_to_name"
+  | "released_to_relationship"
+  | "release_notes"
+  | "encounter_id"
+  | "patient_id"
+  | "invoice_id"
+> = {
+  intake_type: "internal",
+  deceased_name: "",
+  age_years: null,
+  sex: null,
+  national_id: null,
+  date_of_death: null,
+  cause_of_death: null,
+  admitted_to_mortuary_at: new Date().toISOString(),
+  received_by: null,
+  notes: null,
+  daily_storage_rate: 500,
+};
+
+function MortuaryView({ room }: { room: Room }) {
+  const { user } = useAuth();
+  const [records, setRecords] = useState<MortuaryRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [admitOpen, setAdmitOpen] = useState(false);
+  const [releaseRecord, setReleaseRecord] = useState<MortuaryRecord | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Admit form state
+  const [intakeType, setIntakeType] = useState<"internal" | "external">("internal");
+  const [deceasedName, setDeceasedName] = useState("");
+  const [ageYears, setAgeYears] = useState("");
+  const [sex, setSex] = useState("");
+  const [nationalId, setNationalId] = useState("");
+  const [dateOfDeath, setDateOfDeath] = useState("");
+  const [causeOfDeath, setCauseOfDeath] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
+  const [dailyRate, setDailyRate] = useState("500");
+  const [admitNotes, setAdmitNotes] = useState("");
+
+  // Release form state
+  const [releasedToName, setReleasedToName] = useState("");
+  const [releasedToRelationship, setReleasedToRelationship] = useState("");
+  const [releaseNotes, setReleaseNotes] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await db
+      .from("mortuary_records")
+      .select("*")
+      .order("admitted_to_mortuary_at", { ascending: false });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setRecords((data ?? []) as MortuaryRecord[]);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function resetAdmitForm() {
+    setIntakeType("internal");
+    setDeceasedName("");
+    setAgeYears("");
+    setSex("");
+    setNationalId("");
+    setDateOfDeath("");
+    setCauseOfDeath("");
+    setReceivedBy("");
+    setDailyRate("500");
+    setAdmitNotes("");
+  }
+
+  async function admit() {
+    if (!deceasedName.trim()) {
+      toast.error("Deceased name is required");
+      return;
+    }
+    const rate = parseFloat(dailyRate);
+    if (isNaN(rate) || rate < 0) {
+      toast.error("Enter a valid daily storage rate");
+      return;
+    }
+    setSaving(true);
+    const { error } = await db.from("mortuary_records").insert({
+      intake_type: intakeType,
+      deceased_name: deceasedName.trim(),
+      age_years: ageYears ? parseInt(ageYears) : null,
+      sex: sex || null,
+      national_id: nationalId.trim() || null,
+      date_of_death: dateOfDeath || null,
+      cause_of_death: causeOfDeath.trim() || null,
+      admitted_to_mortuary_at: new Date().toISOString(),
+      received_by: receivedBy.trim() || null,
+      daily_storage_rate: rate,
+      notes: admitNotes.trim() || null,
+      status: "stored",
+      created_by: user?.id ?? null,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Body admitted to mortuary");
+    setAdmitOpen(false);
+    resetAdmitForm();
+    load();
+  }
+
+  async function release() {
+    if (!releaseRecord) return;
+    if (!releasedToName.trim()) {
+      toast.error("Collector name is required");
+      return;
+    }
+    setSaving(true);
+    const { error } = await db
+      .from("mortuary_records")
+      .update({
+        status: "released",
+        released_at: new Date().toISOString(),
+        released_to_name: releasedToName.trim(),
+        released_to_relationship: releasedToRelationship.trim() || null,
+        release_notes: releaseNotes.trim() || null,
+      })
+      .eq("id", releaseRecord.id);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Body released — record updated");
+    setReleaseRecord(null);
+    setReleasedToName("");
+    setReleasedToRelationship("");
+    setReleaseNotes("");
+    load();
+  }
+
+  const stored = records.filter((r) => r.status === "stored");
+  const released = records.filter((r) => r.status === "released");
+
+  function daysStored(admittedAt: string) {
+    try {
+      return differenceInDays(new Date(), parseISO(admittedAt));
+    } catch {
+      return 0;
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <Archive className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">{room.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Deceased storage and release management. Daily charges accrue automatically at 00:31
+              EAT.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={load}>
+            Refresh
+          </Button>
+          <Button onClick={() => setAdmitOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Admit body
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground">Total records</p>
+          <p className="text-3xl font-light mt-1">{records.length}</p>
+        </div>
+        <div className="rounded-xl border bg-rose-50 p-4 text-center">
+          <p className="text-xs text-rose-600">Currently stored</p>
+          <p className="text-3xl font-light mt-1 text-rose-700">{stored.length}</p>
+        </div>
+        <div className="rounded-xl border bg-emerald-50 p-4 text-center">
+          <p className="text-xs text-emerald-600">Released</p>
+          <p className="text-3xl font-light mt-1 text-emerald-700">{released.length}</p>
+        </div>
+      </div>
+
+      {/* Stored bodies */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Currently Stored ({stored.length})
+        </h2>
+        {loading ? (
+          <div className="text-sm text-muted-foreground py-4">Loading…</div>
+        ) : stored.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+            No bodies currently in storage.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {stored.map((rec) => (
+              <div key={rec.id} className="rounded-xl border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold">{rec.deceased_name}</p>
+                      <Badge variant="outline" className="text-xs font-mono">
+                        {rec.reference_number ?? "—"}
+                      </Badge>
+                      <Badge
+                        className={
+                          rec.intake_type === "external"
+                            ? "bg-amber-100 text-amber-700 hover:bg-amber-100 text-xs"
+                            : "bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs"
+                        }
+                      >
+                        {rec.intake_type}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {rec.sex ? `${rec.sex} · ` : ""}
+                      {rec.age_years ? `${rec.age_years} yrs · ` : ""}
+                      {rec.cause_of_death ? `COD: ${rec.cause_of_death} · ` : ""}
+                      Admitted: {format(parseISO(rec.admitted_to_mortuary_at), "dd MMM yyyy")}
+                      {" · "}
+                      <span className="font-medium text-rose-600">
+                        {daysStored(rec.admitted_to_mortuary_at)} days
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold">
+                      KES {Number(rec.total_storage_charges).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      KES {Number(rec.daily_storage_rate).toLocaleString()}/day
+                    </p>
+                  </div>
+                </div>
+                {rec.received_by && (
+                  <p className="text-xs text-muted-foreground">Received by: {rec.received_by}</p>
+                )}
+                {rec.notes && <p className="text-xs text-muted-foreground italic">{rec.notes}</p>}
+                <div className="pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                    onClick={() => setReleaseRecord(rec)}
+                  >
+                    Release body
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Released bodies */}
+      {released.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Released ({released.length})
+          </h2>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 text-left">Ref</th>
+                  <th className="px-4 py-3 text-left">Name</th>
+                  <th className="px-4 py-3 text-left">Admitted</th>
+                  <th className="px-4 py-3 text-left">Released</th>
+                  <th className="px-4 py-3 text-left">Released to</th>
+                  <th className="px-4 py-3 text-right">Charges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {released.map((rec) => (
+                  <tr key={rec.id} className="border-t">
+                    <td className="px-4 py-3 font-mono text-xs">{rec.reference_number ?? "—"}</td>
+                    <td className="px-4 py-3 font-medium">{rec.deceased_name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {format(parseISO(rec.admitted_to_mortuary_at), "dd MMM yyyy")}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {rec.released_at ? format(parseISO(rec.released_at), "dd MMM yyyy") : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {rec.released_to_name ?? "—"}
+                      {rec.released_to_relationship ? ` (${rec.released_to_relationship})` : ""}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium">
+                      KES {Number(rec.total_storage_charges).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Admit Dialog */}
+      <Dialog
+        open={admitOpen}
+        onOpenChange={(o) => {
+          if (!o) {
+            setAdmitOpen(false);
+            resetAdmitForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-primary" /> Admit Body to Mortuary
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Intake type */}
+            <div className="space-y-1.5">
+              <Label>Intake type</Label>
+              <Select
+                value={intakeType}
+                onValueChange={(v) => setIntakeType(v as "internal" | "external")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal — facility death (ward / ER)</SelectItem>
+                  <SelectItem value="external">External — received from outside</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label>Deceased name *</Label>
+              <Input
+                value={deceasedName}
+                onChange={(e) => setDeceasedName(e.target.value)}
+                placeholder="Full name"
+              />
+            </div>
+
+            {/* Age + Sex */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Age (years)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={ageYears}
+                  onChange={(e) => setAgeYears(e.target.value)}
+                  placeholder="e.g. 45"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Sex</Label>
+                <Select value={sex} onValueChange={setSex}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="unknown">Unknown</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* National ID */}
+            <div className="space-y-1.5">
+              <Label>National ID</Label>
+              <Input
+                value={nationalId}
+                onChange={(e) => setNationalId(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+
+            {/* Date of death + Cause */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Date of death</Label>
+                <Input
+                  type="date"
+                  value={dateOfDeath}
+                  onChange={(e) => setDateOfDeath(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Daily storage rate (KES)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="50"
+                  value={dailyRate}
+                  onChange={(e) => setDailyRate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Cause of death */}
+            <div className="space-y-1.5">
+              <Label>Cause of death</Label>
+              <Input
+                value={causeOfDeath}
+                onChange={(e) => setCauseOfDeath(e.target.value)}
+                placeholder="e.g. Cardiac arrest"
+              />
+            </div>
+
+            {/* Received by */}
+            <div className="space-y-1.5">
+              <Label>Received by (staff name)</Label>
+              <Input
+                value={receivedBy}
+                onChange={(e) => setReceivedBy(e.target.value)}
+                placeholder="Staff who received body"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea
+                rows={2}
+                value={admitNotes}
+                onChange={(e) => setAdmitNotes(e.target.value)}
+                placeholder="Any additional notes…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAdmitOpen(false);
+                resetAdmitForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={admit} disabled={saving || !deceasedName.trim()}>
+              {saving ? "Saving…" : "Admit to mortuary"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Release Dialog */}
+      <Dialog open={!!releaseRecord} onOpenChange={(o) => !o && setReleaseRecord(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Release — {releaseRecord?.deceased_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <div className="rounded-lg bg-muted/40 p-3 space-y-1">
+              <p>
+                Ref:{" "}
+                <span className="font-mono font-medium">
+                  {releaseRecord?.reference_number ?? "—"}
+                </span>
+              </p>
+              <p>
+                Days stored:{" "}
+                <span className="font-medium text-rose-600">
+                  {releaseRecord ? daysStored(releaseRecord.admitted_to_mortuary_at) : 0}
+                </span>
+              </p>
+              <p>
+                Total charges:{" "}
+                <span className="font-medium">
+                  KES {Number(releaseRecord?.total_storage_charges ?? 0).toLocaleString()}
+                </span>
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Released to (collector name) *</Label>
+              <Input
+                value={releasedToName}
+                onChange={(e) => setReleasedToName(e.target.value)}
+                placeholder="Full name of person collecting"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Relationship to deceased</Label>
+              <Input
+                value={releasedToRelationship}
+                onChange={(e) => setReleasedToRelationship(e.target.value)}
+                placeholder="e.g. Spouse, Son, Funeral home"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Release notes</Label>
+              <Textarea
+                rows={2}
+                value={releaseNotes}
+                onChange={(e) => setReleaseNotes(e.target.value)}
+                placeholder="Any additional notes…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReleaseRecord(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={release}
+              disabled={saving || !releasedToName.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {saving ? "Saving…" : "Confirm release"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
