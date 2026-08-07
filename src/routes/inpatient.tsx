@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Francis Muhoro. All rights reserved.
  */
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { AccessDenied } from "@/lib/require-access";
 import { useAuth } from "@/lib/auth-context";
@@ -78,6 +78,7 @@ type AdmissionRow = {
 
 function Inpatient() {
   const { hasPerm } = useAuth();
+  const navigate = useNavigate();
   const canAdmit = hasPerm("admit_patient") || hasPerm("bed_management");
   const canDischarge =
     hasPerm("discharge_patient") || hasPerm("bed_management") || hasPerm("admit_patient");
@@ -281,6 +282,22 @@ function Inpatient() {
                           Expected discharge: {admission.expected_discharge_date}
                         </div>
                       )}
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full mb-2"
+                          onClick={() => {
+                            setSelectedBed(null);
+                            navigate({
+                              to: "/inpatient/$admissionId",
+                              params: { admissionId: admission.id },
+                            });
+                          }}
+                        >
+                          Open patient chart
+                        </Button>
+                      </div>
                       {canDischarge && (
                         <div className="pt-2 flex gap-2">
                           <DischargeButton

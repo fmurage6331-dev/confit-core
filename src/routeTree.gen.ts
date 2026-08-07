@@ -50,6 +50,7 @@ import { Route as Moh505RouteImport } from './routes/moh.505'
 import { Route as LaboratoryIdRouteImport } from './routes/laboratory.$id'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 import { Route as EncounterRecordsIdRouteImport } from './routes/encounter-records.$id'
+import { Route as InpatientAdmissionIdRouteImport } from './routes/inpatient.$admissionId'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTestTemplatesRouteImport } from './routes/admin.test-templates'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -292,6 +293,11 @@ const AdminPricingRoute = AdminPricingRouteImport.update({
   path: '/admin/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InpatientAdmissionIdRoute = InpatientAdmissionIdRouteImport.update({
+  id: '/inpatient/$admissionId',
+  path: '/inpatient/$admissionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminServicesRoute = AdminServicesRouteImport.update({
   id: '/admin/services',
   path: '/admin/services',
@@ -377,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/stock': typeof StockRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
@@ -435,6 +442,7 @@ export interface FileRoutesByTo {
   '/stock': typeof StockRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
@@ -495,6 +503,7 @@ export interface FileRoutesById {
   '/stock': typeof StockRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
@@ -545,6 +554,7 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/forgot-password'
     | '/inpatient'
+    | '/inpatient/$admissionId'
     | '/login'
     | '/machines'
     | '/mcp'
@@ -603,6 +613,7 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/forgot-password'
     | '/inpatient'
+    | '/inpatient/$admissionId'
     | '/login'
     | '/machines'
     | '/mcp'
@@ -660,6 +671,7 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/forgot-password'
     | '/inpatient'
+    | '/inpatient/$admissionId'
     | '/login'
     | '/machines'
     | '/mcp'
@@ -730,6 +742,7 @@ export interface RootRouteChildren {
   StockRoute: typeof StockRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  InpatientAdmissionIdRoute: typeof InpatientAdmissionIdRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
   AdminInsuranceRoute: typeof AdminInsuranceRoute
   AdminMohIndicatorsRoute: typeof AdminMohIndicatorsRoute
@@ -1077,6 +1090,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPricingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inpatient/$admissionId': {
+      id: '/inpatient/$admissionId'
+      path: '/inpatient/$admissionId'
+      fullPath: '/inpatient/$admissionId'
+      preLoaderRoute: typeof InpatientAdmissionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/services': {
       id: '/admin/services'
       path: '/admin/services'
@@ -1212,6 +1232,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  InpatientAdmissionIdRoute: InpatientAdmissionIdRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
   AdminInsuranceRoute: AdminInsuranceRoute,
   AdminMohIndicatorsRoute: AdminMohIndicatorsRoute,
