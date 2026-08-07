@@ -51,6 +51,7 @@ import {
   CalendarDays,
   ChevronDown,
   Radio,
+  Tag,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -281,6 +282,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           { to: "/admin/requests", label: "Requests", icon: FileText, show: true },
           { to: "/admin/insurance", label: "Insurance", icon: ShieldHalf, show: true },
           { to: "/admin/services", label: "Services", icon: Stethoscope, show: true },
+          { to: "/admin/pricing", label: "Pricing", icon: Tag, show: true },
           { to: "/admin/rooms", label: "Rooms", icon: DoorOpen, show: true },
           { to: "/admin/test-templates", label: "Test templates", icon: FlaskConical, show: true },
           { to: "/admin/audit-log", label: "Audit log", icon: ShieldCheck, show: true },
