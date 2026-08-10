@@ -7,6 +7,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -21,6 +22,8 @@ import {
   Legend,
 } from "recharts";
 import {
+  Archive,
+  BedDouble,
   HelpCircle,
   FlaskConical,
   Package,
@@ -128,6 +131,56 @@ function useLowStock() {
   });
 }
 
+type AdmissionRow = { id: string; ward_id: string | null; wards: { name: string } | null };
+type BedRow = {
+  id: string;
+  status: string | null;
+  ward_id: string | null;
+  wards: { name: string } | null;
+};
+
+function useInpatientCensus() {
+  return useQuery({
+    queryKey: ["dashboard-inpatient-census"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admissions")
+        .select("id,ward_id,wards(name)")
+        .eq("status", "admitted");
+      if (error) throw error;
+      return (data ?? []) as AdmissionRow[];
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function useBedCounts() {
+  return useQuery({
+    queryKey: ["dashboard-bed-counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("beds").select("id,status,ward_id,wards(name)");
+      if (error) throw error;
+      return (data ?? []) as BedRow[];
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function useMortuaryCensus() {
+  return useQuery({
+    queryKey: ["dashboard-mortuary-census"],
+    queryFn: async () => {
+      const { count, error } = await db
+        .from("mortuary_records")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "stored");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    refetchInterval: 60_000,
+  });
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 function Dashboard() {
@@ -140,6 +193,9 @@ function Dashboard() {
   const { data: invoices, isLoading: loadingRevenue } = useRevenueToday();
   const { data: claimsQueue, isLoading: loadingClaims } = useClaimsQueue();
   const { data: lowStock, isLoading: loadingStock } = useLowStock();
+  const { data: admissions, isLoading: loadingAdmissions } = useInpatientCensus();
+  const { data: beds, isLoading: loadingBeds } = useBedCounts();
+  const { data: mortuaryStored, isLoading: loadingMortuary } = useMortuaryCensus();
 
   // MOH queries (existing — unchanged)
   const { data: diseases, isLoading: loadingDiseases } = useQuery({
@@ -230,6 +286,52 @@ function Dashboard() {
 
   const loading =
     loadingEncounters || loadingLabs || loadingRevenue || loadingClaims || loadingStock;
+
+  // ── Derived — inpatient census ────────────────────────────────────────────
+  const totalInpatients = (admissions ?? []).length;
+  const bedsOccupied = (beds ?? []).filter((b) => b.status === "occupied").length;
+  const bedsAvailable = (beds ?? []).filter((b) => b.status === "available").length;
+  const bedsTotal = (beds ?? []).length;
+  const loadingCensus = loadingAdmissions || loadingBeds;
+
+  // ── Derived — ward census breakdown ──────────────────────────────────────
+  const wardCensus = (() => {
+    const wardMap = new Map<
+      string,
+      { wardId: string; name: string; inpatients: number; occupied: number; total: number }
+    >();
+    (beds ?? []).forEach((b) => {
+      if (!b.ward_id) return;
+      if (!wardMap.has(b.ward_id))
+        wardMap.set(b.ward_id, {
+          wardId: b.ward_id,
+          name: b.wards?.name ?? b.ward_id,
+          inpatients: 0,
+          occupied: 0,
+          total: 0,
+        });
+      const e = wardMap.get(b.ward_id)!;
+      e.total += 1;
+      if (b.status === "occupied") e.occupied += 1;
+    });
+    (admissions ?? []).forEach((a) => {
+      if (!a.ward_id) return;
+      if (!wardMap.has(a.ward_id))
+        wardMap.set(a.ward_id, {
+          wardId: a.ward_id,
+          name: a.wards?.name ?? a.ward_id,
+          inpatients: 0,
+          occupied: 0,
+          total: 0,
+        });
+      const e = wardMap.get(a.ward_id)!;
+      e.inpatients += 1;
+      if (a.wards?.name) e.name = a.wards.name;
+    });
+    return Array.from(wardMap.values())
+      .filter((w) => w.inpatients > 0 || w.total > 0)
+      .sort((a, b) => b.inpatients - a.inpatients || a.name.localeCompare(b.name));
+  })();
 
   return (
     <div className="space-y-8">
@@ -351,6 +453,87 @@ function Dashboard() {
             accent={failedClaims > 0 ? "red" : "muted"}
           />
         </div>
+      </section>
+
+      {/* ── Section 5: Inpatient Census ─────────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionLabel icon={BedDouble} label="Inpatient Census — Live" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <OpCard
+            label="Total Inpatients"
+            value={loadingCensus ? "—" : totalInpatients}
+            accent="primary"
+          />
+          <OpCard
+            label="Beds Occupied"
+            value={loadingCensus ? "—" : bedsOccupied}
+            accent="amber"
+            sub={
+              bedsTotal > 0
+                ? `${Math.round((bedsOccupied / bedsTotal) * 100)}% occupancy`
+                : undefined
+            }
+          />
+          <OpCard
+            label="Beds Available"
+            value={loadingCensus ? "—" : bedsAvailable}
+            accent="green"
+          />
+          <AlertCard
+            icon={Archive}
+            label="Mortuary — Stored"
+            value={loadingMortuary ? "—" : (mortuaryStored ?? 0)}
+            severity={(mortuaryStored ?? 0) > 0 ? "medium" : "ok"}
+          />
+        </div>
+
+        {wardCensus.length > 0 && (
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="border-b px-4 py-3">
+              <h3 className="text-sm font-semibold">Ward Occupancy Breakdown</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2">Ward</th>
+                    <th className="px-4 py-2 text-right">Inpatients</th>
+                    <th className="px-4 py-2 text-right">Occupied Beds</th>
+                    <th className="px-4 py-2 text-right">Total Beds</th>
+                    <th className="px-4 py-2 text-right">Occupancy</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {wardCensus.map((w) => (
+                    <tr key={w.wardId} className="hover:bg-muted/20">
+                      <td className="px-4 py-2 font-medium">{w.name}</td>
+                      <td className="px-4 py-2 text-right font-mono">{w.inpatients}</td>
+                      <td className="px-4 py-2 text-right font-mono">{w.occupied}</td>
+                      <td className="px-4 py-2 text-right font-mono">{w.total}</td>
+                      <td className="px-4 py-2 text-right">
+                        {w.total > 0 ? (
+                          <span
+                            className={
+                              w.occupied / w.total >= 0.9
+                                ? "font-semibold text-red-600"
+                                : w.occupied / w.total >= 0.7
+                                  ? "text-amber-600"
+                                  : "text-emerald-600"
+                            }
+                          >
+                            {Math.round((w.occupied / w.total) * 100)}%
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ── Divider ─────────────────────────────────────────────────────── */}
