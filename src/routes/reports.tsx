@@ -8,6 +8,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { MohReportsGrid } from "@/components/moh/moh-reports-grid";
 import { AccessDenied } from "@/lib/require-access";
@@ -44,6 +45,56 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+
+type NlmisRow = {
+  nlmis_code: string | null;
+  item_name: string;
+  store_name: string;
+  total_consumed: number;
+};
+
+function useNlmisReport(from: string, to: string) {
+  return useQuery({
+    queryKey: ["nlmis-report", from, to],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("stock_usage")
+        .select("quantity,reason,used_at,stock_items(name,nlmis_code),stock_locations(name)")
+        .eq("reason", "dispensed")
+        .gte("used_at", `${from}T00:00:00`)
+        .lte("used_at", `${to}T23:59:59`);
+      if (error) throw error;
+      const map = new Map<string, NlmisRow>();
+      for (const row of (data as Array<{
+        quantity: number;
+        stock_items: { name: string; nlmis_code: string | null } | null;
+        stock_locations: { name: string } | null;
+      }>) ?? []) {
+        const item = row.stock_items as { name: string; nlmis_code: string | null } | null;
+        const loc = row.stock_locations as { name: string } | null;
+        if (!item) continue;
+        const key = `${item.nlmis_code ?? ""}__${item.name}__${loc?.name ?? ""}`;
+        const existing = map.get(key);
+        if (existing) {
+          existing.total_consumed += Number(row.quantity ?? 0);
+        } else {
+          map.set(key, {
+            nlmis_code: item.nlmis_code ?? null,
+            item_name: item.name,
+            store_name: loc?.name ?? "—",
+            total_consumed: Number(row.quantity ?? 0),
+          });
+        }
+      }
+      return Array.from(map.values()).sort(
+        (a, b) =>
+          (a.nlmis_code ?? "").localeCompare(b.nlmis_code ?? "") ||
+          a.item_name.localeCompare(b.item_name),
+      );
+    },
+    refetchInterval: 60_000,
+  });
+}
 
 export const Route = createFileRoute("/reports")({
   component: () => (
@@ -309,6 +360,35 @@ function ReportsPage() {
 
   const totalFunds = (funds ?? []).reduce((sum, fund) => sum + Number(fund.amount || 0), 0);
 
+  const [nlmisFrom, setNlmisFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [nlmisTo, setNlmisTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const { data: nlmisData, isLoading: nlmisLoading } = useNlmisReport(nlmisFrom, nlmisTo);
+
+  const exportNlmisCsv = () => {
+    if (!nlmisData || nlmisData.length === 0) return;
+    const header = ["NLMIS Code", "Item Name", "Store", "Qty Dispensed"];
+    const rows = nlmisData.map((r) => [
+      r.nlmis_code ?? "",
+      r.item_name,
+      r.store_name,
+      Number(r.total_consumed),
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `NLMIS_Consumption_${nlmisFrom}_to_${nlmisTo}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
 
@@ -546,6 +626,84 @@ function ReportsPage() {
             href="/deliveries"
             icon={Truck}
           />
+        </div>
+      </section>
+
+      {/* ── NLMIS Consumption Report ─────────────────────────────────────── */}
+      <section className="space-y-3 no-print">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-semibold">NLMIS Consumption Report</h2>
+            <p className="text-sm text-muted-foreground">
+              Pharmacy dispensing by NLMIS commodity code — for KEMSA/MOH submission.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">From</Label>
+              <Input
+                type="date"
+                value={nlmisFrom}
+                onChange={(e) => setNlmisFrom(e.target.value)}
+                className="w-36 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">To</Label>
+              <Input
+                type="date"
+                value={nlmisTo}
+                onChange={(e) => setNlmisTo(e.target.value)}
+                className="w-36 text-sm"
+              />
+            </div>
+            <Button
+              variant="outline"
+              disabled={!nlmisData || nlmisData.length === 0}
+              onClick={exportNlmisCsv}
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2">NLMIS Code</th>
+                <th className="px-4 py-2">Item</th>
+                <th className="px-4 py-2">Store</th>
+                <th className="px-4 py-2 text-right">Qty Dispensed</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {nlmisLoading && (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!nlmisLoading && (!nlmisData || nlmisData.length === 0) && (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                    No dispensing records with NLMIS codes in this date range.
+                  </td>
+                </tr>
+              )}
+              {(nlmisData ?? []).map((row, i) => (
+                <tr key={i} className="hover:bg-muted/20">
+                  <td className="px-4 py-2 font-mono text-xs">{row.nlmis_code ?? "—"}</td>
+                  <td className="px-4 py-2 font-medium">{row.item_name}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{row.store_name}</td>
+                  <td className="px-4 py-2 text-right font-mono">
+                    {Number(row.total_consumed).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
