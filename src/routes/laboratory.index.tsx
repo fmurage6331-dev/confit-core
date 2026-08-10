@@ -12,7 +12,7 @@ import { PermGuard } from "@/lib/require-access";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FlaskConical, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { FlaskConical, MapPin, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -47,6 +47,10 @@ type Row = {
   rooms: { name: string | null } | null;
   encounter_type: string | null;
   admission_id: string | null;
+  admissions: {
+    wards: { name: string | null } | null;
+    beds: { bed_number: string | null } | null;
+  } | null;
 };
 
 function StatusBadge({ s }: { s: string | null }) {
@@ -90,7 +94,7 @@ function LaboratoryWorklist() {
       const { data, error } = await supabase
         .from("lab_orders")
         .select(
-          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,encounter_type,admission_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name)",
+          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,encounter_type,admission_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name),admissions(wards(name),beds(bed_number))",
         )
         .gte("ordered_at", `${from}T00:00:00`)
         .lte("ordered_at", `${to}T23:59:59`)
@@ -357,6 +361,12 @@ function OrderCard({
               </Badge>
             )}
           </span>
+          {r.encounter_type === "inpatient" && r.admissions?.wards?.name && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+              <MapPin className="h-3 w-3" />
+              {r.admissions.wards.name} · Bed {r.admissions.beds?.bed_number ?? "—"}
+            </span>
+          )}
         </Field>
         <div className="sm:col-span-2">
           <Field label="Instructions">{r.instructions || "NONE"}</Field>

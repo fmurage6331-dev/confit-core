@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScanLine, Search } from "lucide-react";
+import { MapPin, ScanLine, Search } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/radiology/")({
@@ -41,6 +41,10 @@ type Row = {
   lab_test_catalog: { name: string | null; category: string | null } | null;
   encounter_type: string | null;
   admission_id: string | null;
+  admissions: {
+    wards: { name: string | null } | null;
+    beds: { bed_number: string | null } | null;
+  } | null;
 };
 
 function StatusBadge({ s }: { s: string | null }) {
@@ -73,7 +77,7 @@ function RadiologyWorklist() {
       const { data, error } = await supabase
         .from("radiology_orders")
         .select(
-          "id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,encounter_type,admission_id,patients(patient_name,file_number),lab_test_catalog(name,category)",
+          "id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,encounter_type,admission_id,patients(patient_name,file_number),lab_test_catalog(name,category),admissions(wards(name),beds(bed_number))",
         )
         .order("ordered_at", { ascending: false })
         .limit(500);
@@ -207,6 +211,12 @@ function RadiologyWorklist() {
                       </Badge>
                     )}
                   </div>
+                  {r.encounter_type === "inpatient" && r.admissions?.wards?.name && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                      <MapPin className="h-3 w-3" />
+                      {r.admissions.wards.name} · Bed {r.admissions.beds?.bed_number ?? "—"}
+                    </div>
+                  )}
                   {r.clinical_indication && (
                     <div className="text-xs text-muted-foreground line-clamp-1">
                       {r.clinical_indication}
