@@ -288,7 +288,6 @@ function Inpatient() {
                           variant="outline"
                           className="w-full mb-2"
                           onClick={() => {
-                            setSelectedBed(null);
                             navigate({
                               to: "/inpatient/$admissionId",
                               params: { admissionId: admission.id },
