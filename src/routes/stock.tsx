@@ -120,6 +120,7 @@ type StockItem = {
   cash_price: number | null;
   insurance_price: number | null;
   unit_price: number | null;
+  nlmis_code: string | null;
   notes: string | null;
 };
 
@@ -134,6 +135,7 @@ type StoreBalance = {
   category: string | null;
   kind: string | null;
   unit: string | null;
+  nlmis_code: string | null;
   quantity: number | string;
   updated_at: string | null;
 };
@@ -464,6 +466,7 @@ function StockPage() {
                     unit_price: getFormNumber(formData, "cash_price"),
                     strength: getFormNumber(formData, "strength") || null,
                     strength_unit: getFormString(formData, "strength_unit") || null,
+                    nlmis_code: getFormString(formData, "nlmis_code") || null,
                     notes: getFormString(formData, "notes"),
                   });
                 }}
@@ -546,6 +549,11 @@ function StockPage() {
                     <Label>Strength unit</Label>
                     <Input name="strength_unit" placeholder="mg, g, ml, mcg" />
                   </div>
+                </div>
+
+                <div>
+                  <Label>NLMIS commodity code</Label>
+                  <Input name="nlmis_code" placeholder="e.g. 10010001" />
                 </div>
 
                 <div>
@@ -947,6 +955,7 @@ function StockPage() {
                     <th className="px-4 py-2">Item</th>
                     <th className="px-4 py-2">Kind</th>
                     <th className="px-4 py-2">Category</th>
+                    <th className="px-4 py-2">NLMIS Code</th>
                     <th className="px-4 py-2">Unit</th>
                     <th className="px-4 py-2 text-right">Quantity</th>
                     <th className="px-4 py-2">Updated</th>
@@ -973,6 +982,9 @@ function StockPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">{row.category ?? "—"}</td>
+                        <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                          {row.nlmis_code ?? "—"}
+                        </td>
                         <td className="px-4 py-2">{row.unit ?? "pcs"}</td>
                         <td className="px-4 py-2 text-right font-mono">
                           {Number(row.quantity ?? 0).toLocaleString()}
