@@ -7,6 +7,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,12 @@ export const Route = createFileRoute("/admin/wards")({
 });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type RoomOption = {
+  id: string;
+  name: string;
+  ward_id: string | null;
+};
 
 type Ward = {
   id: string;
@@ -110,6 +117,8 @@ function AdminWardsPage() {
   const [editing, setEditing] = useState<Ward | null>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [wardRooms, setWardRooms] = useState<RoomOption[]>([]);
+  const [linkedRoomId, setLinkedRoomId] = useState<string>("none");
 
   async function load() {
     setLoading(true);
@@ -126,8 +135,19 @@ function AdminWardsPage() {
     setRows((data ?? []) as Ward[]);
   }
 
+  async function loadRooms() {
+    const { data } = await db
+      .from("rooms")
+      .select("id,name,ward_id")
+      .eq("kind", "ward")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
+    setWardRooms((data ?? []) as RoomOption[]);
+  }
+
   useEffect(() => {
     load();
+    loadRooms();
   }, []);
 
   if (!isAdmin) {
@@ -136,11 +156,14 @@ function AdminWardsPage() {
 
   function openNew() {
     setEditing({ ...EMPTY_WARD });
+    setLinkedRoomId("none");
     setOpen(true);
   }
 
   function openEdit(w: Ward) {
     setEditing({ ...w });
+    const linked = wardRooms.find((r) => r.ward_id === w.id);
+    setLinkedRoomId(linked?.id ?? "none");
     setOpen(true);
   }
 
@@ -176,25 +199,42 @@ function AdminWardsPage() {
       is_active: editing.is_active,
     };
 
+    let wardId = editing.id;
+
     if (editing.id) {
       const { error } = await supabase.from("wards").update(payload).eq("id", editing.id);
-      setSaving(false);
       if (error) {
+        setSaving(false);
         toast.error(error.message);
         return;
       }
       toast.success("Ward updated");
     } else {
-      const { error } = await supabase.from("wards").insert(payload);
-      setSaving(false);
+      const { data: inserted, error } = await supabase
+        .from("wards")
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) {
+        setSaving(false);
         toast.error(error.message);
         return;
       }
+      wardId = inserted.id;
       toast.success("Ward created");
     }
+
+    // Unlink all rooms currently pointing to this ward, then re-link selected room
+    const selectedRoom = linkedRoomId && linkedRoomId !== "none" ? linkedRoomId : null;
+    await db.from("rooms").update({ ward_id: null }).eq("ward_id", wardId);
+    if (selectedRoom) {
+      await db.from("rooms").update({ ward_id: wardId }).eq("id", selectedRoom);
+    }
+
+    setSaving(false);
     setOpen(false);
     setEditing(null);
+    await loadRooms();
     load();
   }
 
@@ -256,6 +296,7 @@ function AdminWardsPage() {
                 <th className="px-4 py-3">Floor</th>
                 <th className="px-4 py-3">Daily rate</th>
                 <th className="px-4 py-3">Capacity</th>
+                <th className="px-4 py-3">Room</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -273,6 +314,9 @@ function AdminWardsPage() {
                     {w.daily_rate != null ? `KES ${Number(w.daily_rate).toLocaleString()}` : "—"}
                   </td>
                   <td className="px-4 py-3">{w.capacity ?? "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {wardRooms.find((r) => r.ward_id === w.id)?.name ?? "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge
                       className={
@@ -440,6 +484,28 @@ function AdminWardsPage() {
                     placeholder="e.g. 20"
                   />
                 </div>
+              </div>
+
+              {/* Linked ward room */}
+              <div className="space-y-1.5">
+                <Label>Linked ward room</Label>
+                <Select value={linkedRoomId} onValueChange={setLinkedRoomId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ward room…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— No room linked —</SelectItem>
+                    {wardRooms.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                        {r.ward_id && r.ward_id !== editing?.id ? " (linked to another ward)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Links this ward to its room page for bed management and inpatient routing.
+                </p>
               </div>
 
               {/* Active toggle */}
