@@ -311,6 +311,7 @@ function RoomPage() {
       setRxByReg(new Map());
     }
   }
+
   useEffect(() => {
     if (allowed && room) loadRequests();
   }, [allowed, room]);
@@ -988,6 +989,7 @@ function ConsultationDialog({
       .order("name")
       .then(({ data }) => setStock((data ?? []) as unknown as StockItem[]));
     loadAdmission();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reg.id]);
 
   function setHK<K extends keyof History>(k: K, v: History[K]) {
