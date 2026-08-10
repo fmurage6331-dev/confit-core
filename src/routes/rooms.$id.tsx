@@ -116,6 +116,8 @@ type History = {
   occupation_exposure?: string;
   family_history?: string;
   ros?: string;
+  fp_visit_type?: string;
+  fp_method?: string;
 };
 type Diagnosis = {
   icd11_code: string;
@@ -180,6 +182,8 @@ type Prescription = {
   dispensed_by_name: string | null;
   created_at: string;
   dispensed_at: string | null;
+  encounter_type: string | null;
+  admission_id: string | null;
 };
 
 const kindIcon: Record<RoomKind, React.ReactNode> = {
@@ -301,7 +305,7 @@ function RoomPage() {
         return;
       }
       const map = new Map<string, Prescription[]>();
-      for (const rx of (rxData ?? []) as Prescription[]) {
+      for (const rx of (rxData ?? []) as unknown as Prescription[]) {
         const arr = map.get(rx.registration_id) ?? [];
         arr.push(rx);
         map.set(rx.registration_id, arr);
@@ -449,6 +453,9 @@ function RoomPage() {
                 const created = rxs.length > 0 ? rxs[0].created_at : r.created_at;
                 const status = pharmacyStatus(rxs);
                 const anyPending = rxs.some((x) => x.status === "pending");
+                const isInpatient = rxs.some(
+                  (x) => x.encounter_type === "inpatient" || Boolean(x.admission_id),
+                );
                 return (
                   <tr key={r.id} className="border-t">
                     <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -484,9 +491,11 @@ function RoomPage() {
                           <ClipboardPlus className="mr-1 h-3.5 w-3.5" />
                           Dispense
                         </Button>
-                        <Button size="sm" disabled={anyPending} onClick={() => closeVisit(r)}>
-                          Close visit
-                        </Button>
+                        {!isInpatient && (
+                          <Button size="sm" disabled={anyPending} onClick={() => closeVisit(r)}>
+                            Close visit
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -652,6 +661,7 @@ function RoomPage() {
         <ConsultationDialog
           reg={openReg}
           roomId={id}
+          roomKind={kind}
           onClose={() => setOpenReg(null)}
           onSaved={() => {
             setOpenReg(null);
@@ -907,11 +917,13 @@ function TriageDialog({
 function ConsultationDialog({
   reg,
   roomId,
+  roomKind,
   onClose,
   onSaved,
 }: {
   reg: Reg;
   roomId: string;
+  roomKind?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -963,7 +975,7 @@ function ConsultationDialog({
       .select("*")
       .eq("registration_id", reg.id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => setRxs((data ?? []) as Prescription[]));
+      .then(({ data }) => setRxs((data ?? []) as unknown as Prescription[]));
     supabase
       .from("stock_items")
       .select("id,name,kind,current_quantity,strength,strength_unit")
@@ -993,6 +1005,70 @@ function ConsultationDialog({
       setSaving(false);
       toast.error(error.message);
       return;
+    }
+
+    // Write FP indicator tags for MCH visits (idempotent)
+    if (roomKind === "mch" && (h.fp_visit_type || h.fp_method)) {
+      await supabase
+        .from("encounter_indicator_tags")
+        .delete()
+        .eq("encounter_id", reg.id)
+        .like("indicator_code", "FP_%");
+
+      const fpTags: {
+        encounter_id: string;
+        indicator_code: string;
+        tagged_by: string;
+        tagged_at: string;
+      }[] = [];
+      const now = new Date().toISOString();
+      const by = user?.email ?? "unknown";
+
+      // Always tag consultation
+      fpTags.push({
+        encounter_id: reg.id,
+        indicator_code: "FP_CONSULTATION",
+        tagged_by: by,
+        tagged_at: now,
+      });
+
+      // Visit type
+      if (h.fp_visit_type === "new") {
+        fpTags.push({
+          encounter_id: reg.id,
+          indicator_code: "FP_NEW",
+          tagged_by: by,
+          tagged_at: now,
+        });
+      } else if (h.fp_visit_type === "revisit") {
+        fpTags.push({
+          encounter_id: reg.id,
+          indicator_code: "FP_REVISIT",
+          tagged_by: by,
+          tagged_at: now,
+        });
+      }
+
+      // Method
+      const methodMap: Record<string, string> = {
+        pills: "FP_PILLS",
+        pop: "FP_POP",
+        ecp: "FP_ECP",
+        injectable: "FP_INJECTABLE",
+        implant: "FP_IMPLANT",
+        iucd: "FP_IUCD",
+        condoms: "FP_CONDOMS",
+      };
+      if (h.fp_method && methodMap[h.fp_method]) {
+        fpTags.push({
+          encounter_id: reg.id,
+          indicator_code: methodMap[h.fp_method],
+          tagged_by: by,
+          tagged_at: now,
+        });
+      }
+
+      await supabase.from("encounter_indicator_tags").insert(fpTags as never);
     }
 
     // Write IDSR indicator tags for any flagged diagnoses (idempotent)
@@ -1039,7 +1115,7 @@ function ConsultationDialog({
       | "dispensed_by_name"
     >,
   ) {
-    const { data, error } = await supabase
+    const { data: insertedRows, error } = await db
       .from("prescriptions")
       .insert({
         registration_id: reg.id,
@@ -1047,13 +1123,13 @@ function ConsultationDialog({
         created_by: user?.id,
         prescribed_by_name: user?.email ?? null,
       })
-      .select("*")
-      .single();
+      .select("*");
     if (error) {
       toast.error(error.message);
       return;
     }
-    setRxs((p) => [data as Prescription, ...p]);
+    const data = ((insertedRows as unknown as Record<string, unknown>[]) ?? [])[0] ?? null;
+    if (data) setRxs((p) => [data as unknown as Prescription, ...p]);
     toast.success("Prescription added — patient routed to pharmacy");
   }
 
@@ -1222,6 +1298,66 @@ function ConsultationDialog({
               <Section title="Review of systems">
                 <TextArea label="ROS" value={h.ros} onChange={(v) => setHK("ros", v)} />
               </Section>
+              {roomKind === "mch" && (
+                <Section title="Family Planning">
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Visit type
+                      </label>
+                      <div className="flex gap-3">
+                        {[
+                          { value: "new", label: "New Acceptor" },
+                          { value: "revisit", label: "Revisit" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setHK("fp_visit_type", opt.value)}
+                            className={`rounded-md border px-3 py-1.5 text-sm transition ${
+                              h.fp_visit_type === opt.value
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background hover:bg-muted"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Contraceptive method
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { value: "pills", label: "COC Pills" },
+                          { value: "pop", label: "POP" },
+                          { value: "ecp", label: "ECP" },
+                          { value: "injectable", label: "Injectable" },
+                          { value: "implant", label: "Implant" },
+                          { value: "iucd", label: "IUCD" },
+                          { value: "condoms", label: "Condoms" },
+                          { value: "none", label: "None" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setHK("fp_method", opt.value)}
+                            className={`rounded-md border px-3 py-1.5 text-sm transition ${
+                              h.fp_method === opt.value
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background hover:bg-muted"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Section>
+              )}
             </>
           )}
 
@@ -1578,6 +1714,8 @@ function PrescriptionEditor({
       duration: freq === "STAT" ? "Single dose" : durationStr,
       quantity: Number(qty) || 1,
       notes: notes || null,
+      encounter_type: null,
+      admission_id: null,
     });
     setStockId("");
     setDrugName("");
@@ -1795,7 +1933,7 @@ function PharmacyDialog({
       supabase.from("stock_items").select("id,current_quantity").eq("kind", "pharmaceutical"),
     ]);
     setLoading(false);
-    setRxs((rxRes.data ?? []) as Prescription[]);
+    setRxs((rxRes.data ?? []) as unknown as Prescription[]);
     const sm = new Map<string, number>();
     (stockRes.data ?? []).forEach((s) => {
       sm.set(s.id, Number(s.current_quantity ?? 0));
@@ -3807,7 +3945,7 @@ function MortuaryView({ room }: { room: Room }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await db
+    const { data: insertedRows, error } = await db
       .from("mortuary_records")
       .select("*")
       .order("admitted_to_mortuary_at", { ascending: false });
@@ -3816,7 +3954,7 @@ function MortuaryView({ room }: { room: Room }) {
       toast.error(error.message);
       return;
     }
-    setRecords((data ?? []) as MortuaryRecord[]);
+    setRecords((insertedRows ?? []) as unknown as MortuaryRecord[]);
   }, []);
 
   useEffect(() => {
