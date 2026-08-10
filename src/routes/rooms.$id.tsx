@@ -212,7 +212,7 @@ const kindBlurb: Record<RoomKind, string> = {
   ward: "Inpatient ward. View bed occupancy, active admissions and open patient clinical charts.",
   theatre: "Surgical theatre. Manage active cases and pre-op patients.",
   mortuary: "Deceased storage and release management. Daily charges accrue automatically.",
-  mch: "Maternal and Child Health / Family Planning. MOH 642 and FP reports draw from this room.",
+  mch: "Maternal and Child Health / Family Planning consultation workflow and service capture.",
 };
 const KIND_LABELS: Record<string, string> = {
   service: "Services",
@@ -375,7 +375,7 @@ function RoomPage() {
     if (kind === "lab") return "Perform tests";
     if (kind === "radiology") return "Open Radiology";
     if (kind === "triage") return "Take vitals";
-    if (kind === "consultation") return "Consult";
+    if (kind === "consultation" || kind === "mch") return "Consult";
     if (kind === "pharmacy") return "Dispense";
     if (kind === "billing") return "Open in Accounting";
     if (
@@ -398,27 +398,7 @@ function RoomPage() {
     return <MortuaryView room={room} />;
   }
 
-  if (kind === "mch") {
-    return (
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-end justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-3xl font-bold">
-              <Baby className="h-7 w-7 text-primary" />
-              {room.name}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Maternal and Child Health / Family Planning. MOH 642 and FP reports draw from this
-              room.
-            </p>
-          </div>
-          <Button variant="outline" onClick={loadRequests}>
-            Refresh
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // MCH reuses consultation queue — kind='mch' is preserved for MOH FP/642 reporting
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -518,7 +498,9 @@ function RoomPage() {
       ) : (
         <div
           className={
-            kind === "consultation" ? "space-y-3" : "overflow-hidden rounded-xl border bg-card"
+            kind === "consultation" || kind === "mch"
+              ? "space-y-3"
+              : "overflow-hidden rounded-xl border bg-card"
           }
         >
           {kind !== "consultation" && (
@@ -631,7 +613,7 @@ function RoomPage() {
               </tbody>
             </table>
           )}
-          {kind === "consultation" && (
+          {(kind === "consultation" || kind === "mch") && (
             <>
               <ConsultationOverview
                 rows={rows}
@@ -666,7 +648,7 @@ function RoomPage() {
           }}
         />
       )}
-      {openReg && kind === "consultation" && (
+      {openReg && (kind === "consultation" || kind === "mch") && (
         <ConsultationDialog
           reg={openReg}
           roomId={id}
