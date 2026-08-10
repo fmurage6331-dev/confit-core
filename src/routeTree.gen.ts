@@ -1235,6 +1235,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DeliveriesRoute: DeliveriesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  InpatientAdmissionIdRoute: InpatientAdmissionIdRoute,
   InpatientRoute: InpatientRoute,
   LoginRoute: LoginRoute,
   MachinesRoute: MachinesRoute,
@@ -1248,7 +1249,6 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
-  InpatientAdmissionIdRoute: InpatientAdmissionIdRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
   AdminInsuranceRoute: AdminInsuranceRoute,
   AdminMohIndicatorsRoute: AdminMohIndicatorsRoute,
