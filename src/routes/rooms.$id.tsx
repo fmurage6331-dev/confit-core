@@ -150,6 +150,7 @@ type Reg = {
   claim_status: string | null;
   insurance_provider_id: string | null;
   insurer_type: string | null;
+  sha_fund_type: string | null;
 };
 type Service = {
   id: string;
@@ -273,7 +274,7 @@ function RoomPage() {
     const { data, error } = await supabase
       .from("patient_registrations")
       .select(
-        "id,patient_id,patient_name,file_number,from_room,tests,vitals,history,diagnoses,payment_mode,insurance_coverage_percentage,payment_status,status,created_at,sha_member_number,sha_relationship_to_principal,sha_notification_number,preauth_number,claim_number,claim_status,insurance_provider_id,insurer_type",
+        "id,patient_id,patient_name,file_number,from_room,tests,vitals,history,diagnoses,payment_mode,insurance_coverage_percentage,payment_status,status,created_at,sha_member_number,sha_relationship_to_principal,sha_notification_number,preauth_number,claim_number,claim_status,insurance_provider_id,insurer_type,sha_fund_type",
       )
       .eq("current_room_id", id)
       .neq("status", "done")
@@ -2221,6 +2222,7 @@ function InsuranceDialog({
   const [preauthNumber, setPreauthNumber] = useState(reg.preauth_number ?? "");
   const [claimNumber, setClaimNumber] = useState(reg.claim_number ?? "");
   const [claimStatus, setClaimStatus] = useState(reg.claim_status ?? "pending");
+  const [shaFundType, setShaFundType] = useState<string | null>(reg.sha_fund_type ?? null);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fhirPayload, setFhirPayload] = useState<Record<string, unknown> | null>(null);
@@ -2296,6 +2298,7 @@ function InsuranceDialog({
         preauth_number: preauthNumber.trim() || null,
         claim_number: claimNumber.trim() || null,
         claim_status: claimStatus || null,
+        sha_fund_type: shaFundType || null,
       } as never)
       .eq("id", reg.id);
 
@@ -2432,6 +2435,28 @@ function InsuranceDialog({
                       onChange={(e) => setShaNotificationNumber(e.target.value)}
                       placeholder="e.g. SHA/N/2026/001234"
                     />
+                  </div>
+                  <div>
+                    <Label>SHA Fund Type</Label>
+                    <Select
+                      value={shaFundType ?? "none"}
+                      onValueChange={(v) => setShaFundType(v === "none" ? null : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select fund type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Not set —</SelectItem>
+                        <SelectItem value="phf">PHF — Primary Healthcare Fund</SelectItem>
+                        <SelectItem value="shif">SHIF — Social Health Insurance Fund</SelectItem>
+                        <SelectItem value="eccif">
+                          ECCIF — Emergency, Chronic & Critical Illness
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Override auto-detected fund type if incorrectly assigned.
+                    </p>
                   </div>
                   <div>
                     <Label>Pre-authorization Number</Label>
