@@ -4501,6 +4501,187 @@ function MortuaryView({ room }: { room: Room }) {
   );
 }
 
+// ─── TheatreNotesDialog ───────────────────────────────────────────────────────
+
+type TheatreNote = {
+  id: string;
+  note_type: string;
+  content: string | null;
+  authored_at: string | null;
+};
+
+const THEATRE_NOTE_TYPES = [
+  { key: "pre_op_checklist", label: "Pre-op Checklist" },
+  { key: "operative_note", label: "Operative Note" },
+  { key: "anaesthesia_note", label: "Anaesthesia Record" },
+  { key: "post_op_note", label: "Post-op / PACU" },
+] as const;
+
+function TheatreNotesDialog({
+  admission,
+  onClose,
+}: {
+  admission: TheatreAdmission;
+  onClose: () => void;
+}) {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<string>("pre_op_checklist");
+  const [notes, setNotes] = useState<Record<string, TheatreNote | null>>({});
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await db
+        .from("clinical_notes")
+        .select("id,note_type,content,authored_at")
+        .eq("admission_id", admission.id)
+        .in(
+          "note_type",
+          THEATRE_NOTE_TYPES.map((t) => t.key),
+        )
+        .order("authored_at", { ascending: false });
+      const map: Record<string, TheatreNote | null> = {};
+      for (const t of THEATRE_NOTE_TYPES) map[t.key] = null;
+      for (const n of (data ?? []) as TheatreNote[]) {
+        if (!map[n.note_type]) map[n.note_type] = n;
+      }
+      setNotes(map);
+      const drafts: Record<string, string> = {};
+      for (const t of THEATRE_NOTE_TYPES) {
+        drafts[t.key] = map[t.key]?.content ?? "";
+      }
+      setDraft(drafts);
+      setLoading(false);
+    })();
+  }, [admission.id]);
+
+  async function save(noteType: string) {
+    const content = draft[noteType]?.trim();
+    if (!content) {
+      toast.error("Enter a note before saving");
+      return;
+    }
+    setSaving(true);
+    const existing = notes[noteType];
+    if (existing) {
+      const { error } = await db
+        .from("clinical_notes")
+        .update({ content, authored_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      if (error) {
+        toast.error(error.message);
+        setSaving(false);
+        return;
+      }
+      setNotes((p) => ({
+        ...p,
+        [noteType]: { ...existing, content, authored_at: new Date().toISOString() },
+      }));
+    } else {
+      const { error } = await db.from("clinical_notes").insert({
+        admission_id: admission.id,
+        encounter_id: admission.encounter_id,
+        note_type: noteType,
+        content,
+        authored_by: user?.id ?? null,
+        authored_at: new Date().toISOString(),
+      });
+      if (error) {
+        toast.error(error.message);
+        setSaving(false);
+        return;
+      }
+      setNotes((p) => ({
+        ...p,
+        [noteType]: {
+          id: crypto.randomUUID(),
+          note_type: noteType,
+          content,
+          authored_at: new Date().toISOString(),
+        },
+      }));
+    }
+    toast.success("Note saved");
+    setSaving(false);
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Scissors className="h-5 w-5 text-primary" />
+            Theatre Notes — {admission.patients?.patient_name ?? "Patient"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex gap-1 border-b pb-2 flex-wrap">
+          {THEATRE_NOTE_TYPES.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                activeTab === t.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              {t.label}
+              {notes[t.key] && (
+                <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading notes…
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto space-y-3 pt-2">
+            {notes[activeTab] && (
+              <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                Last saved:{" "}
+                {notes[activeTab]?.authored_at
+                  ? format(parseISO(notes[activeTab]!.authored_at!), "dd MMM yyyy, HH:mm")
+                  : "—"}
+              </div>
+            )}
+            <Textarea
+              rows={12}
+              value={draft[activeTab] ?? ""}
+              onChange={(e) => setDraft((p) => ({ ...p, [activeTab]: e.target.value }))}
+              placeholder={
+                activeTab === "pre_op_checklist"
+                  ? "Consent signed, site marked, allergies reviewed, fasting status, IV access…"
+                  : activeTab === "operative_note"
+                    ? "Procedure, surgeon, assistant, findings, technique, specimens, complications…"
+                    : activeTab === "anaesthesia_note"
+                      ? "Type of anaesthesia, agents used, airway, vitals trend, recovery…"
+                      : "PACU status, pain score, vitals, instructions, ward transfer time…"
+              }
+            />
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button onClick={() => save(activeTab)} disabled={saving || loading}>
+            {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+            Save {THEATRE_NOTE_TYPES.find((t) => t.key === activeTab)?.label}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── TheatreView ──────────────────────────────────────────────────────────────
 // Renders when room.kind === 'theatre'
 // Shows active surgical admissions from all surgical wards
@@ -4527,6 +4708,7 @@ function TheatreView({ room, navigate }: { room: Room; navigate: ReturnType<type
   const [admissions, setAdmissions] = useState<TheatreAdmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [theatreNotesAdmission, setTheatreNotesAdmission] = useState<TheatreAdmission | null>(null);
 
   const SURGICAL_WARD_IDS = [
     "027fdf0c-10ef-4de5-add9-ff393f5f87db",
@@ -4614,19 +4796,30 @@ function TheatreView({ room, navigate }: { room: Room; navigate: ReturnType<type
           {a.expected_discharge_date && <p>Expected D/C: {a.expected_discharge_date}</p>}
         </div>
         {a.id && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            onClick={() =>
-              navigate({
-                to: "/inpatient/$admissionId",
-                params: { admissionId: a.id },
-              })
-            }
-          >
-            Open patient chart
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={() =>
+                navigate({
+                  to: "/inpatient/$admissionId",
+                  params: { admissionId: a.id },
+                })
+              }
+            >
+              Open patient chart
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 border-primary/30 text-primary hover:bg-primary/5"
+              onClick={() => setTheatreNotesAdmission(a)}
+            >
+              <ClipboardPlus className="mr-1 h-3.5 w-3.5" />
+              Theatre notes
+            </Button>
+          </div>
         )}
       </div>
     );
@@ -4722,6 +4915,13 @@ function TheatreView({ room, navigate }: { room: Room; navigate: ReturnType<type
             </div>
           )}
         </div>
+      )}
+
+      {theatreNotesAdmission && (
+        <TheatreNotesDialog
+          admission={theatreNotesAdmission}
+          onClose={() => setTheatreNotesAdmission(null)}
+        />
       )}
     </div>
   );
