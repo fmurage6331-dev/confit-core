@@ -40,8 +40,16 @@ import {
   Stethoscope,
   Scan,
   AlertCircle,
+  Pencil,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/inpatient/$admissionId")({
@@ -1155,6 +1163,11 @@ function BillingTab({ encounterId }: { encounterId: string }) {
   const [loading, setLoading] = useState(true);
   const [invoiceNumber, setInvoiceNumber] = useState<string | null>(null);
   const [invoiceStatus, setInvoiceStatus] = useState<string | null>(null);
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const [adjustItem, setAdjustItem] = useState<InvoiceLineItem | null>(null);
+  const [adjustPrice, setAdjustPrice] = useState<string>("");
+  const [adjustDesc, setAdjustDesc] = useState<string>("");
+  const [adjustSaving, setAdjustSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1176,6 +1189,7 @@ function BillingTab({ encounterId }: { encounterId: string }) {
 
     setInvoiceNumber((invData as { invoice_number: string | null }).invoice_number);
     setInvoiceStatus((invData as { status: string | null }).status);
+    setInvoiceId((invData as { id: string }).id);
 
     // Get line items
     const { data: lineData } = await supabase
@@ -1212,6 +1226,32 @@ function BillingTab({ encounterId }: { encounterId: string }) {
   const runningTotal = items.reduce((s, i) => s + Number(i.amount ?? 0), 0);
   const insuranceCovered = items.reduce((s, i) => s + Number(i.insurance_covered_amount ?? 0), 0);
   const patientDue = runningTotal - insuranceCovered;
+
+  async function saveAdjustment() {
+    if (!adjustItem) return;
+    const price = parseFloat(adjustPrice);
+    if (isNaN(price) || price < 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    setAdjustSaving(true);
+    const { error } = await supabase
+      .from("invoice_line_items")
+      .update({
+        unit_price: price,
+        amount: price * Number(adjustItem.quantity ?? 1),
+        description: adjustDesc.trim() || adjustItem.description,
+      })
+      .eq("id", adjustItem.id);
+    setAdjustSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Charge adjusted — invoice recalculated");
+    setAdjustItem(null);
+    load();
+  }
 
   function itemTypeBadge(type: string) {
     const map: Record<string, string> = {
@@ -1302,6 +1342,7 @@ function BillingTab({ encounterId }: { encounterId: string }) {
                           <th className="text-right py-1.5 pr-3">Qty</th>
                           <th className="text-right py-1.5 pr-3">Unit</th>
                           <th className="text-right py-1.5">Amount</th>
+                          <th className="py-1.5 w-8"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1324,6 +1365,22 @@ function BillingTab({ encounterId }: { encounterId: string }) {
                             <td className="py-1.5 text-right font-medium">
                               KES {Number(item.amount ?? 0).toLocaleString()}
                             </td>
+                            <td className="py-1.5 text-right">
+                              {item.item_type === "bed_day" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => {
+                                    setAdjustItem(item);
+                                    setAdjustPrice(String(item.unit_price ?? ""));
+                                    setAdjustDesc(item.description ?? "");
+                                  }}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1334,6 +1391,48 @@ function BillingTab({ encounterId }: { encounterId: string }) {
             })}
           </div>
         </ScrollArea>
+      )}
+
+      {adjustItem && (
+        <Dialog open onOpenChange={(v: boolean) => !v && setAdjustItem(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Adjust Bed Charge</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-1">
+              <div>
+                <Label>Description</Label>
+                <Input
+                  value={adjustDesc}
+                  onChange={(e) => setAdjustDesc(e.target.value)}
+                  placeholder={adjustItem.description ?? ""}
+                />
+              </div>
+              <div>
+                <Label>Daily Rate (KES)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={adjustPrice}
+                  onChange={(e) => setAdjustPrice(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Invoice total recalculates automatically on save.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setAdjustItem(null)}>
+                Cancel
+              </Button>
+              <Button onClick={saveAdjustment} disabled={adjustSaving}>
+                {adjustSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                Save adjustment
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
