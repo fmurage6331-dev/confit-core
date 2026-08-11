@@ -47,6 +47,9 @@ type Row = {
   rooms: { name: string | null } | null;
   encounter_type: string | null;
   admission_id: string | null;
+  is_critical: boolean | null;
+  specimen_type: string | null;
+  collected_at: string | null;
   admissions: {
     wards: { name: string | null } | null;
     beds: { bed_number: string | null } | null;
@@ -94,7 +97,7 @@ function LaboratoryWorklist() {
       const { data, error } = await supabase
         .from("lab_orders")
         .select(
-          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,encounter_type,admission_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name),admissions(wards(name),beds(bed_number))",
+          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,encounter_type,admission_id,is_critical,specimen_type,collected_at,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category),rooms(name),admissions(wards(name),beds(bed_number))",
         )
         .gte("ordered_at", `${from}T00:00:00`)
         .lte("ordered_at", `${to}T23:59:59`)
@@ -349,6 +352,11 @@ function OrderCard({
         </Field>
         <Field label="Status">
           <StatusBadge s={r.status} />
+          {r.is_critical && (
+            <Badge className="ml-1 bg-rose-600 text-white hover:bg-rose-600 text-xs">
+              ⚠ CRITICAL
+            </Badge>
+          )}
         </Field>
         <Field label="Order number">{r.order_number ?? "—"}</Field>
         <Field label="Order date">{format(new Date(r.ordered_at), "dd-MMM-yyyy")}</Field>

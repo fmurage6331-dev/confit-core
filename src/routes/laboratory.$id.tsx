@@ -9,6 +9,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { AppShell } from "@/components/app-shell";
 import { PermGuard } from "@/lib/require-access";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,9 @@ type OrderRow = {
   patient_id: string | null;
   encounter_id: string | null;
   requested_by_room_id: string | null;
+  specimen_type: string | null;
+  collected_at: string | null;
+  is_critical: boolean | null;
   patients: {
     patient_name: string | null;
     file_number: string | null;
@@ -102,6 +106,9 @@ type ResultRow = {
   result: (StructuredResult & { parameters: SavedParameter[] }) | null;
   performed_by: string | null;
   reported_at: string | null;
+  is_critical: boolean | null;
+  verified_by: string | null;
+  verified_at: string | null;
 };
 
 function toNum(v: string | number | null | undefined): number | null {
@@ -167,7 +174,7 @@ function LaboratoryDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lab_results")
-        .select("id,order_id,result,performed_by,reported_at")
+        .select("id,order_id,result,performed_by,reported_at,is_critical,verified_by,verified_at")
         .eq("order_id", id)
         .order("created_at", { ascending: true })
         .limit(1)
@@ -191,6 +198,9 @@ function LaboratoryDetail() {
   const [summary, setSummary] = useState("");
   const [performedBy, setPerformedBy] = useState("");
   const [reportedAt, setReportedAt] = useState(() => toLocalInput());
+  const [specimenType, setSpecimenType] = useState("");
+  const [collectedAt, setCollectedAt] = useState(() => toLocalInput());
+  const [isCritical, setIsCritical] = useState(false);
 
   // Legacy fallback: reuse the saved test_templates / built-in ranges when the
   // catalog carries no parameter template.
@@ -229,6 +239,7 @@ function LaboratoryDetail() {
   useEffect(() => {
     setPerformedBy(result?.performed_by ?? user?.email ?? "");
     setReportedAt(toLocalInput(result?.reported_at));
+    setIsCritical(result?.is_critical ?? false);
     if (result?.result) {
       setSummary(result.result.summary ?? "");
       const next: Record<string, string> = {};
@@ -289,7 +300,7 @@ function LaboratoryDetail() {
   });
 
   const saveResult = useMutation({
-    mutationFn: async (opts?: { finalize?: boolean }) => {
+    mutationFn: async (opts?: { finalize?: boolean; verify?: boolean }) => {
       const reportedIso = reportedAt
         ? new Date(reportedAt).toISOString()
         : new Date().toISOString();
@@ -302,12 +313,27 @@ function LaboratoryDetail() {
         } as unknown as StructuredResult,
         performed_by: performedBy.trim() || null,
         reported_at: opts?.finalize ? reportedIso : (result?.reported_at ?? null),
+        is_critical: isCritical,
+        verified_by: opts?.verify ? (user?.email ?? null) : (result?.verified_by ?? null),
+        verified_at: opts?.verify ? new Date().toISOString() : (result?.verified_at ?? null),
       };
+
+      // Save specimen fields to lab_orders
+      if (specimenType || collectedAt) {
+        await db
+          .from("lab_orders")
+          .update({
+            specimen_type: specimenType || null,
+            collected_at: collectedAt ? new Date(collectedAt).toISOString() : null,
+            is_critical: isCritical,
+          })
+          .eq("id", id);
+      }
       if (result?.id) {
-        const { error } = await supabase.from("lab_results").update(payload).eq("id", result.id);
+        const { error } = await db.from("lab_results").update(payload).eq("id", result.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("lab_results").insert(payload);
+        const { error } = await db.from("lab_results").insert(payload);
         if (error) throw error;
       }
       if (opts?.finalize) {
@@ -537,6 +563,33 @@ function LaboratoryDetail() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
+              <Label htmlFor="specimen_type">Specimen type</Label>
+              <Select value={specimenType} onValueChange={setSpecimenType}>
+                <SelectTrigger id="specimen_type">
+                  <SelectValue placeholder="Select specimen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blood">Blood</SelectItem>
+                  <SelectItem value="urine">Urine</SelectItem>
+                  <SelectItem value="stool">Stool</SelectItem>
+                  <SelectItem value="sputum">Sputum</SelectItem>
+                  <SelectItem value="swab">Swab</SelectItem>
+                  <SelectItem value="csf">CSF</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="collected_at">Specimen collected at</Label>
+              <Input
+                id="collected_at"
+                type="datetime-local"
+                value={collectedAt}
+                onChange={(e) => setCollectedAt(e.target.value)}
+                disabled={!canWrite}
+              />
+            </div>
+            <div>
               <Label htmlFor="performed_by">Performed by</Label>
               <Input
                 id="performed_by"
@@ -557,6 +610,29 @@ function LaboratoryDetail() {
             </div>
           </div>
 
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <div className="text-sm font-medium text-rose-700">Mark as Critical</div>
+              <div className="text-xs text-muted-foreground">
+                Flags this result for urgent clinician review
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={isCritical}
+              onChange={(e) => setIsCritical(e.target.checked)}
+              disabled={!canWrite}
+              className="h-4 w-4 accent-rose-600"
+            />
+          </div>
+
+          {result?.verified_at && (
+            <div className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs text-teal-700">
+              ✓ Verified by {result.verified_by ?? "—"} on{" "}
+              {format(new Date(result.verified_at), "dd MMM yyyy, HH:mm")}
+            </div>
+          )}
+
           {canWrite && (
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
               <button
@@ -575,6 +651,16 @@ function LaboratoryDetail() {
               >
                 {saveResult.isPending ? "Saving…" : "Save draft"}
               </Button>
+              {result?.reported_at && !result?.verified_at && (
+                <Button
+                  variant="outline"
+                  className="border-teal-300 text-teal-700 hover:bg-teal-50"
+                  onClick={() => saveResult.mutate({ verify: true })}
+                  disabled={saveResult.isPending}
+                >
+                  Verify result
+                </Button>
+              )}
               <Button
                 onClick={() => {
                   const hasParam = savedParameters.some((p) => p.value.trim() !== "");
