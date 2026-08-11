@@ -104,6 +104,16 @@ export const MOH_REPORTS: MohReportDefinition[] = [
     icon: CalendarDays,
     period: "Monthly",
   },
+  {
+    code: "204",
+    title: "MOH 204",
+    subtitle: "Facility Summary",
+    description:
+      "Monthly facility activity summary — OPD, inpatient, deliveries, deaths, lab and pharmacy.",
+    href: "/moh/204",
+    icon: Activity,
+    period: "Monthly",
+  },
 ];
 
 export const MOH_DASHBOARD_ICON = Activity;

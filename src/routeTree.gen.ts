@@ -46,6 +46,7 @@ import { Route as Moh707RouteImport } from './routes/moh.707'
 import { Route as Moh706RouteImport } from './routes/moh.706'
 import { Route as Moh705RouteImport } from './routes/moh.705'
 import { Route as Moh642RouteImport } from './routes/moh.642'
+import { Route as Moh204RouteImport } from './routes/moh.204'
 import { Route as Moh505RouteImport } from './routes/moh.505'
 import { Route as LaboratoryIdRouteImport } from './routes/laboratory.$id'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
@@ -254,6 +255,11 @@ const Moh642Route = Moh642RouteImport.update({
   path: '/642',
   getParentRoute: () => MohRoute,
 } as any)
+const Moh204Route = Moh204RouteImport.update({
+  id: '/204',
+  path: '/204',
+  getParentRoute: () => MohRoute,
+} as any)
 const Moh505Route = Moh505RouteImport.update({
   id: '/505',
   path: '/505',
@@ -406,6 +412,7 @@ export interface FileRoutesByFullPath {
   '/encounter-records/$id': typeof EncounterRecordsIdRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/laboratory/$id': typeof LaboratoryIdRoute
+  '/moh/204': typeof Moh204Route
   '/moh/505': typeof Moh505Route
   '/moh/642': typeof Moh642Route
   '/moh/705': typeof Moh705Route
@@ -414,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/moh/717': typeof Moh717Route
   '/moh/fp': typeof MohFpRoute
   '/moh/mch': typeof MohMchRoute
+  '/moh/204': typeof Moh204Route
   '/patients/$id': typeof PatientsIdRoute
   '/radiology/$id': typeof RadiologyIdRoute
   '/records/$id': typeof RecordsIdRoute
@@ -474,6 +482,7 @@ export interface FileRoutesByTo {
   '/moh/717': typeof Moh717Route
   '/moh/fp': typeof MohFpRoute
   '/moh/mch': typeof MohMchRoute
+  '/moh/204': typeof Moh204Route
   '/patients/$id': typeof PatientsIdRoute
   '/radiology/$id': typeof RadiologyIdRoute
   '/records/$id': typeof RecordsIdRoute
@@ -1029,6 +1038,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Moh706RouteImport
       parentRoute: typeof MohRoute
     }
+    '/moh/204': {
+      id: '/moh/204'
+      path: '/204'
+      fullPath: '/moh/204'
+      preLoaderRoute: typeof Moh204RouteImport
+      parentRoute: typeof MohRoute
+    }
     '/moh/705': {
       id: '/moh/705'
       path: '/705'
@@ -1209,6 +1225,7 @@ interface MohRouteChildren {
   Moh717Route: typeof Moh717Route
   MohFpRoute: typeof MohFpRoute
   MohMchRoute: typeof MohMchRoute
+  Moh204Route: typeof Moh204Route
   MohIndexRoute: typeof MohIndexRoute
 }
 
@@ -1221,6 +1238,7 @@ const MohRouteChildren: MohRouteChildren = {
   Moh717Route: Moh717Route,
   MohFpRoute: MohFpRoute,
   MohMchRoute: MohMchRoute,
+  Moh204Route: Moh204Route,
   MohIndexRoute: MohIndexRoute,
 }
 

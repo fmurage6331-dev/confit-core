@@ -432,6 +432,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                     >
                       MOH 717 — Monthly Summary
                     </Link>
+                    <Link
+                      to={"/moh/204" as never}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                        location.pathname === "/moh/204"
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      MOH 204 — Facility Summary
+                    </Link>
                   </CollapsibleContent>
                 </Collapsible>
               );
