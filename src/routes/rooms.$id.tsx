@@ -636,6 +636,19 @@ function RoomPage() {
                 onRefresh={loadRequests}
               />
               {rows
+                .slice()
+                .sort((a, b) => {
+                  const order: Record<ConsultPriority, number> = {
+                    emergency: 0,
+                    urgent: 1,
+                    not_urgent: 2,
+                  };
+                  const pa = order[consultPriority(a)];
+                  const pb = order[consultPriority(b)];
+                  if (pa !== pb) return pa - pb;
+                  // same priority — preserve FIFO
+                  return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+                })
                 .filter((r) => !consultFilter || consultPriority(r) === consultFilter)
                 .map((r) => (
                   <ConsultationPatientCard key={r.id} reg={r} onOpen={() => setOpenReg(r)} />
