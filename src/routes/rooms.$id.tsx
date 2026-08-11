@@ -955,9 +955,24 @@ function ConsultationDialog({
     onSaved();
   }
   // ── CHANGE 1: added "results" to the tab union type ──
-  const [tab, setTab] = useState<"history" | "diagnosis" | "prescription" | "requests" | "results">(
-    "history",
-  );
+  const [tab, setTab] = useState<
+    "history" | "diagnosis" | "prescription" | "requests" | "results" | "mch"
+  >("history");
+  const [mchVisitType, setMchVisitType] = useState("anc");
+  const [mchGravida, setMchGravida] = useState("");
+  const [mchParity, setMchParity] = useState("");
+  const [mchGestation, setMchGestation] = useState("");
+  const [mchFundalHeight, setMchFundalHeight] = useState("");
+  const [mchFhr, setMchFhr] = useState("");
+  const [mchPresentation, setMchPresentation] = useState("");
+  const [mchDeliveryMode, setMchDeliveryMode] = useState("");
+  const [mchBirthWeight, setMchBirthWeight] = useState("");
+  const [mchApgar1, setMchApgar1] = useState("");
+  const [mchApgar5, setMchApgar5] = useState("");
+  const [mchPncDays, setMchPncDays] = useState("");
+  const [mchBreastfeeding, setMchBreastfeeding] = useState("");
+  const [mchNotes, setMchNotes] = useState("");
+  const [mchSaving, setMchSaving] = useState(false);
   const [h, setH] = useState<History>(reg.history ?? {});
   const [dxs, setDxs] = useState<Diagnosis[]>(reg.diagnoses ?? []);
   const [rxs, setRxs] = useState<Prescription[]>([]);
@@ -1171,6 +1186,39 @@ function ConsultationDialog({
     setRxs((p) => p.map((r) => (r.id === id ? { ...r, status: "cancelled" } : r)));
   }
 
+  async function saveMchNote() {
+    setMchSaving(true);
+    const content = JSON.stringify({
+      visit_type: mchVisitType,
+      gravida: mchGravida || null,
+      parity: mchParity || null,
+      gestation_weeks: mchGestation || null,
+      fundal_height_cm: mchFundalHeight || null,
+      fhr_bpm: mchFhr || null,
+      presentation: mchPresentation || null,
+      delivery_mode: mchDeliveryMode || null,
+      birth_weight_kg: mchBirthWeight || null,
+      apgar_1: mchApgar1 || null,
+      apgar_5: mchApgar5 || null,
+      pnc_days: mchPncDays || null,
+      breastfeeding: mchBreastfeeding || null,
+      notes: mchNotes.trim() || null,
+    });
+    const { error } = await db.from("clinical_notes").insert({
+      encounter_id: reg.id,
+      note_type: `mch_${mchVisitType}`,
+      content,
+      authored_by: user?.id ?? null,
+      authored_at: new Date().toISOString(),
+    });
+    setMchSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("MCH visit record saved");
+  }
+
   async function finishAndSend() {
     await saveNotes();
     if (rxs.some((r) => r.status === "pending")) {
@@ -1246,7 +1294,7 @@ function ConsultationDialog({
         </div>
 
         {/* ── CHANGE 2 & 3: added "results" tab to the array and its label ── */}
-        <div className="mt-2 flex gap-1 border-b">
+        <div className="mt-2 flex gap-1 border-b flex-wrap">
           {(["history", "diagnosis", "prescription", "requests", "results"] as const).map((t) => (
             <button
               key={t}
@@ -1260,6 +1308,14 @@ function ConsultationDialog({
                   : t}
             </button>
           ))}
+          {roomKind === "mch" && (
+            <button
+              onClick={() => setTab("mch")}
+              className={`px-3 py-2 text-sm border-b-2 -mb-px ${tab === "mch" ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground"}`}
+            >
+              MCH / ANC
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto pt-3 pr-1 space-y-4">
@@ -1405,6 +1461,207 @@ function ConsultationDialog({
 
           {/* ── CHANGE 4: results tab panel ── */}
           {tab === "results" && <EncounterResultsTab encounterId={reg.id} />}
+
+          {tab === "mch" && roomKind === "mch" && (
+            <div className="space-y-4">
+              <Section title="Visit Type">
+                <div className="flex gap-3 flex-wrap">
+                  {[
+                    { value: "anc", label: "ANC Visit" },
+                    { value: "pnc", label: "PNC Visit" },
+                    { value: "delivery", label: "Delivery" },
+                    { value: "cwc", label: "Child Welfare" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setMchVisitType(opt.value)}
+                      className={`rounded-md border px-3 py-1.5 text-sm transition ${
+                        mchVisitType === opt.value
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background hover:bg-muted"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </Section>
+
+              {(mchVisitType === "anc" || mchVisitType === "delivery") && (
+                <Section title="Obstetric Details">
+                  <Grid>
+                    <div>
+                      <Label>Gravida</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={mchGravida}
+                        onChange={(e) => setMchGravida(e.target.value)}
+                        placeholder="e.g. 2"
+                      />
+                    </div>
+                    <div>
+                      <Label>Parity</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={mchParity}
+                        onChange={(e) => setMchParity(e.target.value)}
+                        placeholder="e.g. 1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Gestation (weeks)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={45}
+                        value={mchGestation}
+                        onChange={(e) => setMchGestation(e.target.value)}
+                        placeholder="e.g. 28"
+                      />
+                    </div>
+                    <div>
+                      <Label>Fundal Height (cm)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={mchFundalHeight}
+                        onChange={(e) => setMchFundalHeight(e.target.value)}
+                        placeholder="e.g. 28"
+                      />
+                    </div>
+                    <div>
+                      <Label>Fetal Heart Rate (bpm)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={mchFhr}
+                        onChange={(e) => setMchFhr(e.target.value)}
+                        placeholder="e.g. 140"
+                      />
+                    </div>
+                    <div>
+                      <Label>Presentation</Label>
+                      <Select value={mchPresentation} onValueChange={setMchPresentation}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cephalic">Cephalic</SelectItem>
+                          <SelectItem value="breech">Breech</SelectItem>
+                          <SelectItem value="transverse">Transverse</SelectItem>
+                          <SelectItem value="unknown">Unknown</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </Grid>
+                </Section>
+              )}
+
+              {mchVisitType === "delivery" && (
+                <Section title="Delivery Details">
+                  <Grid>
+                    <div>
+                      <Label>Mode of delivery</Label>
+                      <Select value={mchDeliveryMode} onValueChange={setMchDeliveryMode}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="svd">SVD (Normal)</SelectItem>
+                          <SelectItem value="avd">AVD (Assisted)</SelectItem>
+                          <SelectItem value="cs_elective">CS (Elective)</SelectItem>
+                          <SelectItem value="cs_emergency">CS (Emergency)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Birth weight (kg)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={mchBirthWeight}
+                        onChange={(e) => setMchBirthWeight(e.target.value)}
+                        placeholder="e.g. 3.2"
+                      />
+                    </div>
+                    <div>
+                      <Label>Apgar at 1 min</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={10}
+                        value={mchApgar1}
+                        onChange={(e) => setMchApgar1(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Apgar at 5 min</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={10}
+                        value={mchApgar5}
+                        onChange={(e) => setMchApgar5(e.target.value)}
+                      />
+                    </div>
+                  </Grid>
+                </Section>
+              )}
+
+              {mchVisitType === "pnc" && (
+                <Section title="Postnatal Details">
+                  <Grid>
+                    <div>
+                      <Label>Days post-delivery</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={mchPncDays}
+                        onChange={(e) => setMchPncDays(e.target.value)}
+                        placeholder="e.g. 3"
+                      />
+                    </div>
+                    <div>
+                      <Label>Breastfeeding</Label>
+                      <Select value={mchBreastfeeding} onValueChange={setMchBreastfeeding}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="exclusive">Exclusive</SelectItem>
+                          <SelectItem value="mixed">Mixed</SelectItem>
+                          <SelectItem value="none">Not breastfeeding</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </Grid>
+                </Section>
+              )}
+
+              <Section title="Clinical Notes">
+                <div>
+                  <Label>MCH Visit Notes</Label>
+                  <Textarea
+                    rows={4}
+                    value={mchNotes}
+                    onChange={(e) => setMchNotes(e.target.value)}
+                    placeholder="Clinical findings, counselling given, follow-up plan…"
+                  />
+                </div>
+              </Section>
+
+              <div className="flex justify-end pt-2">
+                <Button onClick={saveMchNote} disabled={mchSaving}>
+                  {mchSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  Save MCH visit record
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
