@@ -1124,11 +1124,12 @@ function ConsultationDialog({
         prescribed_by_name: user?.email ?? null,
       })
       .select("*");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = ((insertedRows ?? []) as any[])[0] ?? null;
     if (error) {
       toast.error(error.message);
       return;
     }
-    const data = ((insertedRows as unknown as Record<string, unknown>[]) ?? [])[0] ?? null;
     if (data) setRxs((p) => [data as unknown as Prescription, ...p]);
     toast.success("Prescription added — patient routed to pharmacy");
   }
@@ -3945,7 +3946,7 @@ function MortuaryView({ room }: { room: Room }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: insertedRows, error } = await db
+    const { data, error } = await db
       .from("mortuary_records")
       .select("*")
       .order("admitted_to_mortuary_at", { ascending: false });
@@ -3954,7 +3955,7 @@ function MortuaryView({ room }: { room: Room }) {
       toast.error(error.message);
       return;
     }
-    setRecords((insertedRows ?? []) as unknown as MortuaryRecord[]);
+    setRecords((data ?? []) as MortuaryRecord[]);
   }, []);
 
   useEffect(() => {

@@ -65,11 +65,8 @@ function useNlmisReport(from: string, to: string) {
         .lte("used_at", `${to}T23:59:59`);
       if (error) throw error;
       const map = new Map<string, NlmisRow>();
-      for (const row of (data as Array<{
-        quantity: number;
-        stock_items: { name: string; nlmis_code: string | null } | null;
-        stock_locations: { name: string } | null;
-      }>) ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const row of (data ?? []) as any[]) {
         const item = row.stock_items as { name: string; nlmis_code: string | null } | null;
         const loc = row.stock_locations as { name: string } | null;
         if (!item) continue;
@@ -360,6 +357,7 @@ function ReportsPage() {
 
   const totalFunds = (funds ?? []).reduce((sum, fund) => sum + Number(fund.amount || 0), 0);
 
+  // NLMIS
   const [nlmisFrom, setNlmisFrom] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -667,6 +665,7 @@ function ReportsPage() {
             </Button>
           </div>
         </div>
+
         <div className="overflow-hidden rounded-xl border bg-card">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
