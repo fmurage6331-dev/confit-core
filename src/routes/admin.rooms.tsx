@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,15 @@ type RoomKind =
   | "theatre"
   | "mortuary"
   | "mch";
-type Room = { id: string; name: string; code: string | null; is_active: boolean; kind: RoomKind };
+type Ward = { id: string; name: string };
+type Room = {
+  id: string;
+  name: string;
+  code: string | null;
+  is_active: boolean;
+  kind: RoomKind;
+  ward_id: string | null;
+};
 
 const schema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -82,6 +91,7 @@ const schema = z.object({
 function AdminRooms() {
   const { user, isAdmin } = useAuth();
   const [rows, setRows] = useState<Room[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Room | null>(null);
   const [open, setOpen] = useState(false);
@@ -89,9 +99,9 @@ function AdminRooms() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("rooms")
-      .select("id,name,code,is_active,kind")
+      .select("id,name,code,is_active,kind,ward_id")
       .order("name");
     setLoading(false);
     if (error) {
@@ -102,13 +112,17 @@ function AdminRooms() {
   }
   useEffect(() => {
     load();
+    (async () => {
+      const { data } = await db.from("wards").select("id,name").eq("is_active", true).order("name");
+      setWards((data ?? []) as Ward[]);
+    })();
   }, []);
 
   if (!isAdmin)
     return <div className="rounded-lg border p-6 text-sm text-muted-foreground">Admins only.</div>;
 
   function openNew() {
-    setEditing({ id: "", name: "", code: "", is_active: true, kind: "general" });
+    setEditing({ id: "", name: "", code: "", is_active: true, kind: "general", ward_id: null });
     setOpen(true);
   }
   function openEdit(r: Room) {
@@ -145,15 +159,16 @@ function AdminRooms() {
       code: parsed.data.code || null,
       kind: parsed.data.kind,
       is_active: parsed.data.is_active,
+      ward_id: editing.ward_id ?? null,
     };
     if (editing.id) {
-      const { error } = await supabase.from("rooms").update(payload).eq("id", editing.id);
+      const { error } = await db.from("rooms").update(payload).eq("id", editing.id);
       if (error) {
         toast.error(error.message);
         return;
       }
     } else {
-      const { error } = await supabase.from("rooms").insert({ ...payload, created_by: user!.id });
+      const { error } = await db.from("rooms").insert({ ...payload, created_by: user!.id });
       if (error) {
         toast.error(error.message);
         return;
@@ -188,6 +203,7 @@ function AdminRooms() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Kind</th>
+              <th className="px-4 py-3">Ward</th>
               <th className="px-4 py-3">Code</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Actions</th>
@@ -196,14 +212,14 @@ function AdminRooms() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   Loading…
                 </td>
               </tr>
             )}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No rooms yet.
                 </td>
               </tr>
@@ -215,6 +231,9 @@ function AdminRooms() {
                   <Badge variant="secondary" className="capitalize">
                     {r.kind}
                   </Badge>
+                </td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">
+                  {wards.find((w) => w.id === r.ward_id)?.name ?? "—"}
                 </td>
                 <td className="px-4 py-3">
                   {r.code ? (
@@ -303,6 +322,30 @@ function AdminRooms() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Lab, Radiology and Pharmacy rooms automatically receive requests routed from
                   consultation.
+                </p>
+              </div>
+              <div>
+                <Label>Ward (optional)</Label>
+                <Select
+                  value={editing.ward_id ?? "none"}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, ward_id: v === "none" ? null : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Not linked to a ward" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Not linked —</SelectItem>
+                    {wards.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Link this room to a ward for inpatient routing.
                 </p>
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
