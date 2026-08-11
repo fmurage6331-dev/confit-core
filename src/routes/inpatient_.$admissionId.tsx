@@ -1145,6 +1145,15 @@ function MedicationsTab({
                         Cancel
                       </Button>
                     )}
+                    {rx.status === "dispensed" && (
+                      <AdministrationPanel
+                        rx={rx}
+                        admissionId={admissionId}
+                        encounterId={encounterId}
+                        userId={userId}
+                        userEmail={userEmail}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -1152,6 +1161,185 @@ function MedicationsTab({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─── Administration Panel ────────────────────────────────────────────────────
+
+type MedAdminRow = {
+  id: string;
+  administered_at: string;
+  dose_given: string | null;
+  route: string | null;
+  administered_by_name: string | null;
+  notes: string | null;
+};
+
+function AdministrationPanel({
+  rx,
+  admissionId,
+  encounterId,
+  userId,
+  userEmail,
+}: {
+  rx: PrescriptionRow;
+  admissionId: string;
+  encounterId: string;
+  userId: string | null;
+  userEmail: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [doseGiven, setDoseGiven] = useState("");
+  const [route, setRoute] = useState("");
+  const [adminNotes, setAdminNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [records, setRecords] = useState<MedAdminRow[]>([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoadingRecords(true);
+      const { data } = await db
+        .from("medication_administrations")
+        .select("id,administered_at,dose_given,route,administered_by_name,notes")
+        .eq("prescription_id", rx.id)
+        .order("administered_at", { ascending: false })
+        .limit(5);
+      setRecords((data ?? []) as MedAdminRow[]);
+      setLoadingRecords(false);
+    })();
+  }, [rx.id]);
+
+  async function administer() {
+    setSaving(true);
+    const { error } = await db.from("medication_administrations").insert({
+      prescription_id: rx.id,
+      admission_id: admissionId,
+      encounter_id: encounterId,
+      administered_at: new Date().toISOString(),
+      dose_given: doseGiven.trim() || null,
+      route: route.trim() || null,
+      administered_by: userId ?? null,
+      administered_by_name: userEmail ?? null,
+      notes: adminNotes.trim() || null,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Administration recorded");
+    setDoseGiven("");
+    setRoute("");
+    setAdminNotes("");
+    setOpen(false);
+    // Refresh records
+    const { data } = await db
+      .from("medication_administrations")
+      .select("id,administered_at,dose_given,route,administered_by_name,notes")
+      .eq("prescription_id", rx.id)
+      .order("administered_at", { ascending: false })
+      .limit(5);
+    setRecords((data ?? []) as MedAdminRow[]);
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* MAR history */}
+      {loadingRecords ? (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" /> Loading MAR…
+        </div>
+      ) : records.length > 0 ? (
+        <div className="rounded-lg border bg-muted/30 p-2 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Administration record
+          </p>
+          {records.map((r) => (
+            <div key={r.id} className="text-xs text-muted-foreground border-t pt-1">
+              <span className="font-medium text-foreground">
+                {format(new Date(r.administered_at), "dd MMM, HH:mm")}
+              </span>
+              {r.dose_given && ` · ${r.dose_given}`}
+              {r.route && ` · ${r.route}`}
+              {r.administered_by_name && ` · by ${r.administered_by_name}`}
+              {r.notes && <span className="italic"> · {r.notes}</span>}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Administer button */}
+      {!open ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 w-full"
+          onClick={() => setOpen(true)}
+        >
+          + Record administration
+        </Button>
+      ) : (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 space-y-2">
+          <p className="text-xs font-medium text-emerald-700">Record administration</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Dose given</Label>
+              <Input
+                className="h-7 text-xs"
+                placeholder={rx.dosage ?? "e.g. 500mg"}
+                value={doseGiven}
+                onChange={(e) => setDoseGiven(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Route</Label>
+              <Select value={route} onValueChange={setRoute}>
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue placeholder="Route" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="oral">Oral (PO)</SelectItem>
+                  <SelectItem value="iv">Intravenous (IV)</SelectItem>
+                  <SelectItem value="im">Intramuscular (IM)</SelectItem>
+                  <SelectItem value="sc">Subcutaneous (SC)</SelectItem>
+                  <SelectItem value="topical">Topical</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Notes (optional)</Label>
+            <Input
+              className="h-7 text-xs"
+              placeholder="e.g. patient tolerated well"
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={administer}
+              disabled={saving}
+            >
+              {saving && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+              Confirm
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
