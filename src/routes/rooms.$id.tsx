@@ -4713,6 +4713,27 @@ function MortuaryView({ room }: { room: Room }) {
                   KES {Number(releaseRecord?.total_storage_charges ?? 0).toLocaleString()}
                 </span>
               </p>
+              {releaseRecord?.intake_type === "external" && (
+                <p className="pt-1 border-t text-xs">
+                  {releaseRecord.invoice_id ? (
+                    <span className="text-emerald-700 font-medium">
+                      ✓ Invoice generated — charges accrued nightly.{" "}
+                      <a
+                        href={`/invoices/${releaseRecord.invoice_id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline hover:text-emerald-900"
+                      >
+                        View invoice ↗
+                      </a>
+                    </span>
+                  ) : (
+                    <span className="text-amber-700">
+                      ⚠ No invoice yet — will generate on next nightly accrual (00:31 EAT).
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Released to (collector name) *</Label>
