@@ -53,6 +53,8 @@ import {
   Archive,
   Baby,
   Search,
+  Loader2,
+  Lock as LockIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -138,7 +140,7 @@ type Reg = {
   payment_mode: "cash" | "insurance" | "free";
   insurance_coverage_percentage: number | null;
   payment_status: "unpaid" | "paid" | "waived" | "partial";
-  status: "waiting" | "in_progress" | "done" | "cancelled";
+  status: "waiting" | "in_progress" | "done" | "cancelled" | "signed";
   created_at: string;
   sha_member_number: string | null;
   sha_relationship_to_principal: string | null;
@@ -929,6 +931,28 @@ function ConsultationDialog({
 }) {
   const { user, hasPerm } = useAuth();
   const canAdmit = hasPerm("admit_patient");
+  const canSign = hasPerm("sign_encounter");
+  const [signing, setSigning] = useState(false);
+
+  async function signAndLock() {
+    const confirmed = confirm(
+      "Sign and lock this encounter? No further edits will be possible after signing.",
+    );
+    if (!confirmed) return;
+    setSigning(true);
+    await saveNotes();
+    const { error } = await supabase
+      .from("patient_registrations")
+      .update({ status: "signed" } as never)
+      .eq("id", reg.id);
+    setSigning(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Encounter signed and locked");
+    onSaved();
+  }
   // ── CHANGE 1: added "results" to the tab union type ──
   const [tab, setTab] = useState<"history" | "diagnosis" | "prescription" | "requests" | "results">(
     "history",
@@ -1386,7 +1410,28 @@ function ConsultationDialog({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={finishAndSend} disabled={saving}>
+          {canSign && reg.status !== "signed" && (
+            <Button
+              variant="outline"
+              className="border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={signAndLock}
+              disabled={saving || signing}
+            >
+              {signing ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <LockIcon className="mr-1 h-4 w-4" />
+              )}
+              Sign & Lock
+            </Button>
+          )}
+          {reg.status === "signed" && (
+            <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+              <LockIcon className="h-3.5 w-3.5" />
+              Encounter signed — record is locked
+            </div>
+          )}
+          <Button onClick={finishAndSend} disabled={saving || reg.status === "signed"}>
             Save consultation
           </Button>
         </DialogFooter>
