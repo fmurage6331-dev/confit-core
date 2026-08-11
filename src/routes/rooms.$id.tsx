@@ -2001,8 +2001,13 @@ function PrescriptionEditor({
       return;
     }
     if (allergies) {
-      const words = drugName.toLowerCase().split(/\s+/);
-      const match = words.some((w) => allergies.toLowerCase().includes(w));
+      const drugLower = drugName.toLowerCase();
+      const allergyLower = allergies.toLowerCase();
+      const drugWords = drugLower.split(/\s+/).filter((w) => w.length >= 4);
+      const allergyWords = allergyLower.split(/[\s,;]+/).filter((w) => w.length >= 4);
+      const match =
+        drugWords.some((w) => allergyLower.includes(w)) ||
+        allergyWords.some((w) => drugLower.includes(w));
       if (match) {
         const ok = window.confirm(
           `⚠️ Allergy warning: "${drugName}" may match a known allergy (${allergies}).\n\nPrescribe anyway?`,
@@ -2333,12 +2338,17 @@ function PharmacyDialog({
           {rxs.map((rx) => {
             const available = rx.stock_item_id ? (stockMap.get(rx.stock_item_id) ?? null) : null;
             const stockLow = available !== null && available < Number(rx.quantity);
-            const allergyMatch =
-              allergies &&
-              rx.drug_name
-                .toLowerCase()
-                .split(/\s+/)
-                .some((w) => allergies.toLowerCase().includes(w));
+            const allergyMatch = (() => {
+              if (!allergies) return false;
+              const drugLower = rx.drug_name.toLowerCase();
+              const allergyLower = allergies.toLowerCase();
+              const drugWords = drugLower.split(/\s+/).filter((w) => w.length >= 4);
+              const allergyWords = allergyLower.split(/[\s,;]+/).filter((w) => w.length >= 4);
+              return (
+                drugWords.some((w) => allergyLower.includes(w)) ||
+                allergyWords.some((w) => drugLower.includes(w))
+              );
+            })();
             return (
               <div
                 key={rx.id}
