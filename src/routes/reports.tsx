@@ -44,7 +44,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+
 
 type NlmisRow = {
   nlmis_code: string | null;
