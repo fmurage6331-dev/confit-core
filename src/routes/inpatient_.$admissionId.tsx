@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/inpatient/$admissionId")({
+export const Route = createFileRoute("/inpatient_/$admissionId")({
   component: () => (
     <AppShell>
       <InpatientChartGate />

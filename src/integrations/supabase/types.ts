@@ -582,6 +582,50 @@ export type Database = {
           },
         ]
       }
+      contracted_prices: {
+        Row: {
+          contracted_price: number
+          created_at: string
+          created_by: string | null
+          id: string
+          insurance_provider_id: string
+          item_id: string
+          item_type: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          contracted_price: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          insurance_provider_id: string
+          item_id: string
+          item_type: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contracted_price?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          insurance_provider_id?: string
+          item_id?: string
+          item_type?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracted_prices_insurance_provider_id_fkey"
+            columns: ["insurance_provider_id"]
+            isOneToOne: false
+            referencedRelation: "insurance_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliveries: {
         Row: {
           batch_number: string | null
@@ -1398,54 +1442,76 @@ export type Database = {
       }
       lab_orders: {
         Row: {
+          admission_id: string | null
           catalog_id: string | null
+          collected_at: string | null
           created_at: string
           decline_reason: string | null
           encounter_id: string | null
+          encounter_type: string
           id: string
           instructions: string | null
+          is_critical: boolean
           order_number: string | null
           ordered_at: string
           ordered_by: string | null
           patient_id: string | null
           priority: string
           requested_by_room_id: string | null
+          specimen_type: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          admission_id?: string | null
           catalog_id?: string | null
+          collected_at?: string | null
           created_at?: string
           decline_reason?: string | null
           encounter_id?: string | null
+          encounter_type?: string
           id?: string
           instructions?: string | null
+          is_critical?: boolean
           order_number?: string | null
           ordered_at?: string
           ordered_by?: string | null
           patient_id?: string | null
           priority?: string
           requested_by_room_id?: string | null
+          specimen_type?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          admission_id?: string | null
           catalog_id?: string | null
+          collected_at?: string | null
           created_at?: string
           decline_reason?: string | null
           encounter_id?: string | null
+          encounter_type?: string
           id?: string
           instructions?: string | null
+          is_critical?: boolean
           order_number?: string | null
           ordered_at?: string
           ordered_by?: string | null
           patient_id?: string | null
           priority?: string
           requested_by_room_id?: string | null
+          specimen_type?: string | null
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lab_orders_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lab_orders_catalog_id_fkey"
             columns: ["catalog_id"]
@@ -1494,29 +1560,38 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_critical: boolean
           order_id: string
           performed_by: string | null
           reported_at: string | null
           result: Json | null
           updated_at: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          is_critical?: boolean
           order_id: string
           performed_by?: string | null
           reported_at?: string | null
           result?: Json | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          is_critical?: boolean
           order_id?: string
           performed_by?: string | null
           reported_at?: string | null
           result?: Json | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -1741,6 +1816,84 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      medication_administrations: {
+        Row: {
+          administered_at: string
+          administered_by: string | null
+          administered_by_name: string | null
+          admission_id: string
+          created_at: string
+          dose_given: string | null
+          encounter_id: string | null
+          id: string
+          notes: string | null
+          prescription_id: string
+          route: string | null
+        }
+        Insert: {
+          administered_at?: string
+          administered_by?: string | null
+          administered_by_name?: string | null
+          admission_id: string
+          created_at?: string
+          dose_given?: string | null
+          encounter_id?: string | null
+          id?: string
+          notes?: string | null
+          prescription_id: string
+          route?: string | null
+        }
+        Update: {
+          administered_at?: string
+          administered_by?: string | null
+          administered_by_name?: string | null
+          admission_id?: string
+          created_at?: string
+          dose_given?: string | null
+          encounter_id?: string | null
+          id?: string
+          notes?: string | null
+          prescription_id?: string
+          route?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_administrations_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounter_records_summary"
+            referencedColumns: ["encounter_id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "patient_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "prescriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       moh_705_disease_mappings: {
         Row: {
@@ -2009,6 +2162,133 @@ export type Database = {
           week_start?: string
         }
         Relationships: []
+      }
+      mortuary_records: {
+        Row: {
+          admitted_to_mortuary_at: string
+          age_years: number | null
+          cause_of_death: string | null
+          created_at: string
+          created_by: string | null
+          daily_storage_rate: number
+          date_of_death: string | null
+          deceased_name: string
+          encounter_id: string | null
+          id: string
+          intake_type: string
+          invoice_id: string | null
+          national_id: string | null
+          notes: string | null
+          patient_id: string | null
+          received_by: string | null
+          reference_number: string | null
+          release_notes: string | null
+          released_at: string | null
+          released_to_name: string | null
+          released_to_relationship: string | null
+          sex: string | null
+          status: string
+          total_storage_charges: number
+          updated_at: string
+        }
+        Insert: {
+          admitted_to_mortuary_at?: string
+          age_years?: number | null
+          cause_of_death?: string | null
+          created_at?: string
+          created_by?: string | null
+          daily_storage_rate?: number
+          date_of_death?: string | null
+          deceased_name: string
+          encounter_id?: string | null
+          id?: string
+          intake_type?: string
+          invoice_id?: string | null
+          national_id?: string | null
+          notes?: string | null
+          patient_id?: string | null
+          received_by?: string | null
+          reference_number?: string | null
+          release_notes?: string | null
+          released_at?: string | null
+          released_to_name?: string | null
+          released_to_relationship?: string | null
+          sex?: string | null
+          status?: string
+          total_storage_charges?: number
+          updated_at?: string
+        }
+        Update: {
+          admitted_to_mortuary_at?: string
+          age_years?: number | null
+          cause_of_death?: string | null
+          created_at?: string
+          created_by?: string | null
+          daily_storage_rate?: number
+          date_of_death?: string | null
+          deceased_name?: string
+          encounter_id?: string | null
+          id?: string
+          intake_type?: string
+          invoice_id?: string | null
+          national_id?: string | null
+          notes?: string | null
+          patient_id?: string | null
+          received_by?: string | null
+          reference_number?: string | null
+          release_notes?: string | null
+          released_at?: string | null
+          released_to_name?: string | null
+          released_to_relationship?: string | null
+          sex?: string | null
+          status?: string
+          total_storage_charges?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mortuary_records_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounter_records_summary"
+            referencedColumns: ["encounter_id"]
+          },
+          {
+            foreignKeyName: "mortuary_records_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mortuary_records_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "patient_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mortuary_records_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "encounter_records_summary"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "mortuary_records_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mortuary_records_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patient_consents: {
         Row: {
@@ -2420,14 +2700,18 @@ export type Database = {
       }
       prescriptions: {
         Row: {
+          admission_id: string | null
           created_at: string
           created_by: string | null
           dispensed_at: string | null
           dispensed_by: string | null
           dispensed_by_name: string | null
+          dispensed_from_store_id: string | null
           dosage: string | null
           drug_name: string
           duration: string | null
+          encounter_id: string | null
+          encounter_type: string
           frequency: string | null
           id: string
           notes: string | null
@@ -2439,14 +2723,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admission_id?: string | null
           created_at?: string
           created_by?: string | null
           dispensed_at?: string | null
           dispensed_by?: string | null
           dispensed_by_name?: string | null
+          dispensed_from_store_id?: string | null
           dosage?: string | null
           drug_name: string
           duration?: string | null
+          encounter_id?: string | null
+          encounter_type?: string
           frequency?: string | null
           id?: string
           notes?: string | null
@@ -2458,14 +2746,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admission_id?: string | null
           created_at?: string
           created_by?: string | null
           dispensed_at?: string | null
           dispensed_by?: string | null
           dispensed_by_name?: string | null
+          dispensed_from_store_id?: string | null
           dosage?: string | null
           drug_name?: string
           duration?: string | null
+          encounter_id?: string | null
+          encounter_type?: string
           frequency?: string | null
           id?: string
           notes?: string | null
@@ -2477,6 +2769,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "prescriptions_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescriptions_dispensed_from_store_id_fkey"
+            columns: ["dispensed_from_store_id"]
+            isOneToOne: false
+            referencedRelation: "stock_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescriptions_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounter_records_summary"
+            referencedColumns: ["encounter_id"]
+          },
+          {
+            foreignKeyName: "prescriptions_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescriptions_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "patient_registrations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "prescriptions_stock_item_id_fkey"
             columns: ["stock_item_id"]
@@ -2536,10 +2863,12 @@ export type Database = {
       }
       radiology_orders: {
         Row: {
+          admission_id: string | null
           catalog_id: string | null
           clinical_indication: string | null
           created_at: string | null
           encounter_id: string | null
+          encounter_type: string
           id: string
           ordered_at: string | null
           ordered_by: string | null
@@ -2549,10 +2878,12 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          admission_id?: string | null
           catalog_id?: string | null
           clinical_indication?: string | null
           created_at?: string | null
           encounter_id?: string | null
+          encounter_type?: string
           id?: string
           ordered_at?: string | null
           ordered_by?: string | null
@@ -2562,10 +2893,12 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          admission_id?: string | null
           catalog_id?: string | null
           clinical_indication?: string | null
           created_at?: string | null
           encounter_id?: string | null
+          encounter_type?: string
           id?: string
           ordered_at?: string | null
           ordered_by?: string | null
@@ -2575,6 +2908,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "radiology_orders_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "radiology_orders_catalog_id_fkey"
             columns: ["catalog_id"]
@@ -2688,7 +3028,7 @@ export type Database = {
           {
             foreignKeyName: "room_indicator_map_room_id_fkey"
             columns: ["room_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "rooms"
             referencedColumns: ["id"]
           },
@@ -2704,6 +3044,7 @@ export type Database = {
           kind: string
           name: string
           updated_at: string
+          ward_id: string | null
         }
         Insert: {
           code?: string | null
@@ -2714,6 +3055,7 @@ export type Database = {
           kind?: string
           name: string
           updated_at?: string
+          ward_id?: string | null
         }
         Update: {
           code?: string | null
@@ -2724,8 +3066,17 @@ export type Database = {
           kind?: string
           name?: string
           updated_at?: string
+          ward_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rooms_ward_id_fkey"
+            columns: ["ward_id"]
+            isOneToOne: false
+            referencedRelation: "wards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sha_tariffs: {
         Row: {
@@ -2813,6 +3164,7 @@ export type Database = {
           insurance_price: number | null
           kind: string
           name: string
+          nlmis_code: string | null
           notes: string | null
           reorder_level: number
           strength: number | null
@@ -2831,6 +3183,7 @@ export type Database = {
           insurance_price?: number | null
           kind?: string
           name: string
+          nlmis_code?: string | null
           notes?: string | null
           reorder_level?: number
           strength?: number | null
@@ -2849,6 +3202,7 @@ export type Database = {
           insurance_price?: number | null
           kind?: string
           name?: string
+          nlmis_code?: string | null
           notes?: string | null
           reorder_level?: number
           strength?: number | null
@@ -3543,6 +3897,7 @@ export type Database = {
           location_id: string | null
           location_name: string | null
           location_type: string | null
+          nlmis_code: string | null
           quantity: number | null
           unit: string | null
           updated_at: string | null
@@ -3581,7 +3936,6 @@ export type Database = {
           unit: string | null
           used_at: string | null
           used_by: string | null
-          used_by_email: string | null
         }
         Relationships: [
           {
@@ -3624,6 +3978,7 @@ export type Database = {
     }
     Functions: {
       accrue_daily_bed_charges: { Args: never; Returns: undefined }
+      accrue_daily_mortuary_charges: { Args: never; Returns: undefined }
       archive_old_audit_logs: { Args: never; Returns: undefined }
       can_access_room: {
         Args: { _room: string; _user: string }
@@ -3667,6 +4022,14 @@ export type Database = {
       generate_fhir_encounter: {
         Args: { p_encounter_id: string }
         Returns: Json
+      }
+      get_contracted_price: {
+        Args: {
+          p_insurance_provider_id: string
+          p_item_id: string
+          p_item_type: string
+        }
+        Returns: number
       }
       get_moh_705_report: {
         Args: { p_end_date: string; p_form_type?: string; p_start_date: string }
