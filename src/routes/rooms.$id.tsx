@@ -30,6 +30,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DoorOpen,
   FlaskConical,
@@ -2511,6 +2512,191 @@ function InsuranceDialog({
 
   const isSha = reg.insurer_type === "sha_shif" || reg.payment_mode === "insurance";
 
+  // ── SHA-5 state ──────────────────────────────────────────────────────────
+  type PkgRow = {
+    id: string;
+    code: string;
+    name: string;
+    fund_type: string;
+    requires_preauth: boolean;
+    per_visit_limit: number | null;
+    can_combine_with: string[];
+  };
+  type ClaimItemRow = {
+    id: string;
+    description: string;
+    item_type: string;
+    amount: number;
+    is_included: boolean;
+  };
+
+  const [packages, setPackages] = useState<PkgRow[]>([]);
+  const [selectedPackages, setSelectedPackages] = useState<Set<string>>(new Set());
+  const [claimItems, setClaimItems] = useState<ClaimItemRow[]>([]);
+  const [draftClaimId, setDraftClaimId] = useState<string | null>(null);
+  const [packageWarning, setPackageWarning] = useState<string | null>(null);
+
+  // OTP state
+  const [patientPhone, setPatientPhone] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpRecordId, setOtpRecordId] = useState<string | null>(null);
+  const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
+
+  // Load benefit packages + draft claim + claim items
+  useEffect(() => {
+    db.from("sha_benefit_packages")
+      .select("id,code,name,fund_type,requires_preauth,per_visit_limit,can_combine_with")
+      .eq("is_active", true)
+      .order("code")
+      .then(({ data }) => setPackages((data ?? []) as PkgRow[]));
+
+    db.from("sha_claims")
+      .select("id,otp_verified,otp_verified_at")
+      .eq("encounter_id", reg.id)
+      .eq("status", "draft")
+      .limit(1)
+      .then(({ data }) => {
+        const rows = data as { id: string; otp_verified: boolean }[] | null;
+        if (rows && rows.length > 0) {
+          const claim = rows[0];
+          setDraftClaimId(claim.id);
+          if (claim.otp_verified) setOtpVerified(true);
+          db.from("sha_claim_items")
+            .select("id,description,item_type,amount,is_included")
+            .eq("claim_id", claim.id)
+            .then(({ data: items }) => setClaimItems((items ?? []) as ClaimItemRow[]));
+          db.from("sha_claim_packages")
+            .select("package_code")
+            .eq("claim_id", claim.id)
+            .then(({ data: pkgs }) => {
+              if (pkgs) {
+                setSelectedPackages(
+                  new Set((pkgs as { package_code: string }[]).map((p) => p.package_code)),
+                );
+              }
+            });
+        }
+      });
+  }, [reg.id]);
+
+  // Validate package combinations
+  useEffect(() => {
+    if (selectedPackages.size < 2) {
+      setPackageWarning(null);
+      return;
+    }
+    const selected = packages.filter((p) => selectedPackages.has(p.code));
+    for (const pkg of selected) {
+      for (const other of selected) {
+        if (pkg.code === other.code) continue;
+        const allowed = pkg.can_combine_with ?? [];
+        if (!allowed.includes(other.code)) {
+          setPackageWarning(
+            `${pkg.code} and ${other.code} cannot be billed together in the same claim.`,
+          );
+          return;
+        }
+      }
+    }
+    setPackageWarning(null);
+  }, [selectedPackages, packages]);
+
+  // OTP functions
+  async function requestOtp() {
+    setOtpSending(true);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(otp));
+    const otpHash = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const { data: insertedRows, error } = await db
+      .from("consent_otps")
+      .insert({
+        patient_id: reg.patient_id,
+        encounter_id: reg.id,
+        phone: patientPhone.trim() || "unknown",
+        otp_hash: otpHash,
+        consent_type: "sha_claim",
+        expires_at: expiresAt,
+        delivery_status: "pending",
+      })
+      .select("id");
+    setOtpSending(false);
+    if (error) {
+      toast.error((error as { message: string }).message);
+      return;
+    }
+    const insertedArr = insertedRows as { id: string }[] | null;
+    if (!insertedArr || insertedArr.length === 0) {
+      toast.error("Failed to create OTP record");
+      return;
+    }
+    setOtpRecordId(insertedArr[0].id);
+    setGeneratedOtp(otp);
+    setOtpSent(true);
+  }
+
+  async function verifyOtp() {
+    if (!otpRecordId || !otpInput.trim()) return;
+    setOtpVerifying(true);
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(otpInput.trim()));
+    const inputHash = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    const { data: recordRows, error } = await db
+      .from("consent_otps")
+      .select("otp_hash,expires_at,verified")
+      .eq("id", otpRecordId)
+      .limit(1);
+    const recArr = recordRows as
+      | { otp_hash: string; expires_at: string; verified: boolean }[]
+      | null;
+    if (error || !recArr || recArr.length === 0) {
+      toast.error("OTP record not found");
+      setOtpVerifying(false);
+      return;
+    }
+    const rec = recArr[0];
+    if (new Date(rec.expires_at) < new Date()) {
+      toast.error("OTP expired — request a new one");
+      setOtpVerifying(false);
+      return;
+    }
+    if (rec.otp_hash !== inputHash) {
+      toast.error("Incorrect OTP — try again");
+      setOtpVerifying(false);
+      return;
+    }
+    await db
+      .from("consent_otps")
+      .update({
+        verified: true,
+        verified_at: new Date().toISOString(),
+        delivery_status: "verified",
+      })
+      .eq("id", otpRecordId);
+    if (draftClaimId) {
+      await db
+        .from("sha_claims")
+        .update({
+          otp_verified: true,
+          otp_verified_at: new Date().toISOString(),
+        })
+        .eq("id", draftClaimId);
+    }
+    setOtpVerified(true);
+    setOtpVerifying(false);
+    setGeneratedOtp(null);
+    toast.success("OTP verified — claim ready to submit");
+  }
+
   // Pre-authorization enforcement — SHA requires preauth for major procedures
   const PREAUTH_KEYWORDS = [
     { keyword: "surgery", label: "Surgery" },
@@ -2605,6 +2791,39 @@ function InsuranceDialog({
       { p_encounter_id: reg.id } as never,
     );
     if (fhirData) fhirEncounter = fhirData as Record<string, unknown>;
+
+    // Save selected packages to sha_claim_packages
+    if (draftClaimId && selectedPackages.size > 0) {
+      await db.from("sha_claim_packages").delete().eq("claim_id", draftClaimId);
+      const pkgRows = packages
+        .filter((p) => selectedPackages.has(p.code))
+        .map((p, idx) => ({
+          claim_id: draftClaimId,
+          package_id: p.id,
+          package_code: p.code,
+          is_primary: idx === 0,
+        }));
+      if (pkgRows.length > 0) {
+        await db.from("sha_claim_packages").insert(pkgRows);
+      }
+    }
+
+    // Save claim item inclusions
+    if (draftClaimId) {
+      for (const item of claimItems) {
+        await db
+          .from("sha_claim_items")
+          .update({ is_included: item.is_included })
+          .eq("id", item.id);
+      }
+      const claimTotal = claimItems
+        .filter((i) => i.is_included)
+        .reduce((s, i) => s + Number(i.amount), 0);
+      await db
+        .from("sha_claims")
+        .update({ total_amount: claimTotal, status: "ready" })
+        .eq("id", draftClaimId);
+    }
 
     const { error } = await supabase.from("dha_outbound_queue" as never).insert({
       encounter_id: reg.id,
@@ -2801,6 +3020,210 @@ function InsuranceDialog({
               </div>
             )}
 
+            {/* ── Benefit Packages ─────────────────────────────────── */}
+            {isSha && packages.length > 0 && (
+              <Section title="SHA Benefit Packages">
+                <div className="space-y-2">
+                  {["PHF", "SHIF", "ECCIF"].map((fund) => {
+                    const fundPkgs = packages.filter((p) => p.fund_type === fund);
+                    if (fundPkgs.length === 0) return null;
+                    return (
+                      <div key={fund}>
+                        <div className="text-xs font-semibold text-muted-foreground mb-1">
+                          {fund}
+                        </div>
+                        <div className="space-y-1">
+                          {fundPkgs.map((pkg) => {
+                            const selected = selectedPackages.has(pkg.code);
+                            return (
+                              <label
+                                key={pkg.code}
+                                className="flex items-start gap-2 cursor-pointer rounded p-1.5 hover:bg-muted/40"
+                              >
+                                <Checkbox
+                                  checked={selected}
+                                  onCheckedChange={(v) => {
+                                    setSelectedPackages((prev) => {
+                                      const next = new Set(prev);
+                                      if (v) next.add(pkg.code);
+                                      else next.delete(pkg.code);
+                                      return next;
+                                    });
+                                  }}
+                                />
+                                <div className="text-sm">
+                                  <span className="font-medium">{pkg.code}</span>
+                                  {" — "}
+                                  {pkg.name}
+                                  {pkg.requires_preauth && (
+                                    <span className="ml-1 text-xs text-amber-600">
+                                      ⚠ Preauth required
+                                    </span>
+                                  )}
+                                  {pkg.per_visit_limit && (
+                                    <span className="ml-1 text-xs text-muted-foreground">
+                                      (KSh {Number(pkg.per_visit_limit).toLocaleString()} / visit)
+                                    </span>
+                                  )}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {packageWarning && (
+                  <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                    ⚠ {packageWarning}
+                  </div>
+                )}
+              </Section>
+            )}
+
+            {/* ── Claim Line Items ──────────────────────────────────── */}
+            {claimItems.length > 0 && (
+              <Section title="Claim Line Items">
+                <div className="rounded border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/40 text-left">
+                      <tr>
+                        <th className="px-3 py-2">Include</th>
+                        <th className="px-3 py-2">Description</th>
+                        <th className="px-3 py-2">Type</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {claimItems.map((item) => (
+                        <tr key={item.id} className="border-t">
+                          <td className="px-3 py-2">
+                            <Checkbox
+                              checked={item.is_included}
+                              onCheckedChange={(v) => {
+                                setClaimItems((prev) =>
+                                  prev.map((i) =>
+                                    i.id === item.id ? { ...i, is_included: !!v } : i,
+                                  ),
+                                );
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-2">{item.description}</td>
+                          <td className="px-3 py-2 capitalize text-muted-foreground">
+                            {item.item_type.replace(/_/g, " ")}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            KSh {Number(item.amount).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="border-t bg-muted/20">
+                      <tr>
+                        <td colSpan={3} className="px-3 py-2 font-semibold">
+                          Claim total
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                          KSh{" "}
+                          {claimItems
+                            .filter((i) => i.is_included)
+                            .reduce((s, i) => s + Number(i.amount), 0)
+                            .toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </Section>
+            )}
+
+            {/* ── OTP Verification ─────────────────────────────────── */}
+            {isSha && (
+              <Section title="Patient OTP Verification">
+                {!otpVerified ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      SHA requires patient consent via OTP before claim submission. OTP is shown on
+                      screen (SMS delivery activates in Phase 3).
+                    </p>
+                    {!otpSent ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Patient phone (e.g. 0712345678)"
+                          value={patientPhone}
+                          onChange={(e) => setPatientPhone(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={requestOtp}
+                          disabled={otpSending}
+                        >
+                          {otpSending ? "Sending…" : "Request OTP"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {generatedOtp && (
+                          <div className="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
+                            <span className="font-semibold">OTP (on-screen delivery): </span>
+                            <span className="font-mono text-lg tracking-widest">
+                              {generatedOtp}
+                            </span>
+                            <span className="ml-2 text-muted-foreground">
+                              (expires in 10 minutes)
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Enter 6-digit OTP"
+                            value={otpInput}
+                            onChange={(e) => setOtpInput(e.target.value)}
+                            maxLength={6}
+                            className="flex-1 font-mono tracking-widest"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={verifyOtp}
+                            disabled={otpVerifying || otpInput.length < 6}
+                          >
+                            {otpVerifying ? "Verifying…" : "Verify"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setOtpSent(false);
+                              setOtpInput("");
+                              setGeneratedOtp(null);
+                              setOtpRecordId(null);
+                            }}
+                          >
+                            Resend
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 flex items-center gap-2">
+                    <span className="text-lg">✅</span>
+                    <div>
+                      <div className="font-semibold">OTP Verified</div>
+                      <div className="text-xs">
+                        Patient consent confirmed — claim ready to submit.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Section>
+            )}
+
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
               <div className="font-semibold mb-1">Phase 3 — API Integration Pending</div>
               <div className="text-xs">
@@ -2822,11 +3245,18 @@ function InsuranceDialog({
             </Button>
             <Button
               onClick={submitClaim}
-              disabled={submitting || claimStatus === "submitted" || (preauthMissing && isSha)}
+              disabled={
+                submitting ||
+                claimStatus === "submitted" ||
+                (preauthMissing && isSha) ||
+                (isSha && !otpVerified)
+              }
               title={
                 preauthMissing && isSha
                   ? "Pre-authorization number required before submitting"
-                  : undefined
+                  : isSha && !otpVerified
+                    ? "OTP verification required before submitting SHA claim"
+                    : undefined
               }
             >
               {submitting
