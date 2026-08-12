@@ -388,22 +388,44 @@ function ReportsPage() {
   };
 
   const exportExcel = () => {
-    const wb = XLSX.utils.book_new();
+    const toCSV = (rows: (string | number)[][]): string =>
+      rows
+        .map((row) =>
+          row
+            .map((cell) => {
+              const s = String(cell ?? "");
+              return s.includes(",") || s.includes('"') || s.includes("\n")
+                ? `"${s.replace(/"/g, '""')}"`
+                : s;
+            })
+            .join(",")
+        )
+        .join("\r\n");
 
-    const header = [
-      "Test",
-      MONTH_NAMES[q.months[0]],
-      MONTH_NAMES[q.months[1]],
-      MONTH_NAMES[q.months[2]],
-      "Total",
-      "Positive",
-      "Medical camp",
-    ];
+    const downloadCSV = (content: string, filename: string) => {
+      const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
 
-    const sheetData = [
+    const slug = q.label.replace(/[^A-Z0-9]/gi, "_");
+
+    const summaryRows: (string | number)[][] = [
       [`LabTrack Quarterly Report — ${q.label} ${year}`],
       [],
-      header,
+      [
+        "Test",
+        MONTH_NAMES[q.months[0]],
+        MONTH_NAMES[q.months[1]],
+        MONTH_NAMES[q.months[2]],
+        "Total",
+        "Positive",
+        "Medical camp",
+      ],
       ...summary.rows.map((row) => [
         row.name,
         row.monthly[0],
@@ -424,20 +446,7 @@ function ReportsPage() {
       ],
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-    ws["!cols"] = [
-      { wch: 36 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 14 },
-    ];
-
-    XLSX.utils.book_append_sheet(wb, ws, "Tests Summary");
-
-    const fundsData = [
+    const fundsRows: (string | number)[][] = [
       [`Fund Utilizations — ${q.label} ${year}`],
       [],
       ["Date", "Category", "Amount", "Notes"],
@@ -450,12 +459,8 @@ function ReportsPage() {
       ["", "TOTAL", totalFunds, ""],
     ];
 
-    const ws2 = XLSX.utils.aoa_to_sheet(fundsData);
-    ws2["!cols"] = [{ wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 40 }];
-
-    XLSX.utils.book_append_sheet(wb, ws2, "Fund Utilizations");
-
-    XLSX.writeFile(wb, `LabTrack_${q.label.replace(/[^A-Z0-9]/gi, "_")}_${year}.xlsx`);
+    downloadCSV(toCSV(summaryRows), `LabTrack_${slug}_${year}_Tests.csv`);
+    downloadCSV(toCSV(fundsRows), `LabTrack_${slug}_${year}_Funds.csv`);
   };
 
   const regAgg = useMemo(() => {
