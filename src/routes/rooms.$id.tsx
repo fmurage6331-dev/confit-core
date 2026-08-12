@@ -2945,9 +2945,35 @@ function RequestServicesInline({
   const subtotal = picked.reduce((sum, s) => sum + priceFor(s), 0);
   const coveragePct =
     reg.payment_mode === "insurance" ? Number(reg.insurance_coverage_percentage ?? 0) : 0;
-  const insuranceCovered =
-    reg.payment_mode === "insurance" ? +((subtotal * coveragePct) / 100).toFixed(2) : 0;
-  const patientDue = reg.payment_mode === "free" ? 0 : +(subtotal - insuranceCovered).toFixed(2);
+  const _insurerConfig =
+    reg.payment_mode === "insurance"
+      ? {
+          coverage_percentage: coveragePct,
+          coverage_rule: (reg as never as { coverage_rule?: string }).coverage_rule ?? "percentage",
+          per_visit_limit:
+            (reg as never as { per_visit_limit?: number | null }).per_visit_limit ?? null,
+        }
+      : null;
+  const { insuranceCovered, patientDue } = (() => {
+    if (reg.payment_mode === "free") return { insuranceCovered: 0, patientDue: 0 };
+    if (reg.payment_mode !== "insurance" || !_insurerConfig)
+      return { insuranceCovered: 0, patientDue: subtotal };
+    const rule = _insurerConfig.coverage_rule as
+      | "percentage"
+      | "fixed_per_visit"
+      | "percentage_with_cap";
+    const limit = Number(_insurerConfig.per_visit_limit ?? 0);
+    let covered = 0;
+    if (rule === "fixed_per_visit") {
+      covered = Math.min(subtotal, limit);
+    } else if (rule === "percentage_with_cap") {
+      covered = Math.min(+((subtotal * coveragePct) / 100).toFixed(2), limit);
+    } else {
+      covered = +((subtotal * coveragePct) / 100).toFixed(2);
+    }
+    covered = +Math.min(covered, subtotal).toFixed(2);
+    return { insuranceCovered: covered, patientDue: +Math.max(0, subtotal - covered).toFixed(2) };
+  })();
 
   function toggle(id: string) {
     setSelected((prev) => {

@@ -8,6 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -34,11 +35,15 @@ export const Route = createFileRoute("/admin/insurance")({
   ),
 });
 
+type CoverageRule = "percentage" | "fixed_per_visit" | "percentage_with_cap";
+
 type Insurer = {
   id: string;
   name: string;
   code: string;
   coverage_percentage: number;
+  coverage_rule: CoverageRule;
+  per_visit_limit: number | null;
   is_active: boolean;
 };
 
@@ -51,6 +56,8 @@ const schema = z.object({
     .max(20)
     .regex(/^[A-Za-z0-9_-]+$/, "Code: letters/numbers only"),
   coverage_percentage: z.coerce.number().min(0).max(100),
+  coverage_rule: z.enum(["percentage", "fixed_per_visit", "percentage_with_cap"]),
+  per_visit_limit: z.coerce.number().min(0).nullable(),
   is_active: z.boolean(),
 });
 
@@ -63,16 +70,16 @@ function AdminInsurance() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("insurance_providers")
-      .select("id,name,code,coverage_percentage,is_active")
+      .select("id,name,code,coverage_percentage,coverage_rule,per_visit_limit,is_active")
       .order("name");
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      toast.error((error as { message: string }).message);
       return;
     }
-    setRows(data ?? []);
+    setRows((data ?? []) as Insurer[]);
   }
   useEffect(() => {
     load();
@@ -83,7 +90,15 @@ function AdminInsurance() {
   }
 
   function openNew() {
-    setEditing({ id: "", name: "", code: "", coverage_percentage: 0, is_active: true });
+    setEditing({
+      id: "",
+      name: "",
+      code: "",
+      coverage_percentage: 0,
+      coverage_rule: "percentage",
+      per_visit_limit: null,
+      is_active: true,
+    });
     setOpen(true);
   }
   function openEdit(r: Insurer) {
@@ -109,6 +124,8 @@ function AdminInsurance() {
       name: editing.name,
       code: editing.code,
       coverage_percentage: editing.coverage_percentage,
+      coverage_rule: editing.coverage_rule,
+      per_visit_limit: editing.coverage_rule === "percentage" ? null : editing.per_visit_limit,
       is_active: editing.is_active,
     });
     if (!parsed.success) {
@@ -116,7 +133,7 @@ function AdminInsurance() {
       return;
     }
     if (editing.id) {
-      const { error } = await supabase
+      const { error } = await db
         .from("insurance_providers")
         .update(parsed.data)
         .eq("id", editing.id);
@@ -125,7 +142,7 @@ function AdminInsurance() {
         return;
       }
     } else {
-      const { error } = await supabase
+      const { error } = await db
         .from("insurance_providers")
         .insert({ ...parsed.data, created_by: user!.id });
       if (error) {
@@ -186,12 +203,26 @@ function AdminInsurance() {
                   <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{r.code}</code>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <Progress value={Number(r.coverage_percentage)} className="h-2 flex-1" />
-                    <span className="w-12 text-right text-xs tabular-nums">
-                      {Number(r.coverage_percentage)}%
+                  {r.coverage_rule === "fixed_per_visit" ? (
+                    <span className="text-xs">
+                      KSh {Number(r.per_visit_limit ?? 0).toLocaleString()} / visit
                     </span>
-                  </div>
+                  ) : r.coverage_rule === "percentage_with_cap" ? (
+                    <div className="flex items-center gap-3">
+                      <Progress value={Number(r.coverage_percentage)} className="h-2 flex-1" />
+                      <span className="w-auto text-right text-xs tabular-nums">
+                        {Number(r.coverage_percentage)}% ≤ KSh{" "}
+                        {Number(r.per_visit_limit ?? 0).toLocaleString()}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Progress value={Number(r.coverage_percentage)} className="h-2 flex-1" />
+                      <span className="w-12 text-right text-xs tabular-nums">
+                        {Number(r.coverage_percentage)}%
+                      </span>
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   {r.is_active ? (
@@ -242,20 +273,64 @@ function AdminInsurance() {
                 />
               </div>
               <div>
-                <Label htmlFor="cov">Coverage percentage</Label>
-                <Input
-                  id="cov"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={editing.coverage_percentage}
+                <Label htmlFor="rule">Coverage rule</Label>
+                <select
+                  id="rule"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  value={editing.coverage_rule}
                   onChange={(e) =>
-                    setEditing({ ...editing, coverage_percentage: Number(e.target.value) })
+                    setEditing({
+                      ...editing,
+                      coverage_rule: e.target.value as CoverageRule,
+                      per_visit_limit: null,
+                    })
                   }
-                  required
-                />
+                >
+                  <option value="percentage">Percentage of visit total</option>
+                  <option value="fixed_per_visit">Fixed amount per visit</option>
+                  <option value="percentage_with_cap">Percentage with per-visit cap</option>
+                </select>
               </div>
+              {editing.coverage_rule !== "fixed_per_visit" && (
+                <div>
+                  <Label htmlFor="cov">Coverage percentage</Label>
+                  <Input
+                    id="cov"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={editing.coverage_percentage}
+                    onChange={(e) =>
+                      setEditing({ ...editing, coverage_percentage: Number(e.target.value) })
+                    }
+                    required
+                  />
+                </div>
+              )}
+              {editing.coverage_rule !== "percentage" && (
+                <div>
+                  <Label htmlFor="limit">
+                    {editing.coverage_rule === "fixed_per_visit"
+                      ? "Fixed amount per visit (KSh)"
+                      : "Maximum per visit (KSh)"}
+                  </Label>
+                  <Input
+                    id="limit"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={editing.per_visit_limit ?? ""}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        per_visit_limit: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                    required
+                  />
+                </div>
+              )}
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <div className="text-sm font-medium">Active</div>

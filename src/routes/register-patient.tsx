@@ -26,6 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ServicePicker } from "@/components/service-picker";
 import { toast } from "sonner";
+import { calcInsuranceCoverage } from "@/lib/insurance-calc";
 import { Banknote, HeartHandshake, Plus, Shield, Trash2, type LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/register-patient")({
@@ -43,6 +44,8 @@ type Insurer = {
   name: string;
   code: string;
   coverage_percentage: number;
+  coverage_rule: "percentage" | "fixed_per_visit" | "percentage_with_cap";
+  per_visit_limit: number | null;
   insurer_type: string | null;
 };
 
@@ -152,7 +155,7 @@ function RegisterPatient() {
 
   useEffect(() => {
     db.from("insurance_providers")
-      .select("id,name,code,coverage_percentage,insurer_type")
+      .select("id,name,code,coverage_percentage,coverage_rule,per_visit_limit,insurer_type")
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => setInsurers((data ?? []) as Insurer[]));
@@ -189,8 +192,11 @@ function RegisterPatient() {
 
   const subtotal = selectedTests.reduce((sum, test) => sum + priceFor(test), 0);
   const coveragePct = mode === "insurance" && insurer ? Number(insurer.coverage_percentage) : 0;
-  const insuranceCovered = mode === "insurance" ? +((subtotal * coveragePct) / 100).toFixed(2) : 0;
-  const patientDue = mode === "free" ? 0 : +(subtotal - insuranceCovered).toFixed(2);
+  const {
+    insuranceCovered,
+    patientDue,
+    limitReached: insuranceLimitReached,
+  } = calcInsuranceCoverage(subtotal, mode, insurer ?? null);
 
   const toggleTest = (id: string) => {
     setSelectedTestIds((previous) => {
@@ -990,7 +996,12 @@ function RegisterPatient() {
                           <SelectItem key={item.id} value={item.id}>
                             {item.name}{" "}
                             <span className="text-xs text-muted-foreground">
-                              [{item.code}] · {item.coverage_percentage}%
+                              [{item.code}] ·{" "}
+                              {item.coverage_rule === "fixed_per_visit"
+                                ? `KSh ${Number(item.per_visit_limit ?? 0).toLocaleString()} / visit`
+                                : item.coverage_rule === "percentage_with_cap"
+                                  ? `${item.coverage_percentage}% ≤ KSh ${Number(item.per_visit_limit ?? 0).toLocaleString()}`
+                                  : `${item.coverage_percentage}%`}
                             </span>
                           </SelectItem>
                         ))}

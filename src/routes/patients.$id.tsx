@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { calcInsuranceCoverage } from "@/lib/insurance-calc";
 import {
   ArrowLeft,
   Plus,
@@ -501,7 +502,14 @@ function ageStr(p: Patient) {
 
 /* ─────────── New encounter dialog ─────────── */
 
-type Insurer = { id: string; name: string; code: string; coverage_percentage: number };
+type Insurer = {
+  id: string;
+  name: string;
+  code: string;
+  coverage_percentage: number;
+  coverage_rule: "percentage" | "fixed_per_visit" | "percentage_with_cap";
+  per_visit_limit: number | null;
+};
 type TestRow = {
   id: string;
   name: string;
@@ -653,9 +661,8 @@ function NewEncounterDialog({
 
   useEffect(() => {
     if (!open) return;
-    supabase
-      .from("insurance_providers")
-      .select("id,name,code,coverage_percentage")
+    db.from("insurance_providers")
+      .select("id,name,code,coverage_percentage,coverage_rule,per_visit_limit")
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => setInsurers((data ?? []) as Insurer[]));
@@ -682,8 +689,11 @@ function NewEncounterDialog({
   const selected = useMemo(() => tests.filter((t) => selectedIds.has(t.id)), [tests, selectedIds]);
   const subtotal = selected.reduce((s, t) => s + priceFor(t), 0);
   const coveragePct = mode === "insurance" && insurer ? Number(insurer.coverage_percentage) : 0;
-  const insuranceCovered = mode === "insurance" ? +((subtotal * coveragePct) / 100).toFixed(2) : 0;
-  const patientDue = mode === "free" ? 0 : +(subtotal - insuranceCovered).toFixed(2);
+  const {
+    insuranceCovered,
+    patientDue,
+    limitReached: insuranceLimitReached,
+  } = calcInsuranceCoverage(subtotal, mode, insurer ?? null);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -805,7 +815,12 @@ function NewEncounterDialog({
                   <SelectContent>
                     {insurers.map((i) => (
                       <SelectItem key={i.id} value={i.id}>
-                        {i.name} · {i.coverage_percentage}%
+                        {i.name} ·{" "}
+                        {i.coverage_rule === "fixed_per_visit"
+                          ? `KSh ${Number(i.per_visit_limit ?? 0).toLocaleString()} / visit`
+                          : i.coverage_rule === "percentage_with_cap"
+                            ? `${i.coverage_percentage}% ≤ KSh ${Number(i.per_visit_limit ?? 0).toLocaleString()}`
+                            : `${i.coverage_percentage}%`}
                       </SelectItem>
                     ))}
                   </SelectContent>

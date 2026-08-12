@@ -34,12 +34,33 @@ import {
   Clock,
   XCircle,
   SkipForward,
+  FileDown,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/admin/queue")({
   component: () => (
     <AppShell>
-      <QueuePage />
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Admin Queue</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            DHA outbound queue and insurance claims aging report.
+          </p>
+        </div>
+        <Tabs defaultValue="outbound">
+          <TabsList className="mb-6">
+            <TabsTrigger value="outbound">Outbound Queue</TabsTrigger>
+            <TabsTrigger value="claims">Claims Aging</TabsTrigger>
+          </TabsList>
+          <TabsContent value="outbound">
+            <QueuePage />
+          </TabsContent>
+          <TabsContent value="claims">
+            <ClaimsAging />
+          </TabsContent>
+        </Tabs>
+      </div>
     </AppShell>
   ),
 });
@@ -172,13 +193,11 @@ function QueuePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Radio className="h-8 w-8 text-primary" />
-            Claims Queue
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            DHA outbound queue — dual-rail claims dispatcher
-          </p>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Radio className="h-5 w-5 text-primary" />
+            DHA Outbound Queue
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">Dual-rail claims dispatcher</p>
         </div>
         <Button variant="outline" onClick={() => refetch()}>
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -455,6 +474,306 @@ function StatCard({
     <div className={`rounded-xl border p-4 ${colors[color]}`}>
       <div className="text-2xl font-bold tabular-nums">{value}</div>
       <div className="text-xs mt-1 font-medium">{label}</div>
+    </div>
+  );
+}
+
+// ── Claims Aging ──────────────────────────────────────────────────────────────
+
+type AgingRow = {
+  encounter_id: string;
+  patient_name: string;
+  file_number: string | null;
+  invoice_id: string | null;
+  invoice_number: string | null;
+  insurer_name: string | null;
+  insurer_code: string | null;
+  claim_number: string | null;
+  claim_status: string | null;
+  claim_submitted_at: string | null;
+  total_due: number;
+  amount_paid: number;
+  balance: number;
+  invoice_created_at: string;
+  age_days: number;
+  bucket: "0-30" | "31-60" | "61-90" | "91+";
+};
+
+const BUCKET_COLORS: Record<string, string> = {
+  "0-30": "bg-emerald-100 text-emerald-800 border-emerald-200",
+  "31-60": "bg-amber-100 text-amber-800 border-amber-200",
+  "61-90": "bg-orange-100 text-orange-800 border-orange-200",
+  "91+": "bg-red-100 text-red-800 border-red-200",
+};
+
+function ageBucket(days: number): AgingRow["bucket"] {
+  if (days <= 30) return "0-30";
+  if (days <= 60) return "31-60";
+  if (days <= 90) return "61-90";
+  return "91+";
+}
+
+function ClaimsAging() {
+  const { isAdmin } = useAuth();
+  const [bucketFilter, setBucketFilter] = useState("all");
+
+  const {
+    data: rows = [],
+    isLoading,
+    refetch,
+  } = useQuery<AgingRow[]>({
+    queryKey: ["claims-aging"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select(
+          "id,invoice_number,total_due,amount_paid,balance,status,created_at," +
+            "encounters!inner(id,payment_mode,claim_number,claim_status,claim_submitted_at," +
+            "insurance_provider_id,insurance_providers(name,code)," +
+            "patients!inner(patient_name,file_number))",
+        )
+        .in("status", ["unpaid", "partial"])
+        .eq("encounters.payment_mode", "insurance")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      const now = Date.now();
+      return ((data ?? []) as never[]).map((row: never) => {
+        const inv = row as {
+          id: string;
+          invoice_number: string;
+          total_due: number;
+          amount_paid: number;
+          balance: number;
+          created_at: string;
+          encounters: {
+            id: string;
+            claim_number: string | null;
+            claim_status: string | null;
+            claim_submitted_at: string | null;
+            insurance_providers: { name: string; code: string } | null;
+            patients: { patient_name: string; file_number: string | null };
+          };
+        };
+        const ageDays = Math.floor(
+          (now - new Date(inv.created_at).getTime()) / (1000 * 60 * 60 * 24),
+        );
+        return {
+          encounter_id: inv.encounters.id,
+          patient_name: inv.encounters.patients.patient_name,
+          file_number: inv.encounters.patients.file_number,
+          invoice_id: inv.id,
+          invoice_number: inv.invoice_number,
+          insurer_name: inv.encounters.insurance_providers?.name ?? null,
+          insurer_code: inv.encounters.insurance_providers?.code ?? null,
+          claim_number: inv.encounters.claim_number,
+          claim_status: inv.encounters.claim_status,
+          claim_submitted_at: inv.encounters.claim_submitted_at,
+          total_due: Number(inv.total_due),
+          amount_paid: Number(inv.amount_paid),
+          balance: Number(inv.balance),
+          invoice_created_at: inv.created_at,
+          age_days: ageDays,
+          bucket: ageBucket(ageDays),
+        } satisfies AgingRow;
+      });
+    },
+  });
+
+  if (!isAdmin) return <AccessDenied />;
+
+  const filtered = bucketFilter === "all" ? rows : rows.filter((r) => r.bucket === bucketFilter);
+
+  const totals = {
+    "0-30": rows.filter((r) => r.bucket === "0-30").reduce((s, r) => s + r.balance, 0),
+    "31-60": rows.filter((r) => r.bucket === "31-60").reduce((s, r) => s + r.balance, 0),
+    "61-90": rows.filter((r) => r.bucket === "61-90").reduce((s, r) => s + r.balance, 0),
+    "91+": rows.filter((r) => r.bucket === "91+").reduce((s, r) => s + r.balance, 0),
+  };
+  const grandTotal = rows.reduce((s, r) => s + r.balance, 0);
+
+  function exportCSV() {
+    const header = [
+      "Patient",
+      "File No",
+      "Invoice No",
+      "Insurer",
+      "Claim No",
+      "Claim Status",
+      "Invoice Date",
+      "Age (days)",
+      "Bucket",
+      "Total Due",
+      "Paid",
+      "Outstanding",
+    ];
+    const dataRows = filtered.map((r) => [
+      r.patient_name,
+      r.file_number ?? "",
+      r.invoice_number ?? "",
+      r.insurer_name ?? "",
+      r.claim_number ?? "",
+      r.claim_status ?? "",
+      r.invoice_created_at.split("T")[0],
+      r.age_days,
+      r.bucket,
+      r.total_due.toFixed(2),
+      r.amount_paid.toFixed(2),
+      r.balance.toFixed(2),
+    ]);
+    const csv = [header, ...dataRows]
+      .map((row) =>
+        row
+          .map((c) => {
+            const s = String(c ?? "");
+            return s.includes(",") || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+          })
+          .join(","),
+      )
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ClaimsAging_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {(["0-30", "31-60", "61-90", "91+"] as const).map((b) => (
+          <div key={b} className={`rounded-xl border p-4 ${BUCKET_COLORS[b]}`}>
+            <div className="text-2xl font-bold tabular-nums">
+              KSh {totals[b].toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+            <div className="mt-1 text-xs font-medium">{b} days</div>
+            <div className="text-xs opacity-70">
+              {rows.filter((r) => r.bucket === b).length} claims
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm font-medium">
+          Total outstanding:{" "}
+          <span className="font-bold text-red-700">
+            KSh {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </span>{" "}
+          across {rows.length} claim{rows.length !== 1 ? "s" : ""}
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={bucketFilter}
+            onChange={(e) => setBucketFilter(e.target.value)}
+          >
+            <option value="all">All buckets</option>
+            <option value="0-30">0–30 days</option>
+            <option value="31-60">31–60 days</option>
+            <option value="61-90">61–90 days</option>
+            <option value="91+">91+ days</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="mr-1 h-3 w-3" /> Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportCSV}>
+            <FileDown className="mr-1 h-3 w-3" /> Export CSV
+          </Button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Patient</th>
+                <th className="px-4 py-3">Invoice</th>
+                <th className="px-4 py-3">Insurer</th>
+                <th className="px-4 py-3">Claim Ref</th>
+                <th className="px-4 py-3">Claim Status</th>
+                <th className="px-4 py-3">Invoice Date</th>
+                <th className="px-4 py-3 text-center">Age</th>
+                <th className="px-4 py-3 text-right">Total Due</th>
+                <th className="px-4 py-3 text-right">Paid</th>
+                <th className="px-4 py-3 text-right">Outstanding</th>
+                <th className="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr>
+                  <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
+                    No outstanding insurance claims.
+                  </td>
+                </tr>
+              )}
+              {filtered.map((r) => (
+                <tr key={r.invoice_id} className="border-t hover:bg-muted/20">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{r.patient_name}</div>
+                    {r.file_number && (
+                      <div className="text-xs text-muted-foreground">{r.file_number}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs">{r.invoice_number ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {r.insurer_name ? (
+                      <>
+                        <div className="font-medium">{r.insurer_name}</div>
+                        <code className="text-xs text-muted-foreground">{r.insurer_code}</code>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs">{r.claim_number ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {r.claim_status ? (
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {r.claim_status.replace(/_/g, " ")}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Not submitted</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs">{r.invoice_created_at.split("T")[0]}</td>
+                  <td className="px-4 py-3 text-center">
+                    <Badge variant="outline" className={`text-xs ${BUCKET_COLORS[r.bucket]}`}>
+                      {r.age_days}d
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">{r.total_due.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-emerald-700">
+                    {r.amount_paid.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold text-red-700">
+                    {r.balance.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => window.open(`/invoices/${r.invoice_id}`, "_blank")}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
