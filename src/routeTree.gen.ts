@@ -46,21 +46,21 @@ import { Route as Moh707RouteImport } from './routes/moh.707'
 import { Route as Moh706RouteImport } from './routes/moh.706'
 import { Route as Moh705RouteImport } from './routes/moh.705'
 import { Route as Moh642RouteImport } from './routes/moh.642'
-import { Route as Moh204RouteImport } from './routes/moh.204'
 import { Route as Moh505RouteImport } from './routes/moh.505'
+import { Route as Moh204RouteImport } from './routes/moh.204'
 import { Route as LaboratoryIdRouteImport } from './routes/laboratory.$id'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
-import { Route as EncounterRecordsIdRouteImport } from './routes/encounter-records.$id'
 import { Route as InpatientAdmissionIdRouteImport } from './routes/inpatient_.$admissionId'
+import { Route as EncounterRecordsIdRouteImport } from './routes/encounter-records.$id'
+import { Route as AdminWardsRouteImport } from './routes/admin.wards'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTestTemplatesRouteImport } from './routes/admin.test-templates'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminPricingRouteImport } from './routes/admin.pricing'
 import { Route as AdminServicesRouteImport } from './routes/admin.services'
-import { Route as AdminWardsRouteImport } from './routes/admin.wards'
 import { Route as AdminRoomsRouteImport } from './routes/admin.rooms'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
+import { Route as AdminPricingRouteImport } from './routes/admin.pricing'
 import { Route as AdminPermissionsRouteImport } from './routes/admin.permissions'
 import { Route as AdminMohIndicatorsRouteImport } from './routes/admin.moh-indicators'
 import { Route as AdminInsuranceRouteImport } from './routes/admin.insurance'
@@ -255,14 +255,14 @@ const Moh642Route = Moh642RouteImport.update({
   path: '/642',
   getParentRoute: () => MohRoute,
 } as any)
-const Moh204Route = Moh204RouteImport.update({
-  id: '/204',
-  path: '/204',
-  getParentRoute: () => MohRoute,
-} as any)
 const Moh505Route = Moh505RouteImport.update({
   id: '/505',
   path: '/505',
+  getParentRoute: () => MohRoute,
+} as any)
+const Moh204Route = Moh204RouteImport.update({
+  id: '/204',
+  path: '/204',
   getParentRoute: () => MohRoute,
 } as any)
 const LaboratoryIdRoute = LaboratoryIdRouteImport.update({
@@ -275,9 +275,19 @@ const InvoicesIdRoute = InvoicesIdRouteImport.update({
   path: '/invoices/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InpatientAdmissionIdRoute = InpatientAdmissionIdRouteImport.update({
+  id: '/inpatient_/$admissionId',
+  path: '/inpatient/$admissionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EncounterRecordsIdRoute = EncounterRecordsIdRouteImport.update({
   id: '/encounter-records/$id',
   path: '/encounter-records/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminWardsRoute = AdminWardsRouteImport.update({
+  id: '/admin/wards',
+  path: '/admin/wards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -295,24 +305,9 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/admin/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminPricingRoute = AdminPricingRouteImport.update({
-  id: '/admin/pricing',
-  path: '/admin/pricing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InpatientAdmissionIdRoute = InpatientAdmissionIdRouteImport.update({
-  id: '/inpatient/$admissionId',
-  path: '/inpatient/$admissionId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminServicesRoute = AdminServicesRouteImport.update({
   id: '/admin/services',
   path: '/admin/services',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminWardsRoute = AdminWardsRouteImport.update({
-  id: '/admin/wards',
-  path: '/admin/wards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoomsRoute = AdminRoomsRouteImport.update({
@@ -328,6 +323,11 @@ const AdminRequestsRoute = AdminRequestsRouteImport.update({
 const AdminQueueRoute = AdminQueueRouteImport.update({
   id: '/admin/queue',
   path: '/admin/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPricingRoute = AdminPricingRouteImport.update({
+  id: '/admin/pricing',
+  path: '/admin/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPermissionsRoute = AdminPermissionsRouteImport.update({
@@ -395,21 +395,21 @@ export interface FileRoutesByFullPath {
   '/stock': typeof StockRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/pricing': typeof AdminPricingRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/pricing': typeof AdminPricingRoute
-  '/admin/wards': typeof AdminWardsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/test-templates': typeof AdminTestTemplatesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/encounter-records/$id': typeof EncounterRecordsIdRoute
+  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/laboratory/$id': typeof LaboratoryIdRoute
   '/moh/204': typeof Moh204Route
@@ -421,7 +421,6 @@ export interface FileRoutesByFullPath {
   '/moh/717': typeof Moh717Route
   '/moh/fp': typeof MohFpRoute
   '/moh/mch': typeof MohMchRoute
-  '/moh/204': typeof Moh204Route
   '/patients/$id': typeof PatientsIdRoute
   '/radiology/$id': typeof RadiologyIdRoute
   '/records/$id': typeof RecordsIdRoute
@@ -457,23 +456,24 @@ export interface FileRoutesByTo {
   '/stock': typeof StockRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/pricing': typeof AdminPricingRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/pricing': typeof AdminPricingRoute
-  '/admin/wards': typeof AdminWardsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/test-templates': typeof AdminTestTemplatesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/encounter-records/$id': typeof EncounterRecordsIdRoute
+  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/laboratory/$id': typeof LaboratoryIdRoute
+  '/moh/204': typeof Moh204Route
   '/moh/505': typeof Moh505Route
   '/moh/642': typeof Moh642Route
   '/moh/705': typeof Moh705Route
@@ -482,7 +482,6 @@ export interface FileRoutesByTo {
   '/moh/717': typeof Moh717Route
   '/moh/fp': typeof MohFpRoute
   '/moh/mch': typeof MohMchRoute
-  '/moh/204': typeof Moh204Route
   '/patients/$id': typeof PatientsIdRoute
   '/radiology/$id': typeof RadiologyIdRoute
   '/records/$id': typeof RecordsIdRoute
@@ -520,23 +519,24 @@ export interface FileRoutesById {
   '/stock': typeof StockRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/inpatient/$admissionId': typeof InpatientAdmissionIdRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/insurance': typeof AdminInsuranceRoute
   '/admin/moh-indicators': typeof AdminMohIndicatorsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/pricing': typeof AdminPricingRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/pricing': typeof AdminPricingRoute
-  '/admin/wards': typeof AdminWardsRoute
   '/admin/rooms': typeof AdminRoomsRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/test-templates': typeof AdminTestTemplatesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/encounter-records/$id': typeof EncounterRecordsIdRoute
+  '/inpatient_/$admissionId': typeof InpatientAdmissionIdRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/laboratory/$id': typeof LaboratoryIdRoute
+  '/moh/204': typeof Moh204Route
   '/moh/505': typeof Moh505Route
   '/moh/642': typeof Moh642Route
   '/moh/705': typeof Moh705Route
@@ -572,7 +572,6 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/forgot-password'
     | '/inpatient'
-    | '/inpatient/$admissionId'
     | '/login'
     | '/machines'
     | '/mcp'
@@ -588,6 +587,7 @@ export interface FileRouteTypes {
     | '/admin/insurance'
     | '/admin/moh-indicators'
     | '/admin/permissions'
+    | '/admin/pricing'
     | '/admin/queue'
     | '/admin/requests'
     | '/admin/rooms'
@@ -595,9 +595,12 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/test-templates'
     | '/admin/users'
+    | '/admin/wards'
     | '/encounter-records/$id'
+    | '/inpatient/$admissionId'
     | '/invoices/$id'
     | '/laboratory/$id'
+    | '/moh/204'
     | '/moh/505'
     | '/moh/642'
     | '/moh/705'
@@ -631,7 +634,6 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/forgot-password'
     | '/inpatient'
-    | '/inpatient/$admissionId'
     | '/login'
     | '/machines'
     | '/mcp'
@@ -646,6 +648,7 @@ export interface FileRouteTypes {
     | '/admin/insurance'
     | '/admin/moh-indicators'
     | '/admin/permissions'
+    | '/admin/pricing'
     | '/admin/queue'
     | '/admin/requests'
     | '/admin/rooms'
@@ -653,9 +656,12 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/test-templates'
     | '/admin/users'
+    | '/admin/wards'
     | '/encounter-records/$id'
+    | '/inpatient/$admissionId'
     | '/invoices/$id'
     | '/laboratory/$id'
+    | '/moh/204'
     | '/moh/505'
     | '/moh/642'
     | '/moh/705'
@@ -689,7 +695,6 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/forgot-password'
     | '/inpatient'
-    | '/inpatient/$admissionId'
     | '/login'
     | '/machines'
     | '/mcp'
@@ -705,6 +710,7 @@ export interface FileRouteTypes {
     | '/admin/insurance'
     | '/admin/moh-indicators'
     | '/admin/permissions'
+    | '/admin/pricing'
     | '/admin/queue'
     | '/admin/requests'
     | '/admin/rooms'
@@ -712,9 +718,12 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/test-templates'
     | '/admin/users'
+    | '/admin/wards'
     | '/encounter-records/$id'
+    | '/inpatient_/$admissionId'
     | '/invoices/$id'
     | '/laboratory/$id'
+    | '/moh/204'
     | '/moh/505'
     | '/moh/642'
     | '/moh/705'
@@ -760,20 +769,21 @@ export interface RootRouteChildren {
   StockRoute: typeof StockRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  InpatientAdmissionIdRoute: typeof InpatientAdmissionIdRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
   AdminInsuranceRoute: typeof AdminInsuranceRoute
   AdminMohIndicatorsRoute: typeof AdminMohIndicatorsRoute
   AdminPermissionsRoute: typeof AdminPermissionsRoute
+  AdminPricingRoute: typeof AdminPricingRoute
   AdminQueueRoute: typeof AdminQueueRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
-  AdminPricingRoute: typeof AdminPricingRoute
   AdminRoomsRoute: typeof AdminRoomsRoute
   AdminServicesRoute: typeof AdminServicesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTestTemplatesRoute: typeof AdminTestTemplatesRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminWardsRoute: typeof AdminWardsRoute
   EncounterRecordsIdRoute: typeof EncounterRecordsIdRoute
+  InpatientAdmissionIdRoute: typeof InpatientAdmissionIdRoute
   InvoicesIdRoute: typeof InvoicesIdRoute
   LaboratoryIdRoute: typeof LaboratoryIdRoute
   PatientsIdRoute: typeof PatientsIdRoute
@@ -1038,13 +1048,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Moh706RouteImport
       parentRoute: typeof MohRoute
     }
-    '/moh/204': {
-      id: '/moh/204'
-      path: '/204'
-      fullPath: '/moh/204'
-      preLoaderRoute: typeof Moh204RouteImport
-      parentRoute: typeof MohRoute
-    }
     '/moh/705': {
       id: '/moh/705'
       path: '/705'
@@ -1066,6 +1069,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Moh505RouteImport
       parentRoute: typeof MohRoute
     }
+    '/moh/204': {
+      id: '/moh/204'
+      path: '/204'
+      fullPath: '/moh/204'
+      preLoaderRoute: typeof Moh204RouteImport
+      parentRoute: typeof MohRoute
+    }
     '/laboratory/$id': {
       id: '/laboratory/$id'
       path: '/laboratory/$id'
@@ -1080,11 +1090,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoicesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inpatient_/$admissionId': {
+      id: '/inpatient_/$admissionId'
+      path: '/inpatient/$admissionId'
+      fullPath: '/inpatient/$admissionId'
+      preLoaderRoute: typeof InpatientAdmissionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/encounter-records/$id': {
       id: '/encounter-records/$id'
       path: '/encounter-records/$id'
       fullPath: '/encounter-records/$id'
       preLoaderRoute: typeof EncounterRecordsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/wards': {
+      id: '/admin/wards'
+      path: '/admin/wards'
+      fullPath: '/admin/wards'
+      preLoaderRoute: typeof AdminWardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -1108,32 +1132,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-     '/admin/pricing': {
-      id: '/admin/pricing'
-      path: '/admin/pricing'
-      fullPath: '/admin/pricing'
-      preLoaderRoute: typeof AdminPricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inpatient/$admissionId': {
-      id: '/inpatient/$admissionId'
-      path: '/inpatient/$admissionId'
-      fullPath: '/inpatient/$admissionId'
-      preLoaderRoute: typeof InpatientAdmissionIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin/services': {
       id: '/admin/services'
       path: '/admin/services'
       fullPath: '/admin/services'
       preLoaderRoute: typeof AdminServicesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/wards': {
-      id: '/admin/wards'
-      path: '/admin/wards'
-      fullPath: '/admin/wards'
-      preLoaderRoute: typeof AdminWardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/rooms': {
@@ -1155,6 +1158,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/queue'
       fullPath: '/admin/queue'
       preLoaderRoute: typeof AdminQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/pricing': {
+      id: '/admin/pricing'
+      path: '/admin/pricing'
+      fullPath: '/admin/pricing'
+      preLoaderRoute: typeof AdminPricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/permissions': {
@@ -1217,6 +1227,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface MohRouteChildren {
+  Moh204Route: typeof Moh204Route
   Moh505Route: typeof Moh505Route
   Moh642Route: typeof Moh642Route
   Moh705Route: typeof Moh705Route
@@ -1225,11 +1236,11 @@ interface MohRouteChildren {
   Moh717Route: typeof Moh717Route
   MohFpRoute: typeof MohFpRoute
   MohMchRoute: typeof MohMchRoute
-  Moh204Route: typeof Moh204Route
   MohIndexRoute: typeof MohIndexRoute
 }
 
 const MohRouteChildren: MohRouteChildren = {
+  Moh204Route: Moh204Route,
   Moh505Route: Moh505Route,
   Moh642Route: Moh642Route,
   Moh705Route: Moh705Route,
@@ -1238,7 +1249,6 @@ const MohRouteChildren: MohRouteChildren = {
   Moh717Route: Moh717Route,
   MohFpRoute: MohFpRoute,
   MohMchRoute: MohMchRoute,
-  Moh204Route: Moh204Route,
   MohIndexRoute: MohIndexRoute,
 }
 
@@ -1253,7 +1263,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DeliveriesRoute: DeliveriesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
-  InpatientAdmissionIdRoute: InpatientAdmissionIdRoute,
   InpatientRoute: InpatientRoute,
   LoginRoute: LoginRoute,
   MachinesRoute: MachinesRoute,
@@ -1271,16 +1280,17 @@ const rootRouteChildren: RootRouteChildren = {
   AdminInsuranceRoute: AdminInsuranceRoute,
   AdminMohIndicatorsRoute: AdminMohIndicatorsRoute,
   AdminPermissionsRoute: AdminPermissionsRoute,
+  AdminPricingRoute: AdminPricingRoute,
   AdminQueueRoute: AdminQueueRoute,
   AdminRequestsRoute: AdminRequestsRoute,
-  AdminPricingRoute: AdminPricingRoute,
-  AdminWardsRoute: AdminWardsRoute,
   AdminRoomsRoute: AdminRoomsRoute,
   AdminServicesRoute: AdminServicesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTestTemplatesRoute: AdminTestTemplatesRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminWardsRoute: AdminWardsRoute,
   EncounterRecordsIdRoute: EncounterRecordsIdRoute,
+  InpatientAdmissionIdRoute: InpatientAdmissionIdRoute,
   InvoicesIdRoute: InvoicesIdRoute,
   LaboratoryIdRoute: LaboratoryIdRoute,
   PatientsIdRoute: PatientsIdRoute,
