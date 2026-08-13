@@ -45,7 +45,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-
 type NlmisRow = {
   nlmis_code: string | null;
   item_name: string;
@@ -358,16 +357,37 @@ function ReportsPage() {
   const totalFunds = (funds ?? []).reduce((sum, fund) => sum + Number(fund.amount || 0), 0);
 
   // NLMIS
-  const [nlmisFrom, setNlmisFrom] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().slice(0, 10);
+  const [nlmisMonth, setNlmisMonth] = useState(() => String(now.getMonth() + 1).padStart(2, "0"));
+  const [nlmisYear, setNlmisYear] = useState(() => String(now.getFullYear()));
+  const [nlmisChecklist, setNlmisChecklist] = useState({
+    downloaded: false,
+    loggedin: false,
+    uploaded: false,
+    confirmed: false,
   });
-  const [nlmisTo, setNlmisTo] = useState(() => new Date().toISOString().slice(0, 10));
+
+  // Derive from/to from month+year for the query
+  const nlmisFrom = `${nlmisYear}-${nlmisMonth}-01`;
+  const nlmisTo = new Date(Number(nlmisYear), Number(nlmisMonth), 0).toISOString().slice(0, 10);
+
   const { data: nlmisData, isLoading: nlmisLoading } = useNlmisReport(nlmisFrom, nlmisTo);
+
+  // Fetch facility KMHFL code for filename
+  const { data: facilitySettings } = useQuery({
+    queryKey: ["app-settings-nlmis"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("facility_kmhfl_code")
+        .eq("id", "global")
+        .maybeSingle();
+      return data;
+    },
+  });
 
   const exportNlmisCsv = () => {
     if (!nlmisData || nlmisData.length === 0) return;
+    const kmhfl = facilitySettings?.facility_kmhfl_code ?? "FACILITY";
     const header = ["NLMIS Code", "Item Name", "Store", "Qty Dispensed"];
     const rows = nlmisData.map((r) => [
       r.nlmis_code ?? "",
@@ -382,9 +402,10 @@ function ReportsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `NLMIS_Consumption_${nlmisFrom}_to_${nlmisTo}.csv`;
+    a.download = `NLMIS_${kmhfl}_${nlmisYear}_${nlmisMonth}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    setNlmisChecklist((prev) => ({ ...prev, downloaded: true }));
   };
 
   const exportExcel = () => {
@@ -398,7 +419,7 @@ function ReportsPage() {
                 ? `"${s.replace(/"/g, '""')}"`
                 : s;
             })
-            .join(",")
+            .join(","),
         )
         .join("\r\n");
 
@@ -633,32 +654,47 @@ function ReportsPage() {
       </section>
 
       {/* ── NLMIS Consumption Report ─────────────────────────────────────── */}
-      <section className="space-y-3 no-print">
+      <section className="space-y-4 no-print">
+        {/* Header + controls */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-semibold">NLMIS Consumption Report</h2>
             <p className="text-sm text-muted-foreground">
-              Pharmacy dispensing by NLMIS commodity code — for KEMSA/MOH submission.
+              Pharmacy dispensing by NLMIS commodity code — for KEMSA/MOH KHIS submission.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <Label className="text-xs">From</Label>
-              <Input
-                type="date"
-                value={nlmisFrom}
-                onChange={(e) => setNlmisFrom(e.target.value)}
-                className="w-36 text-sm"
-              />
+              <Label className="text-xs">Month</Label>
+              <Select value={nlmisMonth} onValueChange={setNlmisMonth}>
+                <SelectTrigger className="w-32 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map(
+                    (m) => (
+                      <SelectItem key={m} value={m}>
+                        {new Date(2000, Number(m) - 1).toLocaleString("default", { month: "long" })}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Label className="text-xs">To</Label>
-              <Input
-                type="date"
-                value={nlmisTo}
-                onChange={(e) => setNlmisTo(e.target.value)}
-                className="w-36 text-sm"
-              />
+              <Label className="text-xs">Year</Label>
+              <Select value={nlmisYear} onValueChange={setNlmisYear}>
+                <SelectTrigger className="w-24 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2024, 2025, 2026, 2027].map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button
               variant="outline"
@@ -666,11 +702,38 @@ function ReportsPage() {
               onClick={exportNlmisCsv}
             >
               <FileDown className="mr-2 h-4 w-4" />
-              Export CSV
+              Export NLMIS CSV
             </Button>
           </div>
         </div>
 
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border bg-card p-4 text-center">
+            <div className="text-2xl font-bold text-primary">{nlmisData?.length ?? 0}</div>
+            <div className="text-xs text-muted-foreground mt-1">Items in Report</div>
+          </div>
+          <div className="rounded-xl border bg-card p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {nlmisData?.filter((r) => r.nlmis_code).length ?? 0}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">NLMIS Tagged</div>
+          </div>
+          <div className="rounded-xl border bg-card p-4 text-center">
+            <div className="text-2xl font-bold text-amber-500">
+              {nlmisData?.filter((r) => !r.nlmis_code).length ?? 0}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Untagged</div>
+          </div>
+          <div className="rounded-xl border bg-card p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {nlmisData?.reduce((s, r) => s + Number(r.total_consumed), 0).toLocaleString() ?? 0}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Total Units</div>
+          </div>
+        </div>
+
+        {/* Data table */}
         <div className="overflow-hidden rounded-xl border bg-card">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
@@ -692,13 +755,19 @@ function ReportsPage() {
               {!nlmisLoading && (!nlmisData || nlmisData.length === 0) && (
                 <tr>
                   <td colSpan={4} className="p-6 text-center text-muted-foreground">
-                    No dispensing records with NLMIS codes in this date range.
+                    No dispensing records with NLMIS codes for this period.
                   </td>
                 </tr>
               )}
               {(nlmisData ?? []).map((row, i) => (
                 <tr key={i} className="hover:bg-muted/20">
-                  <td className="px-4 py-2 font-mono text-xs">{row.nlmis_code ?? "—"}</td>
+                  <td className="px-4 py-2 font-mono text-xs">
+                    {row.nlmis_code ? (
+                      <span className="text-green-700 font-semibold">{row.nlmis_code}</span>
+                    ) : (
+                      <span className="text-amber-500 italic">Untagged</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2 font-medium">{row.item_name}</td>
                   <td className="px-4 py-2 text-muted-foreground">{row.store_name}</td>
                   <td className="px-4 py-2 text-right font-mono">
@@ -709,6 +778,52 @@ function ReportsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* KHIS Submission Checklist */}
+        {nlmisData && nlmisData.length > 0 && (
+          <div className="rounded-xl border bg-blue-50 dark:bg-blue-950/20 p-4 space-y-3">
+            <h3 className="font-semibold text-sm text-blue-800 dark:text-blue-300">
+              📋 KHIS Submission Checklist —{" "}
+              {new Date(Number(nlmisYear), Number(nlmisMonth) - 1).toLocaleString("default", {
+                month: "long",
+              })}{" "}
+              {nlmisYear}
+            </h3>
+            <div className="space-y-2">
+              {[
+                { key: "downloaded", label: "CSV exported and saved to computer" },
+                { key: "loggedin", label: "Logged into KHIS portal (khis.go.ke)" },
+                { key: "uploaded", label: "CSV uploaded to KHIS NLMIS module" },
+                { key: "confirmed", label: "Submission confirmed in KHIS portal" },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={nlmisChecklist[key as keyof typeof nlmisChecklist]}
+                    onChange={(e) =>
+                      setNlmisChecklist((prev) => ({ ...prev, [key]: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <span
+                    className={`text-sm ${nlmisChecklist[key as keyof typeof nlmisChecklist] ? "line-through text-muted-foreground" : ""}`}
+                  >
+                    {label}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {Object.values(nlmisChecklist).every(Boolean) && (
+              <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-3 text-sm text-green-800 dark:text-green-300 font-medium">
+                ✅ All steps complete — NLMIS submission done for{" "}
+                {new Date(Number(nlmisYear), Number(nlmisMonth) - 1).toLocaleString("default", {
+                  month: "long",
+                })}{" "}
+                {nlmisYear}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {canRegistrations && (
