@@ -45,3 +45,8 @@ out/
 LabTrack-*/
 **/Electron Framework*
 build.out
+
+# Local environment files
+.env
+.env.*
+!.env.example
