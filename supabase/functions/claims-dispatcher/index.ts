@@ -50,26 +50,50 @@ async function ShaClaimsHandler(
   req: DispatchRequest,
   payload: Record<string, unknown>,
 ): Promise<DispatchResult> {
+  // Find the draft sha_claim for this encounter
+  const { data: claim } = await supabase
+    .from("sha_claims")
+    .select("id, fhir_bundle")
+    .eq("encounter_id", req.encounter_id)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  // If claim exists but fhir_bundle not yet built — build it now
+  if (claim && !claim.fhir_bundle) {
+    const { data: built } = await supabase
+      .rpc("build_fhir_claim", { p_claim_id: claim.id });
+    if (built) {
+      await supabase
+        .from("sha_claims")
+        .update({
+          fhir_bundle:   built,
+          fhir_built_at: new Date().toISOString(),
+        })
+        .eq("id", claim.id);
+    }
+  }
+
+  // Queue to dha_outbound_queue with FHIR bundle as payload
   const { data, error } = await supabase
     .from("dha_outbound_queue")
     .insert({
       encounter_id: req.encounter_id,
-      patient_id: req.patient_id,
-      queue_type: "sha_claim",
+      patient_id:   req.patient_id,
+      queue_type:   "sha_claim",
       insurer_type: "sha_shif",
-      payload,
-      status: "pending",
-      attempts: 0,
+      payload:      claim?.fhir_bundle ?? payload,
+      status:       "pending",
+      attempts:     0,
     })
     .select("id")
     .single();
   if (error) throw new Error(`SHA queue insert failed: ${error.message}`);
   return {
     queue_type: "sha_claim",
-    handler: "ShaClaimsHandler",
-    status: "queued",
-    queue_id: data.id,
-    message: "SHA claim queued. Pending API credentials — Phase 3.",
+    handler:    "ShaClaimsHandler",
+    status:     "queued",
+    queue_id:   data.id,
+    message:    "SHA FHIR Claim queued. Pending API credentials — Phase 3.",
   };
 }
 
