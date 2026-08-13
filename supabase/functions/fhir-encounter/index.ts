@@ -62,6 +62,13 @@ serve(async (req) => {
       });
     }
 
+    // Fetch EpisodeOfCare for this encounter
+    const { data: episode } = await supabase
+      .from("episode_of_care")
+      .select("id,status,episode_type,period_start,period_end")
+      .eq("encounter_id", encounter_id)
+      .maybeSingle();
+
     // Fetch diagnoses
     const { data: diagnoses } = await supabase
       .from("encounter_diagnoses")
@@ -140,6 +147,9 @@ serve(async (req) => {
         },
         rank: d.sequence ?? 1,
       })),
+      episodeOfCare: episode
+        ? [{ reference: `EpisodeOfCare/${episode.id}` }]
+        : [],
       serviceProvider: {
         identifier: {
           system: "https://hiskenya.org/facility",
