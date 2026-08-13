@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1190" height="842" viewBox="0 0 1190 842" font-family="DejaVu Sans, sans-serif">
+<rect x="0" y="0" width="1190" height="46" rx="4" fill="#0F766E"/>
+<text x="30" y="28" font-size="16" fill="#fff" font-weight="bold">AegisCare HMS / LabTrack v5.5 — Database Schema Map</text>
+<text x="30" y="38.5" font-size="8.5" fill="#D9F0EC" font-weight="normal">85 migrations · ~64 tables · 8 domain clusters · RLS on all clinical data · Supabase project tgynjasgnerucrlwedui</text>
+<rect x="24" y="60" width="372" height="26" rx="5" fill="#157F5C" stroke="#157F5C" stroke-width="0.7"/>
+<text x="34" y="75" font-size="10.5" fill="#FFFFFF" font-weight="bold">1 · Core Clinical</text>
+<text x="34" y="82.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">patients · encounters · diagnoses · notes · admissions · rooms</text>
+<rect x="38" y="94" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="45" y="106.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">patients</text>
+<rect x="209" y="94" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="216" y="106.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">encounters</text>
+<rect x="38" y="120" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="45" y="132.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">encounter_diagnoses</text>
+<rect x="209" y="120" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="216" y="132.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">clinical_notes</text>
+<rect x="38" y="146" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="45" y="158.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">encounter_room_visits</text>
+<rect x="209" y="146" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="216" y="158.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">encounter_amendments</text>
+<rect x="38" y="172" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="45" y="184.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">admissions</text>
+<rect x="209" y="172" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="216" y="184.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">beds</text>
+<rect x="38" y="198" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="45" y="210.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">wards</text>
+<rect x="209" y="198" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="216" y="210.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">appointments</text>
+<rect x="38" y="224" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="45" y="236.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">mortuary_records</text>
+<rect x="209" y="224" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="216" y="236.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">rooms</text>
+<rect x="38" y="250" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#157F5C" stroke-width="0.6"/>
+<text x="45" y="262.4" font-size="7.4" fill="#0B3D2E" font-weight="normal">encounter_indicator_tags</text>
+<rect x="406" y="60" width="372" height="26" rx="5" fill="#2F5FA8" stroke="#2F5FA8" stroke-width="0.7"/>
+<text x="416" y="75" font-size="10.5" fill="#FFFFFF" font-weight="bold">2 · Billing &amp; Insurance</text>
+<text x="416" y="82.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">invoices · payments · insurers · tariffs</text>
+<rect x="420" y="94" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#2F5FA8" stroke-width="0.6"/>
+<text x="427" y="106.4" font-size="7.4" fill="#1B2F55" font-weight="normal">invoices</text>
+<rect x="591" y="94" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#2F5FA8" stroke-width="0.6"/>
+<text x="598" y="106.4" font-size="7.4" fill="#1B2F55" font-weight="normal">invoice_line_items</text>
+<rect x="420" y="120" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#2F5FA8" stroke-width="0.6"/>
+<text x="427" y="132.4" font-size="7.4" fill="#1B2F55" font-weight="normal">invoice_payments</text>
+<rect x="591" y="120" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#2F5FA8" stroke-width="0.6"/>
+<text x="598" y="132.4" font-size="7.4" fill="#1B2F55" font-weight="normal">insurance_providers</text>
+<rect x="420" y="146" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#2F5FA8" stroke-width="0.6"/>
+<text x="427" y="158.4" font-size="7.4" fill="#1B2F55" font-weight="normal">contracted_prices</text>
+<rect x="591" y="146" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#2F5FA8" stroke-width="0.6"/>
+<text x="598" y="158.4" font-size="7.4" fill="#1B2F55" font-weight="normal">sha_tariffs</text>
+<rect x="420" y="172" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#2F5FA8" stroke-width="0.6"/>
+<text x="427" y="184.4" font-size="7.4" fill="#1B2F55" font-weight="normal">fund_utilizations</text>
+<rect x="788" y="60" width="372" height="26" rx="5" fill="#B3661C" stroke="#B3661C" stroke-width="0.7"/>
+<text x="798" y="75" font-size="10.5" fill="#FFFFFF" font-weight="bold">3 · SHA Claims &amp; HIE Queue</text>
+<text x="798" y="82.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">claims · benefit packages · outbound queue</text>
+<rect x="802" y="94" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="809" y="106.4" font-size="7.4" fill="#5C3A10" font-weight="normal">sha_claims</text>
+<rect x="973" y="94" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="980" y="106.4" font-size="7.4" fill="#5C3A10" font-weight="normal">sha_claim_items</text>
+<rect x="802" y="120" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="809" y="132.4" font-size="7.4" fill="#5C3A10" font-weight="normal">sha_claim_packages</text>
+<rect x="973" y="120" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="980" y="132.4" font-size="7.4" fill="#5C3A10" font-weight="normal">sha_benefit_packages</text>
+<rect x="802" y="146" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="809" y="158.4" font-size="7.4" fill="#5C3A10" font-weight="normal">dha_outbound_queue</text>
+<rect x="973" y="146" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="980" y="158.4" font-size="7.4" fill="#5C3A10" font-weight="normal">shr_transmission_log</text>
+<rect x="802" y="172" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="809" y="184.4" font-size="7.4" fill="#5C3A10" font-weight="normal">consent_otps</text>
+<rect x="973" y="172" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#B3661C" stroke-width="0.6"/>
+<text x="980" y="184.4" font-size="7.4" fill="#5C3A10" font-weight="normal">patient_consents</text>
+<rect x="24" y="314" width="372" height="26" rx="5" fill="#5B3FA8" stroke="#5B3FA8" stroke-width="0.7"/>
+<text x="34" y="329" font-size="10.5" fill="#FFFFFF" font-weight="bold">4 · Laboratory &amp; Radiology</text>
+<text x="34" y="336.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">orders · results · catalog</text>
+<rect x="38" y="348" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5B3FA8" stroke-width="0.6"/>
+<text x="45" y="360.4" font-size="7.4" fill="#2D2160" font-weight="normal">lab_orders</text>
+<rect x="209" y="348" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5B3FA8" stroke-width="0.6"/>
+<text x="216" y="360.4" font-size="7.4" fill="#2D2160" font-weight="normal">lab_results</text>
+<rect x="38" y="374" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5B3FA8" stroke-width="0.6"/>
+<text x="45" y="386.4" font-size="7.4" fill="#2D2160" font-weight="normal">lab_tests</text>
+<rect x="209" y="374" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5B3FA8" stroke-width="0.6"/>
+<text x="216" y="386.4" font-size="7.4" fill="#2D2160" font-weight="normal">lab_test_catalog</text>
+<rect x="38" y="400" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5B3FA8" stroke-width="0.6"/>
+<text x="45" y="412.4" font-size="7.4" fill="#2D2160" font-weight="normal">radiology_orders</text>
+<rect x="209" y="400" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5B3FA8" stroke-width="0.6"/>
+<text x="216" y="412.4" font-size="7.4" fill="#2D2160" font-weight="normal">radiology_results</text>
+<rect x="38" y="426" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5B3FA8" stroke-width="0.6"/>
+<text x="45" y="438.4" font-size="7.4" fill="#2D2160" font-weight="normal">test_templates</text>
+<rect x="406" y="314" width="372" height="26" rx="5" fill="#1D7A8C" stroke="#1D7A8C" stroke-width="0.7"/>
+<text x="416" y="329" font-size="10.5" fill="#FFFFFF" font-weight="bold">5 · Pharmacy &amp; Stock</text>
+<text x="416" y="336.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">prescriptions · MAR · NLMIS-coded stock</text>
+<rect x="420" y="348" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="427" y="360.4" font-size="7.4" fill="#0E404A" font-weight="normal">prescriptions</text>
+<rect x="591" y="348" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="598" y="360.4" font-size="7.4" fill="#0E404A" font-weight="normal">medication_administrations</text>
+<rect x="420" y="374" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="427" y="386.4" font-size="7.4" fill="#0E404A" font-weight="normal">stock_items</text>
+<rect x="591" y="374" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="598" y="386.4" font-size="7.4" fill="#0E404A" font-weight="normal">stock_movements</text>
+<rect x="420" y="400" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="427" y="412.4" font-size="7.4" fill="#0E404A" font-weight="normal">deliveries</text>
+<rect x="591" y="400" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="598" y="412.4" font-size="7.4" fill="#0E404A" font-weight="normal">machines</text>
+<rect x="420" y="426" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="427" y="438.4" font-size="7.4" fill="#0E404A" font-weight="normal">machine_logs</text>
+<rect x="591" y="426" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="598" y="438.4" font-size="7.4" fill="#0E404A" font-weight="normal">stock_locations</text>
+<rect x="420" y="452" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#1D7A8C" stroke-width="0.6"/>
+<text x="427" y="464.4" font-size="7.4" fill="#0E404A" font-weight="normal">stock_location_balances</text>
+<rect x="788" y="314" width="372" height="26" rx="5" fill="#A8324C" stroke="#A8324C" stroke-width="0.7"/>
+<text x="798" y="329" font-size="10.5" fill="#FFFFFF" font-weight="bold">6 · Security &amp; Audit</text>
+<text x="798" y="336.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">RBAC · append-only audit · break-glass</text>
+<rect x="802" y="348" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="809" y="360.4" font-size="7.4" fill="#571C2C" font-weight="normal">profiles</text>
+<rect x="973" y="348" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="980" y="360.4" font-size="7.4" fill="#571C2C" font-weight="normal">user_roles</text>
+<rect x="802" y="374" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="809" y="386.4" font-size="7.4" fill="#571C2C" font-weight="normal">role_permissions</text>
+<rect x="973" y="374" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="980" y="386.4" font-size="7.4" fill="#571C2C" font-weight="normal">user_room_access</text>
+<rect x="802" y="400" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="809" y="412.4" font-size="7.4" fill="#571C2C" font-weight="normal">access_requests</text>
+<rect x="973" y="400" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="980" y="412.4" font-size="7.4" fill="#571C2C" font-weight="normal">audit_log</text>
+<rect x="802" y="426" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="809" y="438.4" font-size="7.4" fill="#571C2C" font-weight="normal">audit_log_archive</text>
+<rect x="973" y="426" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#A8324C" stroke-width="0.6"/>
+<text x="980" y="438.4" font-size="7.4" fill="#571C2C" font-weight="normal">audit_archive_runs</text>
+<rect x="24" y="568" width="372" height="26" rx="5" fill="#7A7226" stroke="#7A7226" stroke-width="0.7"/>
+<text x="34" y="583" font-size="10.5" fill="#FFFFFF" font-weight="bold">7 · MOH Reporting &amp; Reference</text>
+<text x="34" y="590.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">indicators · aggregates · ICD-11 · facility</text>
+<rect x="38" y="602" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="45" y="614.4" font-size="7.4" fill="#3D390F" font-weight="normal">moh_indicator_definitions</text>
+<rect x="209" y="602" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="216" y="614.4" font-size="7.4" fill="#3D390F" font-weight="normal">moh_indicators</text>
+<rect x="38" y="628" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="45" y="640.4" font-size="7.4" fill="#3D390F" font-weight="normal">moh_monthly_aggregates</text>
+<rect x="209" y="628" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="216" y="640.4" font-size="7.4" fill="#3D390F" font-weight="normal">moh_705_disease_mappings</text>
+<rect x="38" y="654" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="45" y="666.4" font-size="7.4" fill="#3D390F" font-weight="normal">moh_report_templates</text>
+<rect x="209" y="654" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="216" y="666.4" font-size="7.4" fill="#3D390F" font-weight="normal">moh_report_submissions</text>
+<rect x="38" y="680" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="45" y="692.4" font-size="7.4" fill="#3D390F" font-weight="normal">icd11_codes</text>
+<rect x="209" y="680" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="216" y="692.4" font-size="7.4" fill="#3D390F" font-weight="normal">room_indicator_map</text>
+<rect x="38" y="706" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#7A7226" stroke-width="0.6"/>
+<text x="45" y="718.4" font-size="7.4" fill="#3D390F" font-weight="normal">app_settings</text>
+<rect x="406" y="568" width="372" height="26" rx="5" fill="#5A5A66" stroke="#5A5A66" stroke-width="0.7"/>
+<text x="416" y="583" font-size="10.5" fill="#FFFFFF" font-weight="bold">8 · External &amp; Platform</text>
+<text x="416" y="590.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">auth · DHA HIE · SHA · registries</text>
+<rect x="420" y="602" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="427" y="614.4" font-size="7.4" fill="#2E2E38" font-weight="bold">auth.users (Supabase Auth)</text>
+<rect x="591" y="602" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="598" y="614.4" font-size="7.4" fill="#2E2E38" font-weight="normal">DHA HIE / AfyaLink (FHIR R4)</text>
+<rect x="420" y="628" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="427" y="640.4" font-size="7.4" fill="#2E2E38" font-weight="normal">SHA APIs (eligibility · claims)</text>
+<rect x="591" y="628" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="598" y="640.4" font-size="7.4" fill="#2E2E38" font-weight="normal">IPRS Client Registry</text>
+<rect x="420" y="654" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="427" y="666.4" font-size="7.4" fill="#2E2E38" font-weight="normal">Kenya Health Worker Registry</text>
+<rect x="591" y="654" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="598" y="666.4" font-size="7.4" fill="#2E2E38" font-weight="normal">WHO ICD-11 API</text>
+<rect x="420" y="680" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="427" y="692.4" font-size="7.4" fill="#2E2E38" font-weight="normal">Africa's Talking SMS</text>
+<rect x="591" y="680" width="163" height="19" rx="3" fill="#FFFFFF" stroke="#5A5A66" stroke-width="0.6"/>
+<text x="598" y="692.4" font-size="7.4" fill="#2E2E38" font-weight="normal">NLMIS / KEMSA</text>
+<line x1="396" y1="180" x2="406" y2="180" stroke="#0F766E" stroke-width="1.3"/>
+<polygon points="406,180 400.06492188797,182.6504429448872 400.06492188797,177.3495570551128" fill="#0F766E"/>
+<line x1="778" y1="180" x2="788" y2="180" stroke="#0F766E" stroke-width="1.3"/>
+<polygon points="788,180 782.06492188797,182.6504429448872 782.06492188797,177.3495570551128" fill="#0F766E"/>
+<path d="M 396 180 L 401 180 L 401 307 L 783 307 L 783 180 L 788 180" fill="none" stroke="#B3661C" stroke-width="1.3"/>
+<polygon points="788,180 782.06492188797,182.6504429448872 782.06492188797,177.3495570551128" fill="#B3661C"/>
+<text x="786" y="305.3" font-size="6.3" fill="#475569" font-weight="normal">signed encounter → auto claim</text>
+<line x1="210" y1="300" x2="210" y2="314" stroke="#0F766E" stroke-width="1.3"/>
+<polygon points="210,314 207.3495570551128,308.06492188797 212.6504429448872,308.06492188797" fill="#0F766E"/>
+<path d="M 396 166 L 401 166 L 401 420 L 406 420" fill="none" stroke="#0F766E" stroke-width="1.3"/>
+<polygon points="406,420 400.06492188797,422.65044294488723 400.06492188797,417.34955705511277" fill="#0F766E"/>
+<text x="404" y="418.3" font-size="6.3" fill="#475569" font-weight="normal">prescriptions dispensed</text>
+<path d="M 778 434 L 783 434 L 783 180 L 788 180" fill="none" stroke="#0F766E" stroke-width="1.3"/>
+<polygon points="788,180 782.06492188797,182.6504429448872 782.06492188797,177.3495570551128" fill="#0F766E"/>
+<text x="786" y="178.3" font-size="6.3" fill="#475569" font-weight="normal">line items</text>
+<line x1="210" y1="554" x2="210" y2="568" stroke="#7A7226" stroke-width="1.3"/>
+<polygon points="210,568 207.3495570551128,562.06492188797 212.6504429448872,562.06492188797" fill="#7A7226"/>
+<path d="M 396 180 L 396 307 L 401 307 L 401 561 L 24 561 L 24 688" fill="none" stroke="#7A7226" stroke-width="1.3"/>
+<polygon points="24,688 21.349557055112793,682.06492188797 26.650442944887207,682.06492188797" fill="#7A7226"/>
+<text x="404" y="559.3" font-size="6.3" fill="#475569" font-weight="normal">705 / 717 / FP / MCH tags</text>
+<path d="M 406 434 L 401 434 L 401 688 L 396 688" fill="none" stroke="#7A7226" stroke-width="1.3"/>
+<polygon points="396,688 401.93507811203,685.3495570551128 401.93507811203,690.6504429448872" fill="#7A7226"/>
+<text x="404" y="686.3" font-size="6.3" fill="#475569" font-weight="normal">707 indicators</text>
+<path d="M 788 180 L 783 180 L 783 688 L 778 688" fill="none" stroke="#5A5A66" stroke-width="1.3"/>
+<polygon points="778,688 783.93507811203,685.3495570551128 783.93507811203,690.6504429448872" fill="#5A5A66"/>
+<text x="786" y="686.3" font-size="6.3" fill="#475569" font-weight="normal">fhir_sync · sha_claim · shr_access_notification</text>
+<path d="M 396 196 L 401 196 L 401 310.5 L 783 310.5 L 783 452 L 788 452" fill="none" stroke="#A8324C" stroke-width="1.3"/>
+<polygon points="788,452 782.06492188797,454.65044294488723 782.06492188797,449.34955705511277" fill="#A8324C"/>
+<text x="786" y="308.8" font-size="6.3" fill="#475569" font-weight="normal">audit_trigger_fn · 20 tables</text>
+<path d="M 788 434 L 783 434 L 783 688 L 778 688" fill="none" stroke="#0F766E" stroke-width="1.3"/>
+<polygon points="778,688 783.93507811203,685.3495570551128 783.93507811203,690.6504429448872" fill="#0F766E"/>
+<text x="786" y="686.3" font-size="6.3" fill="#475569" font-weight="normal">auth.users · is_approved()</text>
+<line x1="396" y1="688" x2="406" y2="688" stroke="#0F766E" stroke-width="1.3"/>
+<polygon points="406,688 400.06492188797,690.6504429448872 400.06492188797,685.3495570551128" fill="#0F766E"/>
+<text x="30" y="827.4" font-size="7.4" fill="#64748B" font-weight="normal">Arrows show primary data flow; every table is RLS-gated through is_approved(auth.uid()) — full FK detail in aegiscare-core-er.pdf</text>
+</svg>

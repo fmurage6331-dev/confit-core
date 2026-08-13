@@ -1,0 +1,41 @@
+---
+title: AegisCare HMS — Schema Map (domain clusters)
+---
+flowchart LR
+  subgraph Clinical["1 · Core Clinical"]
+    patients[patients] & encounters[encounters] & encounter_diagnoses & clinical_notes & admissions & rooms
+  end
+  subgraph Billing["2 · Billing & Insurance"]
+    invoices[invoices] & invoice_line_items & invoice_payments & insurance_providers & sha_tariffs
+  end
+  subgraph Claims["3 · SHA Claims & HIE Queue"]
+    sha_claims[sha_claims] & sha_claim_items & sha_benefit_packages & dha_outbound_queue & shr_transmission_log & consent_otps
+  end
+  subgraph Lab["4 · Laboratory & Radiology"]
+    lab_orders[lab_orders] & lab_results & lab_test_catalog & radiology_orders
+  end
+  subgraph Pharm["5 · Pharmacy & Stock"]
+    prescriptions[prescriptions] & stock_items & stock_movements & deliveries & medication_administrations
+  end
+  subgraph Security["6 · Security & Audit"]
+    user_roles[user_roles] & role_permissions & audit_log & audit_log_archive & profiles
+  end
+  subgraph Moh["7 · MOH Reporting & Reference"]
+    moh_monthly_aggregates[moh_monthly_aggregates] & moh_indicator_definitions & icd11_codes & app_settings
+  end
+  subgraph Ext["8 · External & Platform"]
+    auth_users[auth.users] & DHA_HIE[DHA HIE / AfyaLink] & SHA_API[SHA APIs] & IPRS[IPRS Client Registry]
+  end
+  Clinical --> Billing
+  Billing --> Claims
+  Clinical --> Claims
+  Clinical --> Lab
+  Clinical --> Pharm
+  Pharm --> Claims
+  Lab --> Moh
+  Clinical --> Moh
+  Pharm --> Moh
+  Claims --> Ext
+  Clinical --> Security
+  Security --> Ext
+  Moh --> Ext

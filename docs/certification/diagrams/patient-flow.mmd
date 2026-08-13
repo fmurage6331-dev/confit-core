@@ -1,0 +1,33 @@
+---
+title: AegisCare HMS — Patient Journey & Clinical Flow
+---
+flowchart TD
+  A[Patient arrives] --> B[Registration & Consent<br/>demographics · payment mode · SHA member · OTP consent]
+  B --> C{Payment mode?}
+  C -- insurance --> D[Insurance / SHA capture<br/>sha_member_number · TEMP-SHA notification]
+  D --> E[Queue]
+  C -- cash / free --> E
+  EM[Emergency entrance<br/>is_emergency → ECCIF] --> F[Triage<br/>vitals · OPD_UNDER5/OVER5/OVER60 tags]
+  E --> F
+  F --> G[Consultation<br/>history · ICD-11 · prescriptions · orders]
+  G --> H[Laboratory<br/>lab_orders → results · critical · dual verify]
+  G --> I[Radiology<br/>radiology_orders → report]
+  G --> J[Pharmacy<br/>dispense · stock deduct · MedicationDispense FHIR]
+  H --> G
+  I --> G
+  J --> G
+  G --> K{Admit?}
+  K -- yes --> L[Ward admission<br/>beds · MAR · nightly bed charges]
+  K -- no --> M[Billing / Accounting<br/>invoices · insurance coverage rules]
+  L --> M
+  M --> N[Encounter sign & lock<br/>enforce_encounter_lock]
+  N --> O[Auto-generate claim<br/>trg_auto_generate_sha_claim]
+  N --> P[Insurance / SHA desk<br/>benefit packages · preauth · OTP evidence]
+  O --> P
+  P --> Q[dha_outbound_queue<br/>sha_claim · fhir_sync · shr_access_notification]
+  Q -. dispatcher stub mode .-> R[External — pending credentials<br/>SHA API · DHA HIE /shr/bundles · AfyaLink]
+  M --> S[Discharge / Done]
+  L --> S
+  N -. deceased .-> T[Mortuary<br/>storage accrual]
+  T --> S
+  G -. indicators .-> U[MOH tagging<br/>moh_monthly_aggregates]

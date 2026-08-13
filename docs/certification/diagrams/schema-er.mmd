@@ -1,0 +1,258 @@
+---
+title: AegisCare HMS — Core ER (FHIR/SHA modules)
+---
+erDiagram
+  patients {
+    uuid id PK
+    text file_number
+    text national_id
+    text sha_member_number
+    text cr_number
+    text blood_group
+  }
+  encounters {
+    uuid id PK
+    uuid patient_id FK
+    uuid current_room_id FK
+    text status
+    text sha_notification_number
+    text sha_fund_type
+  }
+  encounter_diagnoses {
+    uuid id PK
+    uuid encounter_id FK
+    text icd11_code
+    text diagnosis_type
+    int sequence
+  }
+  clinical_notes {
+    uuid id PK
+    uuid encounter_id FK
+    uuid admission_id FK
+    text note_type
+  }
+  encounter_amendments {
+    uuid id PK
+    uuid encounter_id FK
+    text amendment_text
+  }
+  encounter_room_visits {
+    uuid id PK
+    uuid encounter_id FK
+    uuid room_id FK
+    timestamptz entered_at
+  }
+  rooms {
+    uuid id PK
+    text name
+    text kind
+    uuid ward_id FK
+  }
+  admissions {
+    uuid id PK
+    uuid encounter_id FK
+    uuid bed_id FK
+    uuid ward_id FK
+    text status
+  }
+  beds {
+    uuid id PK
+    uuid ward_id FK
+    text bed_number
+    text status
+  }
+  wards {
+    uuid id PK
+    text name
+    numeric daily_rate
+  }
+  invoices {
+    uuid id PK
+    uuid encounter_id FK
+    text invoice_number
+    text status
+  }
+  invoice_line_items {
+    uuid id PK
+    uuid invoice_id FK
+    uuid encounter_id FK
+    text item_type
+    numeric amount
+  }
+  invoice_payments {
+    uuid id PK
+    uuid invoice_id FK
+    numeric amount
+    text method
+  }
+  insurance_providers {
+    uuid id PK
+    text name
+    text coverage_rule
+    numeric per_visit_limit
+  }
+  contracted_prices {
+    uuid id PK
+    uuid insurer_id FK
+    text item_type
+    numeric price
+  }
+  prescriptions {
+    uuid id PK
+    uuid registration_id FK
+    uuid stock_item_id FK
+    text status
+    uuid dispensed_by FK
+  }
+  stock_items {
+    uuid id PK
+    text name
+    text nlmis_code
+    numeric current_quantity
+  }
+  lab_orders {
+    uuid id PK
+    uuid encounter_id FK
+    uuid catalog_id FK
+    text status
+    bool is_critical
+  }
+  lab_results {
+    uuid id PK
+    uuid order_id FK
+    jsonb result
+    text verified_by
+  }
+  lab_test_catalog {
+    uuid id PK
+    text name
+    text kind
+    numeric cash_price
+  }
+  radiology_orders {
+    uuid id PK
+    uuid encounter_id FK
+    uuid catalog_id FK
+    text status
+  }
+  radiology_results {
+    uuid id PK
+    uuid order_id FK
+    text findings
+  }
+  sha_claims {
+    uuid id PK
+    uuid encounter_id FK
+    uuid patient_id FK
+    text claim_type
+    text status
+  }
+  sha_claim_items {
+    uuid id PK
+    uuid claim_id FK
+    uuid invoice_line_item_id FK
+    numeric amount
+  }
+  sha_claim_packages {
+    uuid id PK
+    uuid claim_id FK
+    uuid package_id FK
+    text package_code
+  }
+  sha_benefit_packages {
+    uuid id PK
+    text code
+    text fund_type
+    bool requires_preauth
+  }
+  dha_outbound_queue {
+    uuid id PK
+    uuid encounter_id FK
+    text queue_type
+    text status
+  }
+  shr_transmission_log {
+    uuid id PK
+    uuid queue_id FK
+    text transmission_type
+    text status
+  }
+  consent_otps {
+    uuid id PK
+    uuid patient_id FK
+    uuid encounter_id FK
+    text otp_hash
+  }
+  patient_consents {
+    uuid id PK
+    uuid patient_id FK
+    text consent_type
+    bool hie_data_sharing_consented
+  }
+  appointments {
+    uuid id PK
+    uuid patient_id FK
+    timestamptz scheduled_at
+    text status
+  }
+  mortuary_records {
+    uuid id PK
+    uuid encounter_id FK
+    uuid patient_id FK
+    text status
+  }
+  medication_administrations {
+    uuid id PK
+    uuid prescription_id FK
+    uuid admission_id FK
+    text dose_given
+  }
+  stock_movements {
+    uuid id PK
+    uuid item_id FK
+    numeric change
+    text reason
+  }
+  deliveries {
+    uuid id PK
+    uuid stock_item_id FK
+    numeric quantity
+    text batch_number
+  }
+  patients ||--o{ encounters : "patient_id"
+  patients ||--o{ appointments : "patient_id"
+  patients ||--o{ consent_otps : "patient_id"
+  patients ||--o{ patient_consents : "patient_id"
+  patients ||--o{ mortuary_records : "patient_id"
+  encounters ||--o{ encounter_diagnoses : "encounter_id"
+  encounters ||--o{ clinical_notes : "encounter_id"
+  encounters ||--o{ encounter_amendments : "encounter_id"
+  encounters ||--o{ encounter_room_visits : "encounter_id"
+  encounters ||--o{ rooms : "current_room_id"
+  encounters ||--o{ admissions : "encounter_id"
+  admissions ||--o{ beds : "bed_id"
+  admissions ||--o{ wards : "ward_id"
+  beds ||--o{ wards : "ward_id"
+  encounters ||--o{ invoices : "encounter_id"
+  invoices ||--o{ invoice_line_items : "invoice_id"
+  invoices ||--o{ invoice_payments : "invoice_id"
+  encounters ||--o{ insurance_providers : "insurance_provider_id"
+  insurance_providers ||--o{ contracted_prices : "insurer_id"
+  encounters ||--o{ prescriptions : "registration_id"
+  prescriptions ||--o{ stock_items : "stock_item_id"
+  prescriptions ||--o{ medication_administrations : "prescription_id"
+  stock_items ||--o{ stock_movements : "item_id"
+  stock_items ||--o{ deliveries : "stock_item_id"
+  encounters ||--o{ lab_orders : "encounter_id"
+  lab_orders ||--o{ lab_results : "order_id"
+  lab_orders ||--o{ lab_test_catalog : "catalog_id"
+  encounters ||--o{ radiology_orders : "encounter_id"
+  radiology_orders ||--o{ radiology_results : "order_id"
+  encounters ||--o{ sha_claims : "encounter_id"
+  sha_claims ||--o{ sha_claim_items : "claim_id"
+  sha_claims ||--o{ sha_claim_packages : "claim_id"
+  sha_claim_packages ||--o{ sha_benefit_packages : "package_id"
+  sha_claim_items ||--o{ invoice_line_items : "invoice_line_item_id"
+  encounters ||--o{ dha_outbound_queue : "encounter_id"
+  dha_outbound_queue ||--o{ shr_transmission_log : "queue_id"
+  encounters ||--o{ mortuary_records : "encounter_id"
