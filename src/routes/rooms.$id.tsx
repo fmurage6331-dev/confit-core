@@ -152,6 +152,8 @@ type Reg = {
   insurance_provider_id: string | null;
   insurer_type: string | null;
   sha_fund_type: string | null;
+  insurance_clearance_status: string | null;
+  insurance_policy_number: string | null;
 };
 type Service = {
   id: string;
@@ -275,7 +277,7 @@ function RoomPage() {
     const { data, error } = await supabase
       .from("patient_registrations")
       .select(
-        "id,patient_id,patient_name,file_number,from_room,tests,vitals,history,diagnoses,payment_mode,insurance_coverage_percentage,payment_status,status,created_at,sha_member_number,sha_relationship_to_principal,sha_notification_number,preauth_number,claim_number,claim_status,insurance_provider_id,insurer_type,sha_fund_type",
+        "id,patient_id,patient_name,file_number,from_room,tests,vitals,history,diagnoses,payment_mode,insurance_coverage_percentage,payment_status,status,created_at,sha_member_number,sha_relationship_to_principal,sha_notification_number,preauth_number,claim_number,claim_status,insurance_provider_id,insurer_type,sha_fund_type,insurance_clearance_status,insurance_policy_number",
       )
       .eq("current_room_id", id)
       .neq("status", "done")
@@ -2510,7 +2512,54 @@ function InsuranceDialog({
   const [fhirLoading, setFhirLoading] = useState(false);
   const [fhirOpen, setFhirOpen] = useState(false);
 
-  const isSha = reg.insurer_type === "sha_shif" || reg.payment_mode === "insurance";
+  const isSha = reg.insurer_type === "sha_shif" || reg.insurer_type === "sha_phf";
+  const isPrivateInsurance = reg.payment_mode === "insurance" && !isSha;
+
+  // Clearance state
+  const [clearanceStatus, setClearanceStatus] = useState<string | null>(
+    reg.insurance_clearance_status ?? null,
+  );
+  const [approvalReference, setApprovalReference] = useState("");
+  const [coverageOverride, setCoverageOverride] = useState<string>(
+    reg.insurance_coverage_percentage != null ? String(reg.insurance_coverage_percentage) : "",
+  );
+  const [clearing, setClearing] = useState(false);
+
+  async function applyClearance(status: "approved" | "rejected" | "waived") {
+    setClearing(true);
+    const updates: Record<string, unknown> = {
+      insurance_clearance_status: status,
+    };
+    if (coverageOverride.trim()) {
+      updates.insurance_coverage_percentage = parseFloat(coverageOverride);
+    }
+    if (approvalReference.trim()) {
+      updates.preauth_number = approvalReference.trim();
+    }
+    if (status === "rejected") {
+      updates.payment_mode = "cash";
+      updates.insurer_type = null;
+      updates.sha_fund_type = null;
+    }
+    const { error } = await supabase
+      .from("encounters")
+      .update(updates as never)
+      .eq("id", reg.id);
+    setClearing(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setClearanceStatus(status);
+    toast.success(
+      status === "approved"
+        ? "Clearance approved — patient routed to triage"
+        : status === "rejected"
+          ? "Clearance rejected — patient switched to cash"
+          : "Clearance waived — patient routed to triage",
+    );
+    onSaved();
+  }
 
   // ── SHA-5 state ──────────────────────────────────────────────────────────
   type PkgRow = {
@@ -2871,6 +2920,27 @@ function InsuranceDialog({
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+            {/* ── Clearance Status Banner ───────────────────────────── */}
+            {clearanceStatus === "approved" && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-2 text-emerald-800 text-sm font-medium">
+                <Check className="h-4 w-4 shrink-0" />
+                Clearance approved — patient has been routed to triage
+              </div>
+            )}
+            {clearanceStatus === "rejected" && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2 text-red-800 text-sm font-medium">
+                <X className="h-4 w-4 shrink-0" />
+                Clearance rejected — patient switched to cash payment
+              </div>
+            )}
+            {clearanceStatus === "waived" && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-center gap-2 text-blue-800 text-sm font-medium">
+                <ShieldHalf className="h-4 w-4 shrink-0" />
+                Clearance waived — emergency override applied
+              </div>
+            )}
+
+            {/* ── Patient Summary ───────────────────────────────────── */}
             <div className="rounded-lg bg-muted/30 border p-4 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <div className="text-xs uppercase text-muted-foreground">File #</div>
@@ -2879,6 +2949,36 @@ function InsuranceDialog({
               <div>
                 <div className="text-xs uppercase text-muted-foreground">Payment mode</div>
                 <div className="font-medium capitalize">{reg.payment_mode}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Insurer type</div>
+                <div className="font-medium">
+                  {reg.insurer_type === "sha_shif"
+                    ? "SHA SHIF"
+                    : reg.insurer_type === "sha_phf"
+                      ? "SHA PHF"
+                      : reg.insurer_type === "private"
+                        ? "Private Insurance"
+                        : reg.insurer_type === "corporate"
+                          ? "Corporate"
+                          : (reg.insurer_type ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Clearance status</div>
+                <div
+                  className={`font-medium capitalize ${
+                    clearanceStatus === "approved"
+                      ? "text-emerald-600"
+                      : clearanceStatus === "rejected"
+                        ? "text-red-600"
+                        : clearanceStatus === "waived"
+                          ? "text-blue-600"
+                          : "text-amber-600"
+                  }`}
+                >
+                  {clearanceStatus ?? "Pending"}
+                </div>
               </div>
               <div>
                 <div className="text-xs uppercase text-muted-foreground">Claim status</div>
@@ -2901,6 +3001,90 @@ function InsuranceDialog({
                 <div className="font-medium capitalize">{reg.payment_status}</div>
               </div>
             </div>
+
+            {/* ── Private / Corporate Insurance Section ─────────────── */}
+            {isPrivateInsurance && (
+              <Section title="Insurance Verification">
+                <Grid>
+                  <div>
+                    <Label>Policy Number</Label>
+                    <Input
+                      value={reg.insurance_policy_number ?? ""}
+                      readOnly
+                      className="bg-muted/40"
+                    />
+                  </div>
+                  <div>
+                    <Label>Coverage %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={coverageOverride}
+                      onChange={(e) => setCoverageOverride(e.target.value)}
+                      placeholder="e.g. 80"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Current: {reg.insurance_coverage_percentage ?? "—"}%
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Approval Reference / LPO Number</Label>
+                    <Input
+                      value={approvalReference}
+                      onChange={(e) => setApprovalReference(e.target.value)}
+                      placeholder="e.g. LPO/2026/00123 or approval code"
+                    />
+                  </div>
+                </Grid>
+              </Section>
+            )}
+
+            {/* ── Clearance Actions ─────────────────────────────────── */}
+            {clearanceStatus !== "approved" && clearanceStatus !== "rejected" && (
+              <Section title="Clearance Decision">
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    {isSha
+                      ? "Verify SHA member details and benefit packages below, then approve clearance to route the patient to triage."
+                      : "Verify policy details above, confirm coverage, then approve clearance to route the patient to triage."}
+                  </p>
+                  {isPrivateInsurance && (
+                    <p className="text-xs text-amber-700 font-medium">
+                      ⚠ Ensure approval reference is captured before approving.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => applyClearance("approved")}
+                      disabled={clearing}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <Check className="mr-1.5 h-4 w-4" />
+                      {clearing ? "Saving…" : "Approve Clearance"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => applyClearance("waived")}
+                      disabled={clearing}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                    >
+                      <ShieldHalf className="mr-1.5 h-4 w-4" />
+                      Waive (Emergency)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => applyClearance("rejected")}
+                      disabled={clearing}
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      <X className="mr-1.5 h-4 w-4" />
+                      Reject — Switch to Cash
+                    </Button>
+                  </div>
+                </div>
+              </Section>
+            )}
 
             {isSha && (
               <Section title="SHA Member Details">
