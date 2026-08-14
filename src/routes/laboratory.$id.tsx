@@ -314,7 +314,7 @@ function LaboratoryDetail() {
         performed_by: performedBy.trim() || null,
         reported_at: opts?.finalize ? reportedIso : (result?.reported_at ?? null),
         is_critical: isCritical,
-        verified_by: opts?.verify ? (user?.email ?? null) : (result?.verified_by ?? null),
+        verified_by: opts?.verify ? (user?.id ?? null) : (result?.verified_by ?? null),
         verified_at: opts?.verify ? new Date().toISOString() : (result?.verified_at ?? null),
       };
 
