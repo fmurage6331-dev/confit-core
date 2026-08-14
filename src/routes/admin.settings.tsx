@@ -27,6 +27,7 @@ type FacilitySettings = {
   facility_address: string;
   facility_phone: string;
   facility_email: string;
+  facility_level: string;
 };
 
 const EMPTY_FACILITY: FacilitySettings = {
@@ -38,6 +39,7 @@ const EMPTY_FACILITY: FacilitySettings = {
   facility_address: "",
   facility_phone: "",
   facility_email: "",
+  facility_level: "",
 };
 
 function SettingsPage() {
@@ -70,13 +72,13 @@ function SettingsPage() {
       const { data, error } = await supabase
         .from("app_settings")
         .select(
-          "facility_name,facility_kmhfl_code,facility_sha_id,facility_sha_provider_no,facility_county,facility_address,facility_phone,facility_email",
+          "facility_name,facility_kmhfl_code,facility_sha_id,facility_sha_provider_no,facility_county,facility_address,facility_phone,facility_email,facility_level",
         )
         .eq("id", "global")
         .maybeSingle();
       setLoadingFacility(false);
       if (error || !data) return;
-           const d = data as unknown as Record<string, string | null>;
+      const d = data as unknown as Record<string, string | null>;
       setFacility({
         facility_name: d.facility_name ?? "",
         facility_kmhfl_code: d.facility_kmhfl_code ?? "",
@@ -86,6 +88,7 @@ function SettingsPage() {
         facility_address: d.facility_address ?? "",
         facility_phone: d.facility_phone ?? "",
         facility_email: d.facility_email ?? "",
+        facility_level: d.facility_level ?? "",
       });
     }
     loadFacility();
@@ -129,7 +132,7 @@ function SettingsPage() {
     e.preventDefault();
     setSavingFacility(true);
     try {
-            const { error } = await supabase.from("app_settings").upsert({
+      const { error } = await supabase.from("app_settings").upsert({
         id: "global",
         facility_name: facility.facility_name.trim() || null,
         facility_kmhfl_code: facility.facility_kmhfl_code.trim() || null,
@@ -139,6 +142,7 @@ function SettingsPage() {
         facility_address: facility.facility_address.trim() || null,
         facility_phone: facility.facility_phone.trim() || null,
         facility_email: facility.facility_email.trim() || null,
+        facility_level: facility.facility_level.trim() || null,
       } as never);
       if (error) throw error;
       toast.success("Facility details saved");
@@ -310,6 +314,28 @@ function SettingsPage() {
                           onChange={setF("facility_sha_provider_no")}
                           placeholder="e.g. PRV/2026/00456"
                         />
+                      </div>
+                      <div>
+                        <Label htmlFor="facility_level">Facility level</Label>
+                        <select
+                          id="facility_level"
+                          value={facility.facility_level}
+                          onChange={(e) =>
+                            setFacility((prev) => ({ ...prev, facility_level: e.target.value }))
+                          }
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <option value="">— Select level —</option>
+                          <option value="1">Level 1 — Community Health Unit</option>
+                          <option value="2">Level 2 — Dispensary</option>
+                          <option value="3">Level 3 — Health Centre</option>
+                          <option value="4">Level 4 — County Referral Hospital</option>
+                          <option value="5">Level 5 — Regional Referral Hospital</option>
+                          <option value="6">Level 6 — National Referral Hospital</option>
+                        </select>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Used to filter applicable SHA benefit packages.
+                        </p>
                       </div>
                     </div>
                   </div>

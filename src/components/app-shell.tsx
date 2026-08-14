@@ -289,6 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           { to: "/admin/audit-log", label: "Audit log", icon: ShieldCheck, show: true },
           { to: "/admin/queue", label: "Claims queue", icon: Radio, show: true },
           { to: "/admin/moh-indicators", label: "MOH indicators", icon: Activity, show: true },
+          { to: "/admin/settings", label: "Settings", icon: Settings, show: true },
         ]
       : []),
   ].filter((i) => i.show);
