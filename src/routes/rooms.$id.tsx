@@ -683,7 +683,6 @@ function RoomPage() {
           roomKind={kind}
           onClose={() => setOpenReg(null)}
           onSaved={() => {
-            setOpenReg(null);
             loadRequests();
           }}
         />
