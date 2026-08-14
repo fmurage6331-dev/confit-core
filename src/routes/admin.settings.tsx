@@ -116,7 +116,8 @@ function SettingsPage() {
       }
       const { error } = await supabase
         .from("app_settings")
-        .upsert({ id: "global", app_name: name.trim() || "Aegiscare", logo_url: newLogoUrl });
+        .update({ app_name: name.trim() || "Aegiscare", logo_url: newLogoUrl })
+        .eq("id", "global");
       if (error) throw error;
       await refresh();
       toast.success("Branding updated");
@@ -132,8 +133,7 @@ function SettingsPage() {
     e.preventDefault();
     setSavingFacility(true);
     try {
-      const { error } = await supabase.from("app_settings").upsert({
-        id: "global",
+      const { error } = await supabase.from("app_settings").update({
         facility_name: facility.facility_name.trim() || null,
         facility_kmhfl_code: facility.facility_kmhfl_code.trim() || null,
         facility_sha_id: facility.facility_sha_id.trim() || null,
@@ -143,7 +143,7 @@ function SettingsPage() {
         facility_phone: facility.facility_phone.trim() || null,
         facility_email: facility.facility_email.trim() || null,
         facility_level: facility.facility_level.trim() || null,
-      } as never);
+      } as never).eq("id", "global");
       if (error) throw error;
       toast.success("Facility details saved");
     } catch (err) {
