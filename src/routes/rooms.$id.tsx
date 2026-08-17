@@ -61,6 +61,7 @@ import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ServicePicker } from "@/components/service-picker";
 import { DischargeButton, ReferOutButton } from "@/routes/inpatient";
+import { PrintHeader } from "@/components/print-header";
 
 export const Route = createFileRoute("/rooms/$id")({
   component: () => (
@@ -4404,13 +4405,7 @@ function VitalChip({ label, value, alert }: { label: string; value: string; aler
 function PrescriptionPrintSlip({ reg, rxs }: { reg: Reg; rxs: Prescription[] }) {
   return (
     <div className="text-sm font-sans space-y-4">
-      {/* Header */}
-      <div className="border-b-2 border-black pb-3">
-        <div className="text-xl font-bold">AegisCare — Prescription</div>
-        <div className="text-xs text-gray-500">
-          Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}
-        </div>
-      </div>
+      <PrintHeader title="Prescription" subtitle={`Patient: ${reg.patient_name}`} />
 
       {/* Patient details */}
       <div className="grid grid-cols-2 gap-4">
