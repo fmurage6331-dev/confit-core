@@ -36,7 +36,7 @@ export const Route = createFileRoute("/radiology/$id")({
   ),
 });
 
-const BUCKET = "radiology-images";
+const BUCKET = "radiology";
 
 type OrderRow = {
   id: string;
