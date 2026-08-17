@@ -41,6 +41,7 @@ import {
   Scan,
   AlertCircle,
   Pencil,
+  Printer,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import {
@@ -315,6 +316,9 @@ function InpatientChart() {
           <TabsTrigger value="medications" className="flex items-center gap-1.5">
             <Pill className="h-3.5 w-3.5" /> Medications
           </TabsTrigger>
+          <TabsTrigger value="results" className="flex items-center gap-1.5">
+            <FlaskConical className="h-3.5 w-3.5 text-emerald-500" /> Results
+          </TabsTrigger>
           <TabsTrigger value="billing" className="flex items-center gap-1.5">
             <Receipt className="h-3.5 w-3.5" /> Billing
           </TabsTrigger>
@@ -420,6 +424,11 @@ function InpatientChart() {
               }
             />
           )}
+        </TabsContent>
+
+        {/* ── Results Tab ── */}
+        <TabsContent value="results" className="mt-4">
+          {encounterId && <ResultsTab admissionId={admissionId} encounterId={encounterId} />}
         </TabsContent>
 
         {/* ── Billing Tab ── */}
@@ -567,6 +576,368 @@ function ClinicalNotesTab({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─── Results Tab ──────────────────────────────────────────────────────────────
+
+type LabResultFull = {
+  id: string;
+  status: string;
+  priority: string;
+  ordered_at: string;
+  order_number: string | null;
+  lab_test_catalog: { name: string | null } | null;
+  lab_results: {
+    id: string;
+    result_value: string | null;
+    result: Record<string, unknown> | null;
+    is_critical: boolean | null;
+    verified_at: string | null;
+    performed_by: string | null;
+    reported_at: string | null;
+    notes: string | null;
+  } | null;
+};
+
+type RadResultFull = {
+  id: string;
+  status: string;
+  priority: string;
+  ordered_at: string;
+  clinical_indication: string | null;
+  lab_test_catalog: { name: string | null } | null;
+  radiology_results: {
+    id: string;
+    findings: string | null;
+    impression: string | null;
+    radiologist: string | null;
+    image_paths: string[] | null;
+    reported_at: string | null;
+  } | null;
+};
+
+function LabStatusBadge({ status }: { status: string }) {
+  const cls =
+    status === "completed"
+      ? "bg-emerald-100 text-emerald-700"
+      : status === "in_progress"
+        ? "bg-blue-100 text-blue-700"
+        : status === "declined"
+          ? "bg-rose-100 text-rose-700"
+          : status === "cancelled"
+            ? "bg-rose-100 text-rose-700"
+            : "bg-amber-100 text-amber-700";
+  return <Badge className={`${cls} hover:${cls} text-xs`}>{status.replace(/_/g, " ")}</Badge>;
+}
+
+function RadImageTile({ path }: { path: string }) {
+  const { data: url } = useQuery({
+    queryKey: ["ipd-rad-signed", path],
+    queryFn: async () => {
+      const { data, error } = await supabase.storage.from("radiology").createSignedUrl(path, 3600);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+    staleTime: 55 * 60 * 1000,
+  });
+  const filename = path.split("/").pop() ?? path;
+  const isImage = /\.(png|jpe?g|gif|webp|bmp)$/i.test(filename);
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="block rounded border overflow-hidden hover:opacity-90 transition-opacity"
+    >
+      {url && isImage ? (
+        <img src={url} alt={filename} className="h-32 w-full object-cover" />
+      ) : (
+        <div className="flex h-32 flex-col items-center justify-center gap-1 bg-muted/30 text-xs text-muted-foreground">
+          <Scan className="h-5 w-5" />
+          <span className="truncate max-w-[90%]">{filename}</span>
+        </div>
+      )}
+    </a>
+  );
+}
+
+function ResultsTab({ admissionId, encounterId }: { admissionId: string; encounterId: string }) {
+  const labQ = useQuery({
+    queryKey: ["ipd-lab-results", admissionId],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("lab_orders")
+        .select(
+          "id,status,priority,ordered_at,order_number,lab_test_catalog(name),lab_results(id,result_value,result,is_critical,verified_at,performed_by,reported_at,notes)",
+        )
+        .eq("admission_id", admissionId)
+        .order("ordered_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as LabResultFull[];
+    },
+  });
+
+  const radQ = useQuery({
+    queryKey: ["ipd-rad-results", admissionId],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("radiology_orders")
+        .select(
+          "id,status,priority,ordered_at,clinical_indication,lab_test_catalog(name),radiology_results(id,findings,impression,radiologist,image_paths,reported_at)",
+        )
+        .eq("admission_id", admissionId)
+        .order("ordered_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as RadResultFull[];
+    },
+  });
+
+  function printResults() {
+    window.print();
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* ── Print button ── */}
+      <div className="flex justify-end print:hidden">
+        <Button variant="outline" size="sm" onClick={printResults}>
+          <Printer className="h-4 w-4 mr-2" /> Print results
+        </Button>
+      </div>
+
+      {/* ── Lab Results ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-blue-500" /> Lab Results
+            {labQ.data && <Badge variant="secondary">{labQ.data.length}</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {labQ.isLoading ? (
+            <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading lab results…
+            </div>
+          ) : !labQ.data || labQ.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No lab orders for this admission.
+            </p>
+          ) : (
+            <ScrollArea className="h-[28rem]">
+              <div className="space-y-3">
+                {labQ.data.map((order) => {
+                  const res = Array.isArray(order.lab_results)
+                    ? order.lab_results[0]
+                    : order.lab_results;
+                  const resultData = res?.result as Record<
+                    string,
+                    { value: string; unit?: string; flag?: string }
+                  > | null;
+                  return (
+                    <div key={order.id} className="rounded-lg border bg-card p-4 space-y-2">
+                      {/* Header row */}
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div>
+                          <p className="font-medium text-sm">
+                            {order.lab_test_catalog?.name ?? "Lab test"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {fmtDate(order.ordered_at)} · {order.priority}
+                            {order.order_number ? ` · ${order.order_number}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {res?.is_critical && (
+                            <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 text-xs">
+                              ⚠ Critical
+                            </Badge>
+                          )}
+                          <LabStatusBadge status={order.status} />
+                        </div>
+                      </div>
+
+                      {/* Result body */}
+                      {res && order.status === "completed" && (
+                        <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm">
+                          {/* Structured parameters */}
+                          {resultData && Object.keys(resultData).length > 0 ? (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {Object.entries(resultData).map(([param, val]) => (
+                                <div
+                                  key={param}
+                                  className={`rounded border px-3 py-2 text-xs ${
+                                    val.flag === "High" || val.flag === "Low"
+                                      ? "border-rose-200 bg-rose-50"
+                                      : "bg-background"
+                                  }`}
+                                >
+                                  <div className="font-medium text-foreground">{param}</div>
+                                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                                    <span className="font-mono">
+                                      {val.value}
+                                      {val.unit ? ` ${val.unit}` : ""}
+                                    </span>
+                                    {val.flag && (
+                                      <span
+                                        className={
+                                          val.flag === "High"
+                                            ? "text-rose-600 font-semibold"
+                                            : val.flag === "Low"
+                                              ? "text-blue-600 font-semibold"
+                                              : "text-emerald-600"
+                                        }
+                                      >
+                                        {val.flag}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : res.result_value ? (
+                            <p className="text-sm">{res.result_value}</p>
+                          ) : null}
+
+                          {/* Notes */}
+                          {res.notes && (
+                            <p className="text-xs text-muted-foreground italic">{res.notes}</p>
+                          )}
+
+                          {/* Footer */}
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground border-t pt-2">
+                            {res.performed_by && <span>By: {res.performed_by}</span>}
+                            {res.reported_at && <span>Reported: {fmt(res.reported_at)}</span>}
+                            {res.verified_at && (
+                              <span className="text-emerald-600">
+                                ✓ Verified {fmt(res.verified_at)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Awaiting result */}
+                      {order.status !== "completed" &&
+                        order.status !== "declined" &&
+                        order.status !== "cancelled" && (
+                          <p className="text-xs text-muted-foreground italic">Awaiting result…</p>
+                        )}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Radiology Results ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Scan className="h-4 w-4 text-purple-500" /> Radiology Results
+            {radQ.data && <Badge variant="secondary">{radQ.data.length}</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {radQ.isLoading ? (
+            <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading radiology results…
+            </div>
+          ) : !radQ.data || radQ.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No radiology orders for this admission.
+            </p>
+          ) : (
+            <ScrollArea className="h-[28rem]">
+              <div className="space-y-3">
+                {radQ.data.map((order) => {
+                  const res = Array.isArray(order.radiology_results)
+                    ? order.radiology_results[0]
+                    : order.radiology_results;
+                  const imagePaths = (res?.image_paths as string[] | null) ?? [];
+                  return (
+                    <div key={order.id} className="rounded-lg border bg-card p-4 space-y-2">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div>
+                          <p className="font-medium text-sm">
+                            {order.lab_test_catalog?.name ?? "Radiology study"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {fmtDate(order.ordered_at)} · {order.priority}
+                            {order.clinical_indication ? ` · ${order.clinical_indication}` : ""}
+                          </p>
+                        </div>
+                        <LabStatusBadge status={order.status} />
+                      </div>
+
+                      {/* Result body */}
+                      {res && order.status === "completed" && (
+                        <div className="rounded-lg bg-muted/30 p-3 space-y-2 text-sm">
+                          {res.findings && (
+                            <div>
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
+                                Findings
+                              </p>
+                              <p className="whitespace-pre-wrap">{res.findings}</p>
+                            </div>
+                          )}
+                          {res.impression && (
+                            <div>
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
+                                Impression
+                              </p>
+                              <p className="whitespace-pre-wrap">{res.impression}</p>
+                            </div>
+                          )}
+
+                          {/* Images */}
+                          {imagePaths.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                                Images ({imagePaths.length})
+                              </p>
+                              <div className="grid gap-2 sm:grid-cols-3">
+                                {imagePaths.map((p) => (
+                                  <RadImageTile key={p} path={p} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Footer */}
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground border-t pt-2">
+                            {res.radiologist && <span>By: {res.radiologist}</span>}
+                            {res.reported_at && <span>Reported: {fmt(res.reported_at)}</span>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Awaiting */}
+                      {order.status !== "completed" &&
+                        order.status !== "declined" &&
+                        order.status !== "cancelled" && (
+                          <p className="text-xs text-muted-foreground italic">Awaiting result…</p>
+                        )}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Print layout */}
+      <div className="hidden print:block space-y-4">
+        <h2 className="text-lg font-bold">Lab & Radiology Results</h2>
+        <p className="text-xs text-muted-foreground">
+          Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}
+        </p>
+      </div>
     </div>
   );
 }
