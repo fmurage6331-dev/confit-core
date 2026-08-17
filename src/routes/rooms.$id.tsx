@@ -297,25 +297,115 @@ function RoomPage() {
     }));
     setRows(regs);
 
-    if (room?.kind === "pharmacy" && regs.length > 0) {
-      const { data: rxData, error: rxError } = await supabase
+    if (room?.kind === "pharmacy") {
+      const map = new Map<string, Prescription[]>();
+
+      // ── Outpatient: patients physically routed to pharmacy room ──
+      if (regs.length > 0) {
+        const { data: rxData, error: rxError } = await supabase
+          .from("prescriptions")
+          .select("*")
+          .in(
+            "registration_id",
+            regs.map((r) => r.id),
+          )
+          .order("created_at", { ascending: true });
+        if (rxError) {
+          toast.error(rxError.message);
+          return;
+        }
+        for (const rx of (rxData ?? []) as unknown as Prescription[]) {
+          const arr = map.get(rx.registration_id) ?? [];
+          arr.push(rx);
+          map.set(rx.registration_id, arr);
+        }
+      }
+
+      // ── Inpatient: pending prescriptions never routed to pharmacy room ──
+      const { data: ipdRxData } = await supabase
         .from("prescriptions")
         .select("*")
-        .in(
-          "registration_id",
-          regs.map((r) => r.id),
-        )
+        .eq("encounter_type", "inpatient")
+        .eq("status", "pending")
         .order("created_at", { ascending: true });
-      if (rxError) {
-        toast.error(rxError.message);
-        return;
+
+      if (ipdRxData && ipdRxData.length > 0) {
+        const ipdRxs = ipdRxData as unknown as Prescription[];
+        const encounterIds = [...new Set(ipdRxs.map((r) => r.registration_id))];
+
+        // Fetch patient info via encounters → patients
+        const { data: encData } = await supabase
+          .from("encounters")
+          .select("id,patient_id,patients(patient_name,file_number)")
+          .in("id", encounterIds);
+
+        type EncInfo = {
+          id: string;
+          patient_id: string | null;
+          patients: { patient_name: string | null; file_number: string | null } | null;
+        };
+        const encMap = new Map<
+          string,
+          { patient_name: string; file_number: string | null; patient_id: string | null }
+        >();
+        for (const enc of (encData ?? []) as unknown as EncInfo[]) {
+          encMap.set(enc.id, {
+            patient_name: enc.patients?.patient_name ?? "Inpatient",
+            file_number: enc.patients?.file_number ?? null,
+            patient_id: enc.patient_id,
+          });
+        }
+
+        // Build synthetic Reg rows for inpatient patients not already in list
+        const existingIds = new Set(regs.map((r) => r.id));
+        const ipdRegs: Reg[] = [];
+        for (const encId of encounterIds) {
+          const info = encMap.get(encId);
+          if (!existingIds.has(encId) && info) {
+            const firstRx = ipdRxs.find((r) => r.registration_id === encId);
+            ipdRegs.push({
+              id: encId,
+              patient_id: info.patient_id,
+              patient_name: info.patient_name,
+              file_number: info.file_number,
+              from_room: null,
+              tests: [],
+              vitals: {},
+              history: {},
+              diagnoses: [],
+              payment_mode: "cash",
+              insurance_coverage_percentage: null,
+              payment_status: "paid",
+              status: "in_progress",
+              created_at: firstRx?.created_at ?? new Date().toISOString(),
+              sha_member_number: null,
+              sha_relationship_to_principal: null,
+              sha_notification_number: null,
+              preauth_number: null,
+              claim_number: null,
+              claim_status: null,
+              insurance_provider_id: null,
+              insurer_type: null,
+              sha_fund_type: null,
+              insurance_clearance_status: null,
+              insurance_policy_number: null,
+            });
+          }
+          for (const rx of ipdRxs.filter((r) => r.registration_id === encId)) {
+            const arr = map.get(encId) ?? [];
+            arr.push(rx);
+            map.set(encId, arr);
+          }
+        }
+
+        if (ipdRegs.length > 0) {
+          setRows((prev) => {
+            const seen = new Set(prev.map((r) => r.id));
+            return [...prev, ...ipdRegs.filter((r) => !seen.has(r.id))];
+          });
+        }
       }
-      const map = new Map<string, Prescription[]>();
-      for (const rx of (rxData ?? []) as unknown as Prescription[]) {
-        const arr = map.get(rx.registration_id) ?? [];
-        arr.push(rx);
-        map.set(rx.registration_id, arr);
-      }
+
       setRxByReg(map);
     } else {
       setRxByReg(new Map());
