@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ArrowLeft, Printer, Plus, Receipt } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 
 export const Route = createFileRoute("/invoices/$id")({
   component: () => (
@@ -184,6 +185,9 @@ function InvoiceDetail() {
       </div>
 
       <div className="mt-4 rounded-2xl border bg-card p-6 print:border-0 print:p-0">
+        <div className="hidden print:block">
+          <PrintHeader title="Invoice" subtitle={inv.invoice_number ?? undefined} />
+        </div>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
