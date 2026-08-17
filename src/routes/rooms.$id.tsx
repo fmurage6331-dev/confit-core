@@ -2647,7 +2647,6 @@ function InsuranceDialog({
           ? "Clearance rejected — patient switched to cash"
           : "Clearance waived — patient routed to triage",
     );
-    onSaved();
   }
 
   // ── SHA-5 state ──────────────────────────────────────────────────────────
@@ -2912,7 +2911,6 @@ function InsuranceDialog({
       return;
     }
     toast.success("Claim details saved");
-    onSaved();
   }
 
   async function submitClaim() {
@@ -3508,7 +3506,7 @@ function InsuranceDialog({
 
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              Close
             </Button>
             <Button variant="outline" onClick={previewFhir} disabled={fhirLoading}>
               {fhirLoading ? "Loading…" : "Preview FHIR"}
