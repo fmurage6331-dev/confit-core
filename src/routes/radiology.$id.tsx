@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
-import { ArrowLeft, Upload, Trash2, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, Image as ImageIcon, ExternalLink, Printer } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -261,9 +262,16 @@ function RadiologyDetail() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      <div className="hidden print:block">
+        <PrintHeader
+          title="Radiology Report"
+          subtitle={order.lab_test_catalog?.name ?? undefined}
+        />
+      </div>
+
       <Link
         to="/radiology"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground print:hidden"
       >
         <ArrowLeft className="h-4 w-4" /> Back to worklist
       </Link>
@@ -279,6 +287,16 @@ function RadiologyDetail() {
         </div>
         <div className="flex items-center gap-2">
           <StatusPill status={order.status} />
+          {order.status === "completed" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="print:hidden"
+              onClick={() => window.print()}
+            >
+              <Printer className="mr-1 h-4 w-4" /> Print report
+            </Button>
+          )}
           {canUpdateStatus && (
             <Select value={order.status ?? "ordered"} onValueChange={(v) => updateStatus.mutate(v)}>
               <SelectTrigger className="w-[170px]">
