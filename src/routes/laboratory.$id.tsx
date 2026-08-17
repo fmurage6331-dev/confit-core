@@ -25,7 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
-import { ArrowLeft, Wand2 } from "lucide-react";
+import { ArrowLeft, Wand2, Printer } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { type StructuredResult } from "@/lib/test-parameters";
@@ -403,9 +404,16 @@ function LaboratoryDetail() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      <div className="hidden print:block">
+        <PrintHeader
+          title="Laboratory Result"
+          subtitle={order.lab_test_catalog?.name ?? undefined}
+        />
+      </div>
+
       <Link
         to="/laboratory"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground print:hidden"
       >
         <ArrowLeft className="h-4 w-4" /> Back to worklist
       </Link>
@@ -426,6 +434,16 @@ function LaboratoryDetail() {
           {canUpdateStatus && order.status === "ordered" && (
             <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("in_progress")}>
               Pick up
+            </Button>
+          )}
+          {order.status === "completed" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="print:hidden"
+              onClick={() => window.print()}
+            >
+              <Printer className="mr-1 h-4 w-4" /> Print result
             </Button>
           )}
         </div>
