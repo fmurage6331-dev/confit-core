@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/supabase-untyped";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -428,6 +429,81 @@ export function DischargeButton({
       return;
     }
     setBusy(true);
+
+    // ── Pre-discharge clearance check ────────────────────────────────────
+    if (encounterId) {
+      type EncCheck = {
+        payment_mode: string | null;
+        insurer_type: string | null;
+        insurance_clearance_status: string | null;
+        claim_status: string | null;
+      };
+      type InvCheck = {
+        status: string | null;
+        balance: number | null;
+        total_due: number | null;
+      };
+
+      const { data: encRows } = await db
+        .from("encounters")
+        .select("payment_mode,insurer_type,insurance_clearance_status,claim_status")
+        .eq("id", encounterId)
+        .limit(1);
+      const enc = ((encRows ?? []) as unknown as EncCheck[])[0] ?? null;
+
+      const { data: invRows } = await db
+        .from("invoices")
+        .select("status,balance,total_due")
+        .eq("encounter_id", encounterId)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      const inv = ((invRows ?? []) as unknown as InvCheck[])[0] ?? null;
+
+      if (enc) {
+        const isInsurance = enc.payment_mode === "insurance";
+        const isShaShif = enc.insurer_type === "sha_shif";
+        const clearanceOk =
+          enc.insurance_clearance_status === "approved" ||
+          enc.insurance_clearance_status === "waived";
+        const claimOk =
+          enc.claim_status === "submitted" ||
+          enc.claim_status === "approved" ||
+          enc.claim_status === "paid";
+        const invoicePaid =
+          !inv || inv.balance === 0 || inv.status === "paid" || enc.payment_mode === "free";
+
+        if (isInsurance && !clearanceOk) {
+          setBusy(false);
+          toast.error(
+            "Cannot discharge — insurance clearance not approved. Go to Insurance Desk first.",
+          );
+          return;
+        }
+        if (isInsurance && !claimOk) {
+          setBusy(false);
+          toast.error(
+            "Cannot discharge — claim not submitted. Submit claim at Insurance Desk first.",
+          );
+          return;
+        }
+        if (!isInsurance && !invoicePaid) {
+          setBusy(false);
+          toast.error(
+            `Cannot discharge — outstanding balance of KSh ${Number(inv?.balance ?? 0).toLocaleString()}. Collect payment in Accounting first.`,
+          );
+          return;
+        }
+        if (isInsurance && !isShaShif && !invoicePaid) {
+          // Private/Corporate/PHF — copay must be collected
+          setBusy(false);
+          toast.error(
+            `Cannot discharge — patient copay of KSh ${Number(inv?.balance ?? 0).toLocaleString()} not yet collected. Collect at Accounting first.`,
+          );
+          return;
+        }
+      }
+    }
+    // ── End pre-discharge check ──────────────────────────────────────────
     // 1) Insert discharge_note first (DB trigger requires this before status change)
     const { error: noteErr } = await supabase.from("clinical_notes").insert({
       encounter_id: encounterId,
@@ -478,6 +554,13 @@ export function DischargeButton({
             <DialogTitle>Discharge patient</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
+              <p className="font-semibold">Pre-discharge checklist:</p>
+              <p>✓ Insurance patients — clearance approved + claim submitted</p>
+              <p>✓ Cash patients — invoice fully paid at accounting</p>
+              <p>✓ SHA SHIF — claim submitted (fully covered)</p>
+              <p>✓ Private/Corporate/PHF — claim submitted + copay collected</p>
+            </div>
             <Label>
               Discharge summary <span className="text-rose-600">*</span>
             </Label>
