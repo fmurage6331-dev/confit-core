@@ -7,7 +7,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { AccessDenied } from "@/lib/require-access";
 import { useAuth } from "@/lib/auth-context";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/supabase-untyped";
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { BedDouble, Search } from "lucide-react";
+import { BedDouble, Search, ArrowLeftRight } from "lucide-react";
 
 export const Route = createFileRoute("/inpatient")({
   component: () => (
@@ -300,6 +300,16 @@ function Inpatient() {
                       </div>
                       {canDischarge && (
                         <div className="pt-2 flex gap-2">
+                          <TransferButton
+                            admissionId={admission.id}
+                            encounterId={admission.encounter_id}
+                            currentWardId={admission.ward_id}
+                            currentBedId={admission.bed_id}
+                            onDone={() => {
+                              setSelectedBed(null);
+                              refreshAll();
+                            }}
+                          />
                           <DischargeButton
                             admissionId={admission.id}
                             encounterId={admission.encounter_id}
@@ -588,6 +598,205 @@ export function DischargeButton({
   );
 }
 
+export function TransferButton({
+  admissionId,
+  encounterId,
+  currentWardId,
+  currentBedId,
+  onDone,
+}: {
+  admissionId: string;
+  encounterId: string | null;
+  currentWardId: string | null;
+  currentBedId: string | null;
+  onDone: () => void;
+}) {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [toWardId, setToWardId] = useState("");
+  const [toBedId, setToBedId] = useState("");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+
+  type WardOpt = { id: string; name: string; daily_rate: number | null };
+  type BedOpt = { id: string; bed_number: string; status: string };
+
+  const [wards, setWards] = useState<WardOpt[]>([]);
+  const [beds, setBeds] = useState<BedOpt[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from("wards")
+      .select("id,name,daily_rate")
+      .order("name")
+      .then(({ data }) => setWards((data ?? []) as WardOpt[]));
+  }, [open]);
+
+  useEffect(() => {
+    if (!toWardId) {
+      setBeds([]);
+      setToBedId("");
+      return;
+    }
+    supabase
+      .from("beds")
+      .select("id,bed_number,status")
+      .eq("ward_id", toWardId)
+      .eq("status", "available")
+      .order("bed_number")
+      .then(({ data }) => setBeds((data ?? []) as BedOpt[]));
+  }, [toWardId]);
+
+  async function submit() {
+    if (!toWardId || !toBedId) {
+      toast.error("Select destination ward and bed");
+      return;
+    }
+    if (toWardId === currentWardId && toBedId === currentBedId) {
+      toast.error("Patient is already in this bed");
+      return;
+    }
+    if (!reason.trim()) {
+      toast.error("Transfer reason is required");
+      return;
+    }
+    setBusy(true);
+    const { error } = await db.from("ward_transfers").insert({
+      admission_id: admissionId,
+      encounter_id: encounterId ?? null,
+      from_ward_id: currentWardId ?? null,
+      from_bed_id: currentBedId ?? null,
+      to_ward_id: toWardId,
+      to_bed_id: toBedId,
+      transfer_reason: reason.trim(),
+      transfer_notes: notes.trim() || null,
+      transferred_by: user?.id ?? null,
+      transferred_at: new Date().toISOString(),
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Patient transferred successfully");
+    setOpen(false);
+    setToWardId("");
+    setToBedId("");
+    setReason("");
+    setNotes("");
+    onDone();
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        <ArrowLeftRight className="h-3.5 w-3.5 mr-1" /> Transfer
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          if (!busy) setOpen(o);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Inter-Ward Transfer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>
+                Destination ward <span className="text-rose-600">*</span>
+              </Label>
+              <Select
+                value={toWardId}
+                onValueChange={(v) => {
+                  setToWardId(v);
+                  setToBedId("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select ward…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {wards.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {w.name}
+                      {w.daily_rate ? ` · KSh ${Number(w.daily_rate).toLocaleString()}/day` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>
+                Available bed <span className="text-rose-600">*</span>
+              </Label>
+              <Select value={toBedId} onValueChange={setToBedId} disabled={!toWardId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={toWardId ? "Select bed…" : "Select ward first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {beds.length === 0 && toWardId && (
+                    <SelectItem value="none" disabled>
+                      No available beds
+                    </SelectItem>
+                  )}
+                  {beds.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      Bed {b.bed_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>
+                Transfer reason <span className="text-rose-600">*</span>
+              </Label>
+              <Select value={reason} onValueChange={setReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select reason…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Clinical deterioration">Clinical deterioration</SelectItem>
+                  <SelectItem value="Clinical improvement">Clinical improvement</SelectItem>
+                  <SelectItem value="Specialist care required">Specialist care required</SelectItem>
+                  <SelectItem value="ICU/HDU admission">ICU/HDU admission</SelectItem>
+                  <SelectItem value="Step-down from ICU">Step-down from ICU</SelectItem>
+                  <SelectItem value="Surgical intervention">Surgical intervention</SelectItem>
+                  <SelectItem value="Post-operative care">Post-operative care</SelectItem>
+                  <SelectItem value="Bed management">Bed management</SelectItem>
+                  <SelectItem value="Patient/family request">Patient/family request</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Additional transfer notes…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button onClick={submit} disabled={busy || !toWardId || !toBedId || !reason}>
+              {busy ? "Transferring…" : "Confirm transfer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export function ReferOutButton({
   encounterId,
   currentFacility,
@@ -734,6 +943,13 @@ function CurrentInpatients({
               {canDischarge && (
                 <td className="p-3 text-right">
                   <div className="flex justify-end gap-2">
+                    <TransferButton
+                      admissionId={a.id}
+                      encounterId={a.encounter_id}
+                      currentWardId={a.ward_id}
+                      currentBedId={a.bed_id}
+                      onDone={onDischarged}
+                    />
                     <DischargeButton
                       admissionId={a.id}
                       encounterId={a.encounter_id}
