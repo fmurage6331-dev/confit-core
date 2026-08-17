@@ -40,6 +40,7 @@ import {
   HeartHandshake,
   Printer,
   ShieldAlert,
+  MapPin,
 } from "lucide-react";
 import { ConsentDialog } from "@/components/consent-dialog";
 
@@ -96,6 +97,7 @@ type Encounter = {
   amount_paid: number | null;
   from_room: string | null;
   current_room_id: string | null;
+  current_room_name: string | null;
   tests: unknown;
   encounter_type: string | null;
 };
@@ -124,12 +126,14 @@ function PatientProfile() {
       const { data, error } = await supabase
         .from("encounters")
         .select(
-          "id,created_at,status,payment_mode,payment_status,subtotal,patient_due,amount_paid,from_room,current_room_id,tests,encounter_type",
+          "id,created_at,status,payment_mode,payment_status,subtotal,patient_due,amount_paid,from_room,current_room_id,tests,encounter_type,rooms(name)",
         )
         .eq("patient_id", id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Encounter[];
+      return ((data ?? []) as unknown as (Encounter & { rooms: { name: string } | null })[]).map(
+        (e) => ({ ...e, current_room_name: e.rooms?.name ?? null }),
+      );
     },
   });
 
@@ -271,6 +275,7 @@ function PatientProfile() {
                 <th className="px-4 py-3">Payment</th>
                 <th className="px-4 py-3 text-right">Subtotal</th>
                 <th className="px-4 py-3 text-right">Balance</th>
+                <th className="px-4 py-3">Location</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -317,6 +322,16 @@ function PatientProfile() {
                       className={`px-4 py-3 text-right tabular-nums ${bal > 0 ? "text-destructive" : ""}`}
                     >
                       KSh {bal.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {e.current_room_name ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                          <MapPin className="h-3 w-3" />
+                          {e.current_room_name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Button asChild size="sm" variant="ghost">
