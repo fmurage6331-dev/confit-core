@@ -65,7 +65,8 @@ function StatusBadge({ s }: { s: string | null }) {
         : s === "declined"
           ? "bg-rose-100 text-rose-700"
           : "bg-amber-100 text-amber-700";
-  const label = s === "ordered" ? "Order not picked" : (s ?? "ordered").replace("_", " ");
+  const label =
+    s === "ordered" || s === "pending" ? "Order not picked" : (s ?? "ordered").replace("_", " ");
   return <Badge className={`${cls} hover:${cls}`}>{label}</Badge>;
 }
 
@@ -140,7 +141,7 @@ function LaboratoryWorklist() {
   const counts = useMemo(() => {
     const rows = data ?? [];
     return {
-      ordered: rows.filter((r) => r.status === "ordered").length,
+      ordered: rows.filter((r) => r.status === "ordered" || r.status === "pending").length,
       in_progress: rows.filter((r) => r.status === "in_progress").length,
       completed: rows.filter((r) => r.status === "completed").length,
       declined: rows.filter((r) => r.status === "declined").length,
@@ -151,7 +152,8 @@ function LaboratoryWorklist() {
     const rows = data ?? [];
     const ql = q.trim().toLowerCase();
     return rows.filter((r) => {
-      if ((r.status ?? "ordered") !== tab) return false;
+      const effectiveStatus = r.status === "pending" ? "ordered" : (r.status ?? "ordered");
+      if (effectiveStatus !== tab) return false;
       if (!ql) return true;
       return (
         (r.patients?.patient_name ?? "").toLowerCase().includes(ql) ||
