@@ -8,6 +8,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode, Fragment } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useFacilityLevel } from "@/lib/facility-level";
 import { useBranding } from "@/lib/branding-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ import { toast } from "sonner";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, loading, signOut, isApproved, isAdmin, hasPerm, rolesLoading } = useAuth();
+  const facilityLevel = useFacilityLevel();
   const { appName, logoUrl } = useBranding();
   const navigate = useNavigate();
   const { location } = useRouterState();
@@ -267,7 +269,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       to: "/inpatient",
       label: "Inpatient",
       icon: BedDouble,
-      show: hasPerm("admissions_view") || hasPerm("admit_patient") || hasPerm("bed_management"),
+      show:
+        (hasPerm("admissions_view") || hasPerm("admit_patient") || hasPerm("bed_management")) &&
+        facilityLevel.hasInpatient,
     },
     {
       to: "/reports",
