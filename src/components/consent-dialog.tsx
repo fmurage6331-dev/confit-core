@@ -191,7 +191,7 @@ export function ConsentDialog(props: ConsentDialogProps) {
       const { otpId: id } = await generateAndSendOtp(
         patientPhone.trim(),
         patientId,
-        encounterId ?? "",
+        encounterId ?? null,
         user.id,
       );
       setOtpId(id);

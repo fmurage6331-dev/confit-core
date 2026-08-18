@@ -13,7 +13,7 @@ const LEGAL_TEXT =
 export async function generateAndSendOtp(
   phone: string,
   patientId: string,
-  encounterId: string,
+  encounterId: string | null,
   userId: string | null,
 ): Promise<{ otpId: string }> {
   // 1. Generate 6-digit OTP
@@ -31,7 +31,7 @@ export async function generateAndSendOtp(
     .from("consent_otps")
     .insert({
       patient_id: patientId,
-      encounter_id: encounterId,
+      encounter_id: encounterId || null,
       phone: phone,
       otp_hash: otpHash,
       consent_type: "general_treatment",
