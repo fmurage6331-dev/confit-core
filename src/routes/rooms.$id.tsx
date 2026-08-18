@@ -5010,6 +5010,13 @@ function MortuaryView({ room }: { room: Room }) {
   const [receivedBy, setReceivedBy] = useState("");
   const [dailyRate, setDailyRate] = useState("500");
   const [admitNotes, setAdmitNotes] = useState("");
+  const [bodySource, setBodySource] = useState("");
+  const [policeStation, setPoliceStation] = useState("");
+  const [obNumber, setObNumber] = useState("");
+  const [nokName, setNokName] = useState("");
+  const [nokPhone, setNokPhone] = useState("");
+  const [nokNationalId, setNokNationalId] = useState("");
+  const [nokRelationship, setNokRelationship] = useState("");
 
   // Release form state
   const [releasedToName, setReleasedToName] = useState("");
@@ -5045,6 +5052,13 @@ function MortuaryView({ room }: { room: Room }) {
     setReceivedBy("");
     setDailyRate("500");
     setAdmitNotes("");
+    setBodySource("");
+    setPoliceStation("");
+    setObNumber("");
+    setNokName("");
+    setNokPhone("");
+    setNokNationalId("");
+    setNokRelationship("");
   }
 
   async function admit() {
@@ -5058,26 +5072,44 @@ function MortuaryView({ room }: { room: Room }) {
       return;
     }
     setSaving(true);
-    const { error } = await db.from("mortuary_records").insert({
-      intake_type: intakeType,
-      deceased_name: deceasedName.trim(),
-      age_years: ageYears ? parseInt(ageYears) : null,
-      sex: sex || null,
-      national_id: nationalId.trim() || null,
-      date_of_death: dateOfDeath || null,
-      cause_of_death: causeOfDeath.trim() || null,
-      admitted_to_mortuary_at: new Date().toISOString(),
-      received_by: receivedBy.trim() || null,
-      daily_storage_rate: rate,
-      notes: admitNotes.trim() || null,
-      status: "stored",
-      created_by: user?.id ?? null,
-    });
-    setSaving(false);
+    const { data: insertedRec, error } = await db
+      .from("mortuary_records")
+      .insert({
+        intake_type: intakeType,
+        deceased_name: deceasedName.trim(),
+        age_years: ageYears ? parseInt(ageYears) : null,
+        sex: sex || null,
+        national_id: nationalId.trim() || null,
+        date_of_death: dateOfDeath || null,
+        cause_of_death: causeOfDeath.trim() || null,
+        admitted_to_mortuary_at: new Date().toISOString(),
+        received_by: receivedBy.trim() || null,
+        daily_storage_rate: rate,
+        notes: admitNotes.trim() || null,
+        status: "stored",
+        created_by: user?.id ?? null,
+        source: bodySource || null,
+        police_station: bodySource === "police" ? policeStation.trim() || null : null,
+        ob_number: bodySource === "police" ? obNumber.trim() || null : null,
+        next_of_kin_name: nokName.trim() || null,
+        next_of_kin_phone: nokPhone.trim() || null,
+        next_of_kin_national_id: nokNationalId.trim() || null,
+        next_of_kin_relationship: nokRelationship.trim() || null,
+      })
+      .select("id");
     if (error) {
+      setSaving(false);
       toast.error(error.message);
       return;
     }
+    const insertedArr = insertedRec as { id: string }[] | null;
+    if (intakeType === "external" && insertedArr && insertedArr.length > 0) {
+      await db.rpc("create_external_mortuary_invoice", {
+        p_record_id: insertedArr[0].id,
+        p_created_by: user?.id ?? null,
+      });
+    }
+    setSaving(false);
     toast.success("Body admitted to mortuary");
     setAdmitOpen(false);
     resetAdmitForm();
@@ -5315,6 +5347,46 @@ function MortuaryView({ room }: { room: Room }) {
               </Select>
             </div>
 
+            {/* Source — external only */}
+            {intakeType === "external" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Body source *</Label>
+                  <Select value={bodySource} onValueChange={setBodySource}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="family">Family</SelectItem>
+                      <SelectItem value="police">Police</SelectItem>
+                      <SelectItem value="hospital_transfer">Hospital transfer</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {bodySource === "police" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Police station</Label>
+                      <Input
+                        value={policeStation}
+                        onChange={(e) => setPoliceStation(e.target.value)}
+                        placeholder="e.g. Kilimani Police"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>OB number</Label>
+                      <Input
+                        value={obNumber}
+                        onChange={(e) => setObNumber(e.target.value)}
+                        placeholder="e.g. OB/123/2026"
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Name */}
             <div className="space-y-1.5">
               <Label>Deceased name *</Label>
@@ -5402,6 +5474,44 @@ function MortuaryView({ room }: { room: Room }) {
                 onChange={(e) => setReceivedBy(e.target.value)}
                 placeholder="Staff who received body"
               />
+            </div>
+
+            {/* Next of kin */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Next of kin name</Label>
+                <Input
+                  value={nokName}
+                  onChange={(e) => setNokName(e.target.value)}
+                  placeholder="Full name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Next of kin phone</Label>
+                <Input
+                  value={nokPhone}
+                  onChange={(e) => setNokPhone(e.target.value)}
+                  placeholder="+254…"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>NOK national ID</Label>
+                <Input
+                  value={nokNationalId}
+                  onChange={(e) => setNokNationalId(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>NOK relationship</Label>
+                <Input
+                  value={nokRelationship}
+                  onChange={(e) => setNokRelationship(e.target.value)}
+                  placeholder="e.g. Spouse"
+                />
+              </div>
             </div>
 
             {/* Notes */}
