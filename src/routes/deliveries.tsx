@@ -30,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PackageCheck, Plus, Printer, Truck, Warehouse } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -295,8 +296,7 @@ function DeliveriesPage() {
       </div>
 
       <div className="hidden print:block mb-4">
-        <h2 className="text-xl font-bold">LabTrack — Deliveries Report</h2>
-        <p className="text-sm">Generated {format(new Date(), "dd MMM yyyy HH:mm")}</p>
+        <PrintHeader title="Deliveries Report" />
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
