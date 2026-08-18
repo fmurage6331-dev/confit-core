@@ -42,6 +42,7 @@ import {
   ShieldAlert,
   MapPin,
 } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { ConsentDialog } from "@/components/consent-dialog";
 
 export const Route = createFileRoute("/patients/$id")({
@@ -371,22 +372,10 @@ function OutpatientCard({
 
   return (
     <div className="text-sm text-black font-sans border-2 border-black rounded-lg p-6 max-w-2xl mx-auto">
-      <div className="flex items-start justify-between border-b-2 border-black pb-3 mb-4">
-        <div>
-          <div className="text-xl font-bold">AegisCare / LabTrack</div>
-          <div className="text-xs uppercase tracking-widest text-gray-500 font-semibold">
-            Outpatient Card
-          </div>
-        </div>
-        <div className="text-right text-xs text-gray-500">
-          <div>Printed: {new Date().toLocaleDateString()}</div>
-          {patient.file_number && (
-            <div className="font-mono font-bold text-black text-sm mt-1">
-              File # {patient.file_number}
-            </div>
-          )}
-        </div>
-      </div>
+      <PrintHeader
+        title="Outpatient Card"
+        subtitle={patient.file_number ? `File # ${patient.file_number}` : undefined}
+      />
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
         <CardField label="Full Name" value={name} />
