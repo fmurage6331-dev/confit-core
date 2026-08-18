@@ -42,6 +42,7 @@ import {
   Trash2,
   Warehouse,
 } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
@@ -426,6 +427,10 @@ function StockPage() {
             </div>
           </div>
         )}
+
+        <div className="hidden print:block mb-4">
+          <PrintHeader title="Stock Report" />
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => window.print()}>
