@@ -52,13 +52,17 @@ function StatusBadge({ s }: { s: string | null }) {
         ? "bg-blue-100 text-blue-700"
         : s === "unpaid"
           ? "bg-rose-100 text-rose-700"
-          : "bg-muted text-muted-foreground";
+          : s === "claimed"
+            ? "bg-purple-100 text-purple-700"
+            : "bg-muted text-muted-foreground";
   return <Badge className={`${cls} hover:${cls}`}>{s ?? "draft"}</Badge>;
 }
 
 function InvoicesList() {
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | "unpaid" | "partial" | "paid" | "draft">("all");
+  const [status, setStatus] = useState<"all" | "unpaid" | "partial" | "paid" | "draft" | "claimed">(
+    "all",
+  );
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["invoices-list"],
@@ -75,8 +79,8 @@ function InvoicesList() {
     },
   });
 
-  const rows = data ?? [];
   const filtered = useMemo(() => {
+    const rows = data ?? [];
     return rows.filter((r) => {
       if (status !== "all" && (r.status ?? "draft") !== status) return false;
       if (!q.trim()) return true;
@@ -87,7 +91,7 @@ function InvoicesList() {
         (r.patients?.file_number ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [rows, q, status]);
+  }, [data, q, status]);
 
   const totals = useMemo(() => {
     return filtered.reduce(
