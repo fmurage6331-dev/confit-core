@@ -44,6 +44,7 @@ import {
   Printer,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
+import { PrintHeader } from "@/components/print-header";
 import {
   Dialog,
   DialogContent,
@@ -933,10 +934,7 @@ function ResultsTab({ admissionId, encounterId }: { admissionId: string; encount
 
       {/* Print layout */}
       <div className="hidden print:block space-y-4">
-        <h2 className="text-lg font-bold">Lab & Radiology Results</h2>
-        <p className="text-xs text-muted-foreground">
-          Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}
-        </p>
+        <PrintHeader title="Lab & Radiology Results" />
       </div>
     </div>
   );
