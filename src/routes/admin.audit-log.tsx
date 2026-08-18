@@ -23,6 +23,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ShieldCheck, Printer } from "lucide-react";
 import { format } from "date-fns";
+import { PrintHeader } from "@/components/print-header";
 
 export const Route = createFileRoute("/admin/audit-log")({
   component: () => (
@@ -148,16 +149,21 @@ function AuditLogView() {
       </div>
 
       {/* Print header */}
-      <div className="hidden print:block border-b-2 border-black pb-3 mb-4">
-        <div className="text-xl font-bold">AegisCare — Audit Log Report</div>
-        <div className="text-sm text-gray-500">
-          Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}
-          {tableFilter !== "all" && ` · Table: ${tableFilter}`}
-          {actionFilter !== "all" && ` · Action: ${actionFilter}`}
-          {from && ` · From: ${from}`}
-          {to && ` · To: ${to}`}
-          {nameFilter && ` · User: ${nameFilter}`}
-        </div>
+      <div className="hidden print:block mb-4">
+        <PrintHeader
+          title="Audit Log Report"
+          subtitle={
+            [
+              tableFilter !== "all" ? `Table: ${tableFilter}` : null,
+              actionFilter !== "all" ? `Action: ${actionFilter}` : null,
+              from ? `From: ${from}` : null,
+              to ? `To: ${to}` : null,
+              nameFilter ? `User: ${nameFilter}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || undefined
+          }
+        />
       </div>
 
       {/* Filters */}
