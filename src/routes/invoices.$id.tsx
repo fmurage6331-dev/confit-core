@@ -82,8 +82,11 @@ type Payment = {
 function InvoiceDetail() {
   const { id } = useParams({ from: "/invoices/$id" });
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPerm } = useAuth();
+  const canEditLines = hasPerm("accounting");
   const [payOpen, setPayOpen] = useState(false);
+  const [lineOpen, setLineOpen] = useState(false);
+  const [editingLine, setEditingLine] = useState<LineItem | null>(null);
 
   const invoiceQ = useQuery({
     queryKey: ["invoice", id],
@@ -141,6 +144,78 @@ function InvoiceDetail() {
       qc.invalidateQueries({ queryKey: ["invoice", id] });
       qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
       qc.invalidateQueries({ queryKey: ["invoices-list"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const addLineM = useMutation({
+    mutationFn: async (v: {
+      description: string;
+      item_type: string;
+      quantity: number;
+      unit_price: number;
+      amount: number;
+    }) => {
+      const { error } = await supabase.from("invoice_line_items").insert({
+        invoice_id: id,
+        description: v.description,
+        item_type: v.item_type,
+        quantity: v.quantity,
+        unit_price: v.unit_price,
+        amount: v.amount,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Line item added");
+      setLineOpen(false);
+      setEditingLine(null);
+      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const editLineM = useMutation({
+    mutationFn: async (v: {
+      id: string;
+      description: string;
+      item_type: string;
+      quantity: number;
+      unit_price: number;
+      amount: number;
+    }) => {
+      const { error } = await supabase
+        .from("invoice_line_items")
+        .update({
+          description: v.description,
+          item_type: v.item_type,
+          quantity: v.quantity,
+          unit_price: v.unit_price,
+          amount: v.amount,
+        })
+        .eq("id", v.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Line item updated");
+      setLineOpen(false);
+      setEditingLine(null);
+      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const deleteLineM = useMutation({
+    mutationFn: async (lineId: string) => {
+      const { error } = await supabase.from("invoice_line_items").delete().eq("id", lineId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Line item removed");
+      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -221,6 +296,20 @@ function InvoiceDetail() {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-xl border">
+          {canEditLines && (
+            <div className="flex justify-end border-b bg-muted/30 px-3 py-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setEditingLine(null);
+                  setLineOpen(true);
+                }}
+              >
+                <Plus className="mr-1 h-4 w-4" /> Add item
+              </Button>
+            </div>
+          )}
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
               <tr>
@@ -229,27 +318,63 @@ function InvoiceDetail() {
                 <th className="px-3 py-2 text-right">Qty</th>
                 <th className="px-3 py-2 text-right">Unit</th>
                 <th className="px-3 py-2 text-right">Amount</th>
+                {canEditLines && <th className="px-3 py-2" />}
               </tr>
             </thead>
             <tbody className="divide-y">
               {lines.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                  <td
+                    colSpan={canEditLines ? 6 : 5}
+                    className="p-4 text-center text-muted-foreground"
+                  >
                     No line items.
                   </td>
                 </tr>
               )}
-              {lines.map((l) => (
-                <tr key={l.id}>
-                  <td className="px-3 py-2">{l.description ?? "—"}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{l.item_type}</td>
-                  <td className="px-3 py-2 text-right">{Number(l.quantity ?? 0)}</td>
-                  <td className="px-3 py-2 text-right">{Number(l.unit_price ?? 0).toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right font-medium">
-                    {Number(l.amount ?? 0).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
+              {lines.map((l) => {
+                const isInsuranceLocked =
+                  l.item_type === "insurance" || Number(l.insurance_covered_amount ?? 0) > 0;
+                return (
+                  <tr key={l.id}>
+                    <td className="px-3 py-2">{l.description ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{l.item_type}</td>
+                    <td className="px-3 py-2 text-right">{Number(l.quantity ?? 0)}</td>
+                    <td className="px-3 py-2 text-right">{Number(l.unit_price ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right font-medium">
+                      {Number(l.amount ?? 0).toFixed(2)}
+                    </td>
+                    {canEditLines && (
+                      <td className="px-3 py-2 text-right">
+                        {isInsuranceLocked ? (
+                          <span className="text-xs text-muted-foreground">🔒 locked</span>
+                        ) : (
+                          <span className="flex justify-end gap-2">
+                            <button
+                              className="text-xs text-primary hover:underline"
+                              onClick={() => {
+                                setEditingLine(l);
+                                setLineOpen(true);
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="text-xs text-destructive hover:underline"
+                              onClick={() => {
+                                if (window.confirm("Remove this line item?"))
+                                  deleteLineM.mutate(l.id);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -298,6 +423,22 @@ function InvoiceDetail() {
         )}
       </div>
 
+      <LineItemDialog
+        open={lineOpen}
+        onOpenChange={(o) => {
+          setLineOpen(o);
+          if (!o) setEditingLine(null);
+        }}
+        editing={editingLine}
+        onSubmit={(v) => {
+          if (editingLine) {
+            editLineM.mutate({ id: editingLine.id, ...v });
+          } else {
+            addLineM.mutate(v);
+          }
+        }}
+        pending={addLineM.isPending || editLineM.isPending}
+      />
       <PaymentDialog
         open={payOpen}
         onOpenChange={setPayOpen}
@@ -437,6 +578,134 @@ function PaymentDialog({
           </Button>
           <Button onClick={submit} disabled={pending}>
             {pending ? "Saving…" : "Record"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LineItemDialog({
+  open,
+  onOpenChange,
+  editing,
+  onSubmit,
+  pending,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: LineItem | null;
+  onSubmit: (v: {
+    description: string;
+    item_type: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+  }) => void;
+  pending: boolean;
+}) {
+  const [description, setDescription] = useState(editing?.description ?? "");
+  const [itemType, setItemType] = useState(editing?.item_type ?? "service");
+  const [quantity, setQuantity] = useState(String(editing?.quantity ?? "1"));
+  const [unitPrice, setUnitPrice] = useState(String(editing?.unit_price ?? ""));
+
+  const amount = (Number(quantity) || 0) * (Number(unitPrice) || 0);
+
+  function submit() {
+    if (!description.trim()) {
+      toast.error("Description is required");
+      return;
+    }
+    const qty = Number(quantity);
+    const price = Number(unitPrice);
+    if (!qty || qty <= 0) {
+      toast.error("Enter a valid quantity");
+      return;
+    }
+    if (price < 0) {
+      toast.error("Enter a valid unit price");
+      return;
+    }
+    onSubmit({
+      description: description.trim(),
+      item_type: itemType,
+      quantity: qty,
+      unit_price: price,
+      amount,
+    });
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? "Edit line item" : "Add line item"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Description *</Label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Consultation fee"
+            />
+          </div>
+          <div>
+            <Label>Type</Label>
+            <Select value={itemType} onValueChange={setItemType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="service">Service</SelectItem>
+                <SelectItem value="consultation">Consultation</SelectItem>
+                <SelectItem value="lab_test">Lab test</SelectItem>
+                <SelectItem value="radiology">Radiology</SelectItem>
+                <SelectItem value="prescription">Prescription</SelectItem>
+                <SelectItem value="bed_charge">Bed charge</SelectItem>
+                <SelectItem value="mortuary_storage">Mortuary storage</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Unit price (KES)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={unitPrice}
+                onChange={(e) => setUnitPrice(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="rounded-lg bg-muted px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Total: </span>
+            <span className="font-semibold">KES {amount.toFixed(2)}</span>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={pending}>
+            {pending ? "Saving…" : editing ? "Save changes" : "Add item"}
           </Button>
         </DialogFooter>
       </DialogContent>
