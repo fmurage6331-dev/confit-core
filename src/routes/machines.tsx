@@ -32,6 +32,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Wrench, Printer, FileText } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -191,11 +192,8 @@ function MachinesPage() {
         </div>
       </div>
 
-      <div className="print-only hidden print:block mb-4">
-        <h2 className="text-xl font-bold">LabTrack — Machines & Maintenance Report</h2>
-        <p className="text-sm text-muted-foreground">
-          Generated {format(new Date(), "dd MMM yyyy HH:mm")}
-        </p>
+      <div className="hidden print:block mb-4">
+        <PrintHeader title="Machines & Maintenance Report" />
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
