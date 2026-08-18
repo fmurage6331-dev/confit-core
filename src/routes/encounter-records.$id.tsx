@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, FolderOpen, Printer } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -414,21 +415,12 @@ function PrintableEncounterView({
   return (
     <div className="text-sm text-black space-y-6 font-sans">
       {/* ── Page header ── */}
-      <div className="flex items-start justify-between border-b-2 border-black pb-3">
-        <div>
-          <div className="text-xl font-bold">AegisCare / LabTrack</div>
-          <div className="text-xs text-gray-500">Full Encounter Summary</div>
-        </div>
-        <div className="text-right text-xs text-gray-500">
-          <div>Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}</div>
-          <div>
-            Encounter ID:{" "}
-            {String(e.id ?? "—")
-              .slice(0, 8)
-              .toUpperCase()}
-          </div>
-        </div>
-      </div>
+      <PrintHeader
+        title="Full Encounter Summary"
+        subtitle={`Encounter: ${String(e.id ?? "—")
+          .slice(0, 8)
+          .toUpperCase()}`}
+      />
 
       {/* ── Patient demographics ── */}
       <PrintSection title="Patient Information">

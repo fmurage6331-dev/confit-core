@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Printer, Trash2, FlaskConical, Send } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ParameterTable } from "@/components/parameter-table";
@@ -170,23 +171,10 @@ function RecordDetail() {
 
       {/* Printable slip */}
       <div className="rounded-xl border bg-card p-8 shadow-[var(--shadow-card)] print:border-0 print:shadow-none">
-        <div className="mb-6 flex items-center justify-between border-b pb-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <FlaskConical className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="font-semibold">LabTrack</div>
-              <div className="text-xs text-muted-foreground">Laboratory Test Report</div>
-            </div>
-          </div>
-          <div className="text-right text-xs text-muted-foreground">
-            <div>Issued: {format(new Date(), "dd MMM yyyy, HH:mm")}</div>
-            <div>
-              Lab #: <span className="font-mono">{record.lab_number}</span>
-            </div>
-          </div>
-        </div>
+        <PrintHeader
+          title="Laboratory Test Report"
+          subtitle={`Lab #: ${record.lab_number}`}
+        />
 
         <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
           <Field label="Patient name" value={record.patient_name} />
