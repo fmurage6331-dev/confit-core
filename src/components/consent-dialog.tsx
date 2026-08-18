@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { generateAndSendOtp } from "@/lib/otp-service";
 import {
   Dialog,
   DialogContent,
@@ -154,7 +155,6 @@ export function ConsentDialog(props: ConsentDialogProps) {
   const [consents, setConsents] = useState<ConsentMap>({ ...EMPTY_CONSENTS });
   const [step, setStep] = useState<"form" | "verify" | "done">("form");
   const [busy, setBusy] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
   const [otpId, setOtpId] = useState<string | null>(null);
   const [otpInput, setOtpInput] = useState("");
   const [slip, setSlip] = useState<SlipData | null>(null);
@@ -163,7 +163,6 @@ export function ConsentDialog(props: ConsentDialogProps) {
     if (!open) {
       setStep("form");
       setConsents({ ...EMPTY_CONSENTS });
-      setOtpCode("");
       setOtpId(null);
       setOtpInput("");
       setSlip(null);
@@ -183,32 +182,23 @@ export function ConsentDialog(props: ConsentDialogProps) {
       toast.error("General treatment and data privacy consent are both required");
       return;
     }
+    if (!patientPhone?.trim()) {
+      toast.error("Patient phone number is required to send verification code");
+      return;
+    }
     setBusy(true);
     try {
-      const code = generateOtp();
-      const hash = await sha256Hex(code);
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      const { data, error } = await db
-        .from("consent_otps")
-        .insert({
-          patient_id: patientId,
-          encounter_id: encounterId ?? null,
-          phone: patientPhone ?? "",
-          otp_hash: hash,
-          consent_type: "general_treatment",
-          expires_at: expiresAt,
-          receptionist_user_id: user.id,
-          delivery_status: "pending",
-        })
-        .select("id");
-      if (error) throw new Error(error.message);
-      const id = (data as { id: string }[] | null)?.[0]?.id;
-      if (!id) throw new Error("Could not create verification record");
-      setOtpCode(code);
+      const { otpId: id } = await generateAndSendOtp(
+        patientPhone.trim(),
+        patientId,
+        encounterId ?? "",
+        user.id,
+      );
       setOtpId(id);
       setStep("verify");
+      toast.success("Verification code sent to patient's phone");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate code");
+      toast.error(err instanceof Error ? err.message : "Failed to send verification code");
     } finally {
       setBusy(false);
     }
@@ -374,18 +364,19 @@ th{text-align:left;width:160px;vertical-align:top;color:#444}td{vertical-align:t
 
         {step === "verify" && (
           <div className="space-y-4">
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              {LEGAL_TEXT.replace("{OTP}", otpCode)}
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              Verification code sent to patient's phone
+              {patientPhone ? (
+                <span className="font-mono font-semibold">{patientPhone}</span>
+              ) : null}
             </div>
-            <div className="rounded-md border bg-muted/40 p-4 text-center">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Verification code (read to patient)
-              </div>
-              <div className="mt-1 font-mono text-3xl font-bold tracking-[0.4em]">{otpCode}</div>
-              <div className="mt-1 text-xs text-muted-foreground">Valid for 10 minutes</div>
+            <div className="rounded-md border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
+              Ask the patient to read out the 6-digit code they received by SMS. The code expires in
+              10 minutes.
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="consent-otp-input">Enter the code the patient confirmed</Label>
+              <Label htmlFor="consent-otp-input">Enter the code the patient received</Label>
               <Input
                 id="consent-otp-input"
                 inputMode="numeric"
