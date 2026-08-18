@@ -252,7 +252,12 @@ function InvoiceDetail() {
           <Button
             size="sm"
             onClick={() => setPayOpen(true)}
-            disabled={Number(inv.balance ?? 0) <= 0}
+            disabled={Number(inv.balance ?? 0) <= 0 || inv.status === "claimed"}
+            title={
+              inv.status === "claimed"
+                ? "Awaiting claim approval before payment can be recorded"
+                : undefined
+            }
           >
             <Plus className="mr-2 h-4 w-4" /> Record payment
           </Button>
@@ -484,7 +489,9 @@ function StatusBadge({ s }: { s: string | null }) {
         ? "bg-blue-100 text-blue-700"
         : s === "unpaid"
           ? "bg-rose-100 text-rose-700"
-          : "bg-muted text-muted-foreground";
+          : s === "claimed"
+            ? "bg-purple-100 text-purple-700"
+            : "bg-muted text-muted-foreground";
   return <Badge className={`${cls} hover:${cls}`}>{s ?? "draft"}</Badge>;
 }
 
