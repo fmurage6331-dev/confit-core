@@ -43,6 +43,7 @@ import {
   Truck,
   type LucideIcon,
 } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 import { toast } from "sonner";
 
 type NlmisRow = {
@@ -600,12 +601,8 @@ function ReportsPage() {
         </div>
       </div>
 
-      <div className="hidden print:block text-center mb-6">
-        <h1 className="text-2xl font-bold">LabTrack Reports</h1>
-        <p className="text-sm">
-          {q.label} — {year}
-        </p>
-        <p className="text-xs text-muted-foreground">Generated {new Date().toLocaleString()}</p>
+      <div className="hidden print:block mb-6">
+        <PrintHeader title="Reports" subtitle={`${q.label} — ${year}`} />
       </div>
 
       <section className="space-y-3 no-print">
