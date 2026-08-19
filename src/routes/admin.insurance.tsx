@@ -45,6 +45,7 @@ type Insurer = {
   coverage_rule: CoverageRule;
   per_visit_limit: number | null;
   is_active: boolean;
+  insurer_type: string | null;
 };
 
 const schema = z.object({
@@ -59,6 +60,7 @@ const schema = z.object({
   coverage_rule: z.enum(["percentage", "fixed_per_visit", "percentage_with_cap"]),
   per_visit_limit: z.coerce.number().min(0).nullable(),
   is_active: z.boolean(),
+  insurer_type: z.string().nullable(),
 });
 
 function AdminInsurance() {
@@ -67,12 +69,16 @@ function AdminInsurance() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Insurer | null>(null);
   const [open, setOpen] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
+  const [selectedForPlans, setSelectedForPlans] = useState<Insurer | null>(null);
 
   async function load() {
     setLoading(true);
     const { data, error } = await db
       .from("insurance_providers")
-      .select("id,name,code,coverage_percentage,coverage_rule,per_visit_limit,is_active")
+      .select(
+        "id,name,code,coverage_percentage,coverage_rule,per_visit_limit,is_active,insurer_type",
+      )
       .order("name");
     setLoading(false);
     if (error) {
@@ -98,6 +104,7 @@ function AdminInsurance() {
       coverage_rule: "percentage",
       per_visit_limit: null,
       is_active: true,
+      insurer_type: "private",
     });
     setOpen(true);
   }
@@ -127,6 +134,7 @@ function AdminInsurance() {
       coverage_rule: editing.coverage_rule,
       per_visit_limit: editing.coverage_rule === "percentage" ? null : editing.per_visit_limit,
       is_active: editing.is_active,
+      insurer_type: editing.insurer_type,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -234,6 +242,19 @@ function AdminInsurance() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
+                  {(r.insurer_type === "private" || r.insurer_type === "corporate") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mr-2 h-8 px-2 text-xs"
+                      onClick={() => {
+                        setSelectedForPlans(r);
+                        setPlansOpen(true);
+                      }}
+                    >
+                      Plans
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -254,21 +275,36 @@ function AdminInsurance() {
           </DialogHeader>
           {editing && (
             <form onSubmit={onSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Provider Type</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                    value={editing.insurer_type || "private"}
+                    onChange={(e) => setEditing({ ...editing, insurer_type: e.target.value })}
+                  >
+                    <option value="private">Private Insurance</option>
+                    <option value="corporate">Corporate</option>
+                    <option value="sha_shif">SHA SHIF</option>
+                    <option value="sha_phf">SHA PHF</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="code">Short code</Label>
+                  <Input
+                    id="code"
+                    value={editing.code}
+                    onChange={(e) => setEditing({ ...editing, code: e.target.value.toUpperCase() })}
+                    required
+                  />
+                </div>
+              </div>
               <div>
                 <Label htmlFor="name">Provider name</Label>
                 <Input
                   id="name"
                   value={editing.name}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="code">Short code</Label>
-                <Input
-                  id="code"
-                  value={editing.code}
-                  onChange={(e) => setEditing({ ...editing, code: e.target.value.toUpperCase() })}
                   required
                 />
               </div>
@@ -353,6 +389,184 @@ function AdminInsurance() {
           )}
         </DialogContent>
       </Dialog>
+
+      <BenefitPlansDialog insurer={selectedForPlans} open={plansOpen} onOpenChange={setPlansOpen} />
     </div>
+  );
+}
+
+type BenefitCategory = {
+  id: string;
+  plan_id: string;
+  category: string;
+  limit_amount: number;
+  coverage_percentage: number;
+  requires_preauth: boolean;
+};
+
+type BenefitPlan = {
+  id: string;
+  insurer_id: string;
+  plan_name: string;
+  benefit_period: string;
+  is_active: boolean;
+  insurance_benefit_categories: BenefitCategory[];
+};
+
+function BenefitPlansDialog({
+  insurer,
+  open,
+  onOpenChange,
+}: {
+  insurer: Insurer | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const [plans, setPlans] = useState<BenefitPlan[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<BenefitPlan | null>(null);
+
+  const loadPlans = async () => {
+    if (!insurer) return;
+    setLoading(true);
+    const { data } = await db
+      .from("insurance_benefit_plans")
+      .select("*, insurance_benefit_categories(*)")
+      .eq("insurer_id", insurer.id);
+    setPlans((data ?? []) as unknown as BenefitPlan[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (open) void loadPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, insurer]);
+
+  async function savePlan(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const planData = {
+      insurer_id: insurer?.id,
+      plan_name: fd.get("plan_name"),
+      benefit_period: fd.get("benefit_period"),
+      is_active: true,
+    };
+
+    if (editingPlan?.id) {
+      await db.from("insurance_benefit_plans").update(planData).eq("id", editingPlan.id);
+    } else {
+      await db.from("insurance_benefit_plans").insert(planData);
+    }
+    setEditingPlan(null);
+    loadPlans();
+    toast.success("Plan saved");
+  }
+
+  async function addCategory(planId: string) {
+    const cat = window.prompt(
+      "Category (inpatient, outpatient, dental, optical, pharmacy, maternity, radiology, other)?",
+    );
+    const limit = window.prompt("Limit Amount (KSh)?");
+    if (!cat || !limit) return;
+
+    await db.from("insurance_benefit_categories").insert({
+      plan_id: planId,
+      category: cat.toLowerCase(),
+      limit_amount: Number(limit),
+      coverage_percentage: 100,
+    });
+    loadPlans();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Benefit Plans — {insurer?.name}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <h3 className="text-sm font-semibold mb-3">
+              {editingPlan ? "Edit Plan" : "Create New Plan"}
+            </h3>
+            <form onSubmit={savePlan} className="grid gap-3 sm:grid-cols-3 items-end">
+              <div>
+                <Label>Plan Name</Label>
+                <Input
+                  name="plan_name"
+                  defaultValue={editingPlan?.plan_name}
+                  required
+                  placeholder="e.g. Corporate Gold"
+                />
+              </div>
+              <div>
+                <Label>Period</Label>
+                <select
+                  name="benefit_period"
+                  defaultValue={editingPlan?.benefit_period || "annual"}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value="annual">Annual</option>
+                  <option value="per_admission">Per Admission</option>
+                  <option value="lifetime">Lifetime</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit">{editingPlan ? "Update" : "Add Plan"}</Button>
+                {editingPlan && (
+                  <Button type="button" variant="ghost" onClick={() => setEditingPlan(null)}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          <div className="space-y-4">
+            {plans.map((p) => (
+              <div key={p.id} className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold">{p.plan_name}</span>
+                    <Badge variant="outline" className="ml-2 uppercase text-[10px]">
+                      {p.benefit_period}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setEditingPlan(p)}>
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => addCategory(p.id)}>
+                      + Add Limit
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {p.insurance_benefit_categories?.map((c: BenefitCategory) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between rounded bg-muted/50 px-2 py-1 text-xs"
+                    >
+                      <span className="capitalize">{c.category}</span>
+                      <span className="font-mono font-bold">
+                        KSh {c.limit_amount.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                  {(!p.insurance_benefit_categories ||
+                    p.insurance_benefit_categories.length === 0) && (
+                    <div className="text-xs text-muted-foreground italic col-span-full">
+                      No limits defined for this plan.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
