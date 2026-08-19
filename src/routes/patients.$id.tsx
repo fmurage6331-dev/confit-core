@@ -127,14 +127,20 @@ function PatientProfile() {
       const { data, error } = await supabase
         .from("encounters")
         .select(
-          "id,created_at,status,payment_mode,payment_status,subtotal,patient_due,amount_paid,from_room,current_room_id,tests,encounter_type,rooms(name)",
+          "id,created_at,status,payment_mode,payment_status,subtotal,patient_due,amount_paid,from_room,current_room_id,tests,encounter_type",
         )
         .eq("patient_id", id)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return ((data ?? []) as unknown as (Encounter & { rooms: { name: string } | null })[]).map(
-        (e) => ({ ...e, current_room_name: e.rooms?.name ?? null }),
-      );
+
+      if (error) {
+        console.error("Encounter query error:", error);
+        throw error;
+      }
+
+      return ((data ?? []) as unknown as Encounter[]).map((e) => ({
+        ...e,
+        current_room_name: null,
+      }));
     },
   });
 
