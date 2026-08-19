@@ -72,6 +72,7 @@ function EncounterRecordDetail() {
   const tabs: { key: string; label: string; show: boolean }[] = [
     { key: "encounter", label: "Encounter", show: true },
     { key: "bill", label: "Bill", show: canBill },
+    { key: "statement", label: "Statement / Receipt", show: canBill },
     { key: "doctor", label: "Doctor note", show: canDoctorNote },
     { key: "discharge", label: "Discharge note", show: canDischargeNote },
     { key: "rx", label: "Prescriptions", show: canRx },
@@ -214,10 +215,18 @@ function EncounterRecordDetail() {
             <Printer className="mr-2 h-4 w-4" />
             Print discharge summary
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print full encounter
-          </Button>
+          {active === "statement" && (
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print statement
+            </Button>
+          )}
+          {active !== "statement" && (
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print full encounter
+            </Button>
+          )}
         </div>
       </div>
 
@@ -238,6 +247,11 @@ function EncounterRecordDetail() {
         {canBill && (
           <TabsContent value="bill" className="mt-4">
             <BillSection encounterId={id} />
+          </TabsContent>
+        )}
+        {canBill && (
+          <TabsContent value="statement" className="mt-4">
+            <StatementSection encounterId={id} enc={enc.data} />
           </TabsContent>
         )}
         {canDoctorNote && (
@@ -1067,6 +1081,187 @@ function BillSection({ encounterId }: { encounterId: string }) {
           </div>
         </Card>
       ))}
+    </div>
+  );
+}
+
+// ---------- Patient Statement / Receipt ----------
+function StatementSection({ encounterId, enc }: { encounterId: string; enc: unknown }) {
+  const e = enc as (Record<string, unknown> & { patients?: Record<string, unknown> | null }) | null;
+  const p = e?.patients ?? {};
+
+  const invQ = useQuery({
+    queryKey: ["enc-statement-inv", encounterId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select(
+          "id,invoice_number,status,subtotal,discount,insurance_covered,total_due,amount_paid,balance,created_at,invoice_line_items(id,description,item_type,quantity,unit_price,amount)",
+        )
+        .eq("encounter_id", encounterId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const payQ = useQuery({
+    queryKey: ["enc-statement-pay", encounterId],
+    queryFn: async () => {
+      const invIds = (invQ.data ?? []).map((i) => i.id);
+      if (invIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("invoice_payments")
+        .select("id,invoice_id,amount,method,reference,paid_at")
+        .in("invoice_id", invIds)
+        .order("paid_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: (invQ.data ?? []).length > 0,
+  });
+
+  if (invQ.isLoading) return <Empty label="Loading…" />;
+  if (!invQ.data || invQ.data.length === 0) return <Empty label="No invoice for this encounter." />;
+
+  const inv = invQ.data[0];
+  const pays = payQ.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        {/* Header */}
+        <div className="mb-4 border-b pb-3">
+          <div className="text-lg font-bold">Patient Statement</div>
+          <div className="text-xs text-muted-foreground">
+            Invoice: {inv.invoice_number ?? inv.id.slice(0, 8)} · {fmt(inv.created_at)}
+          </div>
+        </div>
+
+        {/* Patient info */}
+        <div className="mb-4 grid grid-cols-2 gap-3 text-sm">
+          <Field label="Patient" value={String(p.patient_name ?? "—")} />
+          <Field label="File #" value={String(p.file_number ?? "—")} />
+          <Field label="Phone" value={String(p.phone ?? "—")} />
+          <Field label="Status" value={inv.status ?? "draft"} />
+        </div>
+
+        {/* Line items */}
+        <div className="overflow-hidden rounded-lg border mb-4">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left">Item</th>
+                <th className="px-3 py-2 text-right">Qty</th>
+                <th className="px-3 py-2 text-right">Unit</th>
+                <th className="px-3 py-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {(inv.invoice_line_items ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">
+                    No items.
+                  </td>
+                </tr>
+              )}
+              {(inv.invoice_line_items ?? []).map(
+                (li: {
+                  id: string;
+                  description: string | null;
+                  quantity: number | null;
+                  unit_price: number | null;
+                  amount: number | null;
+                }) => (
+                  <tr key={li.id}>
+                    <td className="px-3 py-2">{li.description ?? "—"}</td>
+                    <td className="px-3 py-2 text-right">{li.quantity ?? 1}</td>
+                    <td className="px-3 py-2 text-right">
+                      {Number(li.unit_price ?? 0).toFixed(2)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium">
+                      {Number(li.amount ?? 0).toFixed(2)}
+                    </td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Totals */}
+        <div className="ml-auto max-w-xs space-y-1 text-sm mb-4">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span>{Number(inv.subtotal ?? 0).toFixed(2)}</span>
+          </div>
+          {Number(inv.discount ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Discount</span>
+              <span>-{Number(inv.discount ?? 0).toFixed(2)}</span>
+            </div>
+          )}
+          {Number(inv.insurance_covered ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Insurance covered</span>
+              <span>-{Number(inv.insurance_covered ?? 0).toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t pt-1 font-semibold">
+            <span>Total due</span>
+            <span>{Number(inv.total_due ?? 0).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-emerald-700">
+            <span>Paid</span>
+            <span>{Number(inv.amount_paid ?? 0).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between border-t pt-1 font-bold text-rose-700">
+            <span>Balance</span>
+            <span>{Number(inv.balance ?? 0).toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Payments */}
+        {pays.length > 0 && (
+          <>
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Payment receipts
+            </div>
+            <div className="overflow-hidden rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Date</th>
+                    <th className="px-3 py-2 text-left">Method</th>
+                    <th className="px-3 py-2 text-left">Reference</th>
+                    <th className="px-3 py-2 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {pays.map((p) => (
+                    <tr key={p.id}>
+                      <td className="px-3 py-2">
+                        {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-3 py-2 capitalize">{p.method ?? "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{p.reference ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-medium">
+                        {Number(p.amount).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {Number(inv.balance ?? 0) <= 0 && (
+          <div className="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800 font-medium text-center">
+            ✅ PAID IN FULL — Thank you
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
