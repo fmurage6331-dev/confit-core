@@ -132,14 +132,20 @@ function PatientProfile() {
         .eq("patient_id", id)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Encounter query error:", error);
-        throw error;
+      if (error) throw error;
+
+      const encs = (data ?? []) as unknown as Encounter[];
+
+      const roomIds = [...new Set(encs.map((e) => e.current_room_id).filter(Boolean))] as string[];
+      let roomMap: Record<string, string> = {};
+      if (roomIds.length > 0) {
+        const { data: rooms } = await supabase.from("rooms").select("id,name").in("id", roomIds);
+        roomMap = Object.fromEntries((rooms ?? []).map((r) => [r.id, r.name]));
       }
 
-      return ((data ?? []) as unknown as Encounter[]).map((e) => ({
+      return encs.map((e) => ({
         ...e,
-        current_room_name: null,
+        current_room_name: e.current_room_id ? (roomMap[e.current_room_id] ?? null) : null,
       }));
     },
   });
