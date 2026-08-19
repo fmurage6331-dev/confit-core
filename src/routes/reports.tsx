@@ -53,6 +53,47 @@ type NlmisRow = {
   total_consumed: number;
 };
 
+type PharmRow = {
+  drug_name: string | null;
+  medication_name: string | null;
+  quantity: number | null;
+  unit: string | null;
+  dispensed_at: string | null;
+  dispensed_by_name: string | null;
+  patient_name: string | null;
+};
+
+function usePharmacyDispensing(from: string, to: string) {
+  return useQuery({
+    queryKey: ["pharmacy-dispensing", from, to],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prescriptions")
+        .select(
+          "drug_name,medication_name,quantity,unit,dispensed_at,dispensed_by_name,patient_registrations(patient_name)",
+        )
+        .eq("status", "dispensed")
+        .gte("dispensed_at", `${from}T00:00:00`)
+        .lte("dispensed_at", `${to}T23:59:59`)
+        .order("dispensed_at", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return ((data ?? []) as never[]).map((r: never) => ({
+        drug_name: (r as { drug_name: string | null }).drug_name,
+        medication_name: (r as { medication_name: string | null }).medication_name,
+        quantity: (r as { quantity: number | null }).quantity,
+        unit: (r as { unit: string | null }).unit,
+        dispensed_at: (r as { dispensed_at: string | null }).dispensed_at,
+        dispensed_by_name: (r as { dispensed_by_name: string | null }).dispensed_by_name,
+        patient_name:
+          (r as { patient_registrations: { patient_name: string | null } | null })
+            .patient_registrations?.patient_name ?? null,
+      })) as PharmRow[];
+    },
+    enabled: !!from && !!to,
+  });
+}
+
 function useNlmisReport(from: string, to: string) {
   return useQuery({
     queryKey: ["nlmis-report", from, to],
@@ -178,11 +219,15 @@ function ReportsPage() {
   const canFinance = hasPerm("reports.finance");
   const canRegistrations = hasPerm("reports.registrations");
   const canStock = hasPerm("reports.stock");
-  const canAny = canTests || canFinance || canRegistrations || canStock;
+  const canPharm = hasPerm("reports.stock") || hasPerm("pharmacy_view");
+  const canAny = canTests || canFinance || canRegistrations || canStock || canPharm;
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [quarter, setQuarter] = useState(Math.floor(now.getMonth() / 3) + 1);
+  const [pharmFrom, setPharmFrom] = useState(now.toISOString().slice(0, 8) + "01");
+  const [pharmTo, setPharmTo] = useState(now.toISOString().slice(0, 10));
+  const { data: pharmData, isLoading: pharmLoading } = usePharmacyDispensing(pharmFrom, pharmTo);
   const [openFund, setOpenFund] = useState(false);
   const [selectedMohPrintReport, setSelectedMohPrintReport] = useState("/moh/705");
   const [censusFrom, setCensusFrom] = useState(
@@ -822,6 +867,135 @@ function ReportsPage() {
           </div>
         )}
       </section>
+
+      {canPharm && (
+        <section className="space-y-4 no-print">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="text-xl font-semibold">Pharmacy Dispensing Report</h2>
+              <p className="text-sm text-muted-foreground">
+                All dispensed prescriptions for the selected date range.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Label className="text-xs">From</Label>
+              <Input
+                type="date"
+                value={pharmFrom}
+                onChange={(e) => setPharmFrom(e.target.value)}
+                className="w-36 h-8 text-sm"
+              />
+              <Label className="text-xs">To</Label>
+              <Input
+                type="date"
+                value={pharmTo}
+                onChange={(e) => setPharmTo(e.target.value)}
+                className="w-36 h-8 text-sm"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!pharmData || pharmData.length === 0}
+                onClick={() => {
+                  const rows = pharmData ?? [];
+                  const csv = [
+                    ["Date", "Patient", "Drug", "Qty", "Unit", "Dispensed By"].join(","),
+                    ...rows.map((r) =>
+                      [
+                        r.dispensed_at ? new Date(r.dispensed_at).toLocaleDateString() : "",
+                        `"${r.patient_name ?? ""}"`,
+                        `"${r.drug_name ?? ""}"`,
+                        r.quantity ?? 0,
+                        r.unit ?? "",
+                        `"${r.dispensed_by_name ?? ""}"`,
+                      ].join(","),
+                    ),
+                  ].join("\n");
+                  const blob = new Blob([csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `pharmacy-dispensing-${pharmFrom}-${pharmTo}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <FileDown className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-xl border bg-card p-4 text-center">
+              <div className="text-2xl font-bold text-primary">{pharmData?.length ?? 0}</div>
+              <div className="text-xs text-muted-foreground mt-1">Prescriptions Dispensed</div>
+            </div>
+            <div className="rounded-xl border bg-card p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {pharmData?.reduce((s, r) => s + Number(r.quantity ?? 0), 0).toLocaleString() ?? 0}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Total Units</div>
+            </div>
+            <div className="rounded-xl border bg-card p-4 text-center">
+              <div className="text-2xl font-bold text-emerald-600">
+                {new Set(pharmData?.map((r) => r.patient_name)).size ?? 0}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Unique Patients</div>
+            </div>
+            <div className="rounded-xl border bg-card p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {new Set(pharmData?.map((r) => r.drug_name)).size ?? 0}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Unique Drugs</div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-2">Patient</th>
+                  <th className="px-4 py-2">Drug</th>
+                  <th className="px-4 py-2 text-right">Qty</th>
+                  <th className="px-4 py-2">Unit</th>
+                  <th className="px-4 py-2">Dispensed by</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {pharmLoading && (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                      Loading…
+                    </td>
+                  </tr>
+                )}
+                {!pharmLoading && (pharmData ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                      No dispensing records for this period.
+                    </td>
+                  </tr>
+                )}
+                {(pharmData ?? []).map((r, i) => (
+                  <tr key={i} className="hover:bg-muted/20">
+                    <td className="px-4 py-2 text-muted-foreground">
+                      {r.dispensed_at ? new Date(r.dispensed_at).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="px-4 py-2 font-medium">{r.patient_name ?? "—"}</td>
+                    <td className="px-4 py-2">{r.drug_name ?? r.medication_name ?? "—"}</td>
+                    <td className="px-4 py-2 text-right font-mono">{Number(r.quantity ?? 0)}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{r.unit ?? "—"}</td>
+                    <td className="px-4 py-2 text-muted-foreground">
+                      {r.dispensed_by_name ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {canRegistrations && (
         <div className="rounded-xl border bg-card overflow-hidden">
