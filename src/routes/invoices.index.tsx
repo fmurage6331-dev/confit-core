@@ -42,6 +42,7 @@ type Row = {
   patient_id: string | null;
   encounter_id: string | null;
   patients: { patient_name: string | null; file_number: string | null } | null;
+  mortuary_records: { deceased_name: string | null } | null;
 };
 
 function StatusBadge({ s }: { s: string | null }) {
@@ -70,7 +71,7 @@ function InvoicesList() {
       const { data, error } = await supabase
         .from("invoices")
         .select(
-          "id,invoice_number,status,subtotal,discount,insurance_covered,total_due,amount_paid,balance,created_at,patient_id,encounter_id,patients(patient_name,file_number)",
+          "id,invoice_number,status,subtotal,discount,insurance_covered,total_due,amount_paid,balance,created_at,patient_id,encounter_id,patients(patient_name,file_number),mortuary_records(deceased_name)",
         )
         .order("created_at", { ascending: false })
         .limit(500);
@@ -87,7 +88,9 @@ function InvoicesList() {
       const needle = q.toLowerCase();
       return (
         (r.invoice_number ?? "").toLowerCase().includes(needle) ||
-        (r.patients?.patient_name ?? "").toLowerCase().includes(needle) ||
+        (r.mortuary_records?.deceased_name ?? r.patients?.patient_name ?? "")
+          .toLowerCase()
+          .includes(needle) ||
         (r.patients?.file_number ?? "").toLowerCase().includes(needle)
       );
     });
@@ -196,7 +199,9 @@ function InvoicesList() {
                   </Link>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="font-medium">{r.patients?.patient_name ?? "—"}</div>
+                  <div className="font-medium">
+                    {r.mortuary_records?.deceased_name ?? r.patients?.patient_name ?? "—"}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {r.patients?.file_number ?? ""}
                   </div>

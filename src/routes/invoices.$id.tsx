@@ -58,6 +58,7 @@ type Invoice = {
     file_number: string | null;
     phone: string | null;
   } | null;
+  mortuary_records: { deceased_name: string | null } | null;
 };
 
 type LineItem = {
@@ -93,7 +94,7 @@ function InvoiceDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
-        .select("*, patients(patient_name,file_number,phone)")
+        .select("*, patients(patient_name,file_number,phone), mortuary_records(deceased_name)")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
@@ -286,7 +287,9 @@ function InvoiceDetail() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <div className="text-xs uppercase text-muted-foreground">Billed to</div>
-            <div className="mt-1 font-medium">{inv.patients?.patient_name ?? "—"}</div>
+            <div className="mt-1 font-medium">
+              {inv.mortuary_records?.deceased_name ?? inv.patients?.patient_name ?? "—"}
+            </div>
             <div className="text-sm text-muted-foreground">
               {inv.patients?.file_number}
               {inv.patients?.phone ? ` · ${inv.patients.phone}` : ""}
