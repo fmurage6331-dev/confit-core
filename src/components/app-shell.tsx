@@ -197,7 +197,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <h1 className="text-xl font-semibold">No access yet</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your account is created but hasn't been granted access. Contact the lab administrator.
+            Your account is created but hasn't been granted access. Contact the administrator.
           </p>
           <Button variant="outline" className="mt-6" onClick={() => signOut()}>
             <LogOut className="mr-2 h-4 w-4" /> Sign out
