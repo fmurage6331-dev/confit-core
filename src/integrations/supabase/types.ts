@@ -5271,6 +5271,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      process_dialysis_session_billing: {
+        Args: {
+          p_items: Json
+          p_patient_id: string
+          p_room_id: string
+          p_session_id: string
+        }
+        Returns: undefined
+      }
       receive_stock_to_location: {
         Args: {
           note?: string

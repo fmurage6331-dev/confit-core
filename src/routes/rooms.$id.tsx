@@ -6335,6 +6335,12 @@ function DialysisRoomView({ room }: { room: Room }) {
   const [sessions, setSessions] = useState<Record<string, unknown>[]>([]);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [stockItems, setStockItems] = useState<{ id: string; name: string; unit_price: number }[]>(
+    [],
+  );
+  const [selectedConsumables, setSelectedConsumables] = useState<
+    { id: string; name: string; qty: number; unit_price: number }[]
+  >([]);
   const [form, setForm] = useState({
     patient_id: "",
     machine_id: "",
@@ -6400,13 +6406,20 @@ function DialysisRoomView({ room }: { room: Room }) {
       .then(({ data }) =>
         setMachines((data ?? []) as { id: string; name: string; status: string }[]),
       );
+    db.from("stock_items")
+      .select("id,name,unit_price")
+      .eq("category", "Dialysis")
+      .order("name")
+      .then(({ data }) =>
+        setStockItems((data ?? []) as { id: string; name: string; unit_price: number }[]),
+      );
     loadSessions();
   }, [room.id, loadSessions]);
 
   async function saveSession() {
     setSaving(true);
     const num = (v: string) => (v.trim() ? Number(v) : null);
-    const { error } = await supabase.from("dialysis_sessions").insert({
+    const { data: sess, error: sessErr } = await (supabase.from("dialysis_sessions").insert({
       patient_id: form.patient_id || null,
       machine_id: form.machine_id || null,
       room_id: room.id,
@@ -6435,14 +6448,34 @@ function DialysisRoomView({ room }: { room: Room }) {
       nurse_notes: form.nurse_notes || null,
       performed_by: user?.id,
       status: "completed",
-    } as never);
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
+    } as never) as unknown as Promise<{
+      data: { id: string } | null;
+      error: { message: string } | null;
+    }>);
+    if (sessErr) {
+      setSaving(false);
+      toast.error(sessErr.message);
       return;
     }
-    toast.success("Dialysis session saved");
+    if (sess) {
+      const billingItems = selectedConsumables.map((c) => ({
+        item_id: c.id,
+        name: c.name,
+        quantity: c.qty,
+        unit_price: c.unit_price,
+      }));
+      const { error: billErr } = await supabase.rpc("process_dialysis_session_billing", {
+        p_patient_id: form.patient_id,
+        p_room_id: room.id,
+        p_session_id: sess.id,
+        p_items: billingItems,
+      } as never);
+      if (billErr) toast.error("Session saved but billing failed: " + billErr.message);
+      else toast.success("Dialysis session saved and billed");
+    }
+    setSaving(false);
     setSessionOpen(false);
+    setSelectedConsumables([]);
     loadSessions();
   }
 
@@ -6791,6 +6824,55 @@ function DialysisRoomView({ room }: { room: Room }) {
                 ))}
               </div>
             </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Consumables (from Dialysis Store)
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {stockItems.map((item) => {
+                  const selected = selectedConsumables.find((s) => s.id === item.id);
+                  return (
+                    <div key={item.id} className="flex items-center gap-2 border rounded p-2">
+                      <input
+                        type="checkbox"
+                        checked={!!selected}
+                        onChange={() => {
+                          if (selected) {
+                            setSelectedConsumables((prev) => prev.filter((s) => s.id !== item.id));
+                          } else {
+                            setSelectedConsumables((prev) => [
+                              ...prev,
+                              { id: item.id, name: item.name, qty: 1, unit_price: item.unit_price },
+                            ]);
+                          }
+                        }}
+                      />
+                      <div className="flex-1 text-sm">{item.name}</div>
+                      {selected && (
+                        <Input
+                          type="number"
+                          value={selected.qty}
+                          onChange={(e) =>
+                            setSelectedConsumables((prev) =>
+                              prev.map((s) =>
+                                s.id === item.id ? { ...s, qty: parseInt(e.target.value) || 1 } : s,
+                              ),
+                            )
+                          }
+                          className="w-16 h-8 text-xs"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+                {stockItems.length === 0 && (
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    No dialysis consumables in stock. Add items to the Dialysis Store first.
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="rounded-lg border p-3 bg-muted/30">
               <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
                 Complications
