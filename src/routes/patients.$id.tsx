@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -673,10 +674,43 @@ function NewEncounterDialog({
   const [sendToRoomId, setSendToRoomId] = useState("");
   const [mode, setMode] = useState<PaymentMode>("cash");
   const [insurerId, setInsurerId] = useState("");
+  const [insurancePolicyNumber, setInsurancePolicyNumber] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [lastEncounter, setLastEncounter] = useState<{
+    payment_mode: string;
+    insurance_provider_id: string | null;
+    insurance_policy_number: string | null;
+    insurer_name: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    // Fetch last encounter payment details for pre-fill
+    supabase
+      .from("encounters")
+      .select(
+        "payment_mode,insurance_provider_id,insurance_policy_number,insurance_providers(name)",
+      )
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          const d = data as unknown as {
+            payment_mode: string;
+            insurance_provider_id: string | null;
+            insurance_policy_number: string | null;
+            insurance_providers: { name: string } | null;
+          };
+          setLastEncounter({
+            payment_mode: d.payment_mode,
+            insurance_provider_id: d.insurance_provider_id,
+            insurance_policy_number: d.insurance_policy_number,
+            insurer_name: d.insurance_providers?.name ?? null,
+          });
+        }
+      });
     db.from("insurance_providers")
       .select("id,name,code,coverage_percentage,coverage_rule,per_visit_limit")
       .eq("is_active", true)
@@ -694,7 +728,7 @@ function NewEncounterDialog({
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => setRooms((data ?? []) as Room[]));
-  }, [open]);
+  }, [open, patientId]);
 
   const insurer = insurers.find((i) => i.id === insurerId);
   const priceFor = (t: TestRow) =>
@@ -715,6 +749,8 @@ function NewEncounterDialog({
     mutationFn: async () => {
       if (!sendToRoomId) throw new Error("Select the room to send the patient to");
       if (mode === "insurance" && !insurer) throw new Error("Select an insurance provider");
+      if (mode === "insurance" && !insurancePolicyNumber.trim())
+        throw new Error("Insurance policy number is required");
       const hasTests = selected.length > 0;
       const { error, data } = await supabase
         .from("encounters")
@@ -726,6 +762,7 @@ function NewEncounterDialog({
           payment_mode: mode,
           insurance_provider_id: mode === "insurance" ? insurer!.id : null,
           insurance_coverage_percentage: mode === "insurance" ? coveragePct : null,
+          insurance_policy_number: mode === "insurance" ? insurancePolicyNumber.trim() : null,
           tests: selected.map((t) => ({ id: t.id, name: t.name, price: priceFor(t) })),
           subtotal,
           insurance_covered: insuranceCovered,
@@ -750,7 +787,19 @@ function NewEncounterDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) {
+          setMode("cash");
+          setInsurerId("");
+          setInsurancePolicyNumber("");
+          setSelectedIds(new Set());
+          setLastEncounter(null);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" /> New encounter
@@ -822,25 +871,60 @@ function NewEncounterDialog({
               />
             </div>
             {mode === "insurance" && (
-              <div className="mt-3 space-y-1.5">
-                <Label>Insurance provider</Label>
-                <Select value={insurerId} onValueChange={setInsurerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select insurer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {insurers.map((i) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.name} ·{" "}
-                        {i.coverage_rule === "fixed_per_visit"
-                          ? `KSh ${Number(i.per_visit_limit ?? 0).toLocaleString()} / visit`
-                          : i.coverage_rule === "percentage_with_cap"
-                            ? `${i.coverage_percentage}% ≤ KSh ${Number(i.per_visit_limit ?? 0).toLocaleString()}`
-                            : `${i.coverage_percentage}%`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="mt-3 space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Insurance provider</Label>
+                  <Select value={insurerId} onValueChange={setInsurerId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select insurer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {insurers.map((i) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.name} ·{" "}
+                          {i.coverage_rule === "fixed_per_visit"
+                            ? `KSh ${Number(i.per_visit_limit ?? 0).toLocaleString()} / visit`
+                            : i.coverage_rule === "percentage_with_cap"
+                              ? `${i.coverage_percentage}% ≤ KSh ${Number(i.per_visit_limit ?? 0).toLocaleString()}`
+                              : `${i.coverage_percentage}%`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Insurance policy number *</Label>
+                  <Input
+                    value={insurancePolicyNumber}
+                    onChange={(e) => setInsurancePolicyNumber(e.target.value)}
+                    placeholder="e.g. JUB/2026/123456"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Last visit payment banner */}
+            {lastEncounter && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                <span className="font-semibold">Last visit:</span>{" "}
+                {lastEncounter.payment_mode === "insurance"
+                  ? `Insurance — ${lastEncounter.insurer_name ?? "Unknown"} · ${lastEncounter.insurance_policy_number ?? "No policy #"}`
+                  : lastEncounter.payment_mode === "free"
+                    ? "Free / Waived"
+                    : "Cash"}{" "}
+                <button
+                  type="button"
+                  className="ml-2 underline font-medium"
+                  onClick={() => {
+                    setMode(lastEncounter.payment_mode as PaymentMode);
+                    if (lastEncounter.payment_mode === "insurance") {
+                      setInsurerId(lastEncounter.insurance_provider_id ?? "");
+                      setInsurancePolicyNumber(lastEncounter.insurance_policy_number ?? "");
+                    }
+                  }}
+                >
+                  Use same
+                </button>
               </div>
             )}
           </div>
