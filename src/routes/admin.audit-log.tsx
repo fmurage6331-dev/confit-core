@@ -47,7 +47,7 @@ type Row = {
   old_data: Record<string, unknown> | null;
   new_data: Record<string, unknown> | null;
   changed_by: string | null;
-  changed_at: string;
+  changed_at: string | null;
   display_name?: string;
 };
 
@@ -264,7 +264,7 @@ function AuditLogView() {
                 onClick={() => setOpen(r)}
               >
                 <td className="px-4 py-3 whitespace-nowrap text-xs">
-                  {format(new Date(r.changed_at), "dd MMM yyyy, HH:mm:ss")}
+                  {r.changed_at ? format(new Date(r.changed_at), "dd MMM yyyy, HH:mm:ss") : "—"}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">{r.table_name}</td>
                 <td className="px-4 py-3">
@@ -298,7 +298,9 @@ function AuditLogView() {
               {open?.action} on {open?.table_name} · {open?.record_id?.slice(0, 8)}
               <span className="ml-3 text-sm font-normal text-muted-foreground">
                 by {open?.display_name} ·{" "}
-                {open && format(new Date(open.changed_at), "dd MMM yyyy, HH:mm:ss")}
+                {open?.changed_at
+                  ? format(new Date(open.changed_at), "dd MMM yyyy, HH:mm:ss")
+                  : "—"}
               </span>
             </DialogTitle>
           </DialogHeader>
