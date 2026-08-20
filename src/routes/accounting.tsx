@@ -90,7 +90,7 @@ function StatusPill({ s }: { s: Account["payment_status"] }) {
 }
 
 function Accounting() {
-  const { user } = useAuth();
+  const { user, hasPerm } = useAuth();
   const [rows, setRows] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unpaid" | "paid" | "waived">("all");
@@ -106,6 +106,10 @@ function Accounting() {
   const [eodOpen, setEodOpen] = useState(false);
   const [eodData, setEodData] = useState<{ method: string; total: number }[]>([]);
   const [eodLoading, setEodLoading] = useState(false);
+  const [chgPmtOpen, setChgPmtOpen] = useState<Account | null>(null);
+  const [chgPmtMode, setChgPmtMode] = useState<string>("cash");
+  const [chgPmtInsurer, setChgPmtInsurer] = useState<string>("");
+  const [chgPmtSaving, setChgPmtSaving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -282,6 +286,36 @@ function Accounting() {
     load();
   }
 
+  async function changePaymentMode() {
+    if (!chgPmtOpen) return;
+    setChgPmtSaving(true);
+    const isSha =
+      chgPmtMode === "insurance" && (chgPmtInsurer === "sha_shif" || chgPmtInsurer === "sha_phf");
+    const updates = {
+      payment_mode: chgPmtMode,
+      insurer_type: chgPmtMode === "insurance" ? chgPmtInsurer || null : null,
+      sha_fund_type: isSha ? chgPmtInsurer.replace("sha_", "") : null,
+    };
+    const { error: regErr } = await supabase
+      .from("patient_registrations")
+      .update(updates as never)
+      .eq("id", chgPmtOpen.id);
+    if (regErr) {
+      toast.error(regErr.message);
+      setChgPmtSaving(false);
+      return;
+    }
+    // Also update encounters table (same id)
+    await supabase
+      .from("encounters")
+      .update(updates as never)
+      .eq("id", chgPmtOpen.id);
+    setChgPmtSaving(false);
+    setChgPmtOpen(null);
+    toast.success("Payment method updated");
+    load();
+  }
+
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -419,6 +453,22 @@ function Accounting() {
                           Waive
                         </Button>
                       )}
+                      {!settled &&
+                        r.payment_status === "unpaid" &&
+                        hasPerm("change_payment_method") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                            onClick={() => {
+                              setChgPmtOpen(r);
+                              setChgPmtMode(r.payment_mode);
+                              setChgPmtInsurer(r.insurer_type ?? "");
+                            }}
+                          >
+                            Change payment
+                          </Button>
+                        )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -554,6 +604,57 @@ function Accounting() {
             </Button>
             <Button onClick={submitCreditNote} disabled={saving}>
               {saving ? "Saving…" : "Issue credit note"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Payment Method Dialog */}
+      <Dialog open={!!chgPmtOpen} onOpenChange={(o) => !o && setChgPmtOpen(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change payment method — {chgPmtOpen?.patient_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Payment mode</Label>
+              <Select value={chgPmtMode} onValueChange={setChgPmtMode}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="insurance">Insurance</SelectItem>
+                  <SelectItem value="free">Free / Waived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {chgPmtMode === "insurance" && (
+              <div>
+                <Label>Insurer type</Label>
+                <Select value={chgPmtInsurer} onValueChange={setChgPmtInsurer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select insurer…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sha_shif">SHA — SHIF</SelectItem>
+                    <SelectItem value="sha_phf">SHA — PHF</SelectItem>
+                    <SelectItem value="private">Private Insurance</SelectItem>
+                    <SelectItem value="corporate">Corporate / LPO</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChgPmtOpen(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={chgPmtSaving || (chgPmtMode === "insurance" && !chgPmtInsurer)}
+              onClick={changePaymentMode}
+            >
+              {chgPmtSaving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
