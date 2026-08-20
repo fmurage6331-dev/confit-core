@@ -5163,12 +5163,17 @@ export type Database = {
     }
     Functions: {
       accrue_daily_bed_charges: { Args: never; Returns: undefined }
+      accrue_daily_icu_charges: { Args: never; Returns: undefined }
       accrue_daily_mortuary_charges: { Args: never; Returns: undefined }
       archive_old_audit_logs: { Args: never; Returns: undefined }
       build_fhir_claim: { Args: { p_claim_id: string }; Returns: Json }
       can_access_room: {
         Args: { _room: string; _user: string }
         Returns: boolean
+      }
+      charge_icu_admission_fee: {
+        Args: { p_encounter_id: string; p_ward_id: string }
+        Returns: undefined
       }
       create_encounter_from_appointment: {
         Args: { p_appointment_id: string }

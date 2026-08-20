@@ -3995,6 +3995,12 @@ function ConsultationAdmitDialog({
       loadBeds(wardId);
       return;
     }
+    // Auto-charge ICU admission fee if admitting to ICU ward
+    await supabase.rpc("charge_icu_admission_fee", {
+      p_encounter_id: reg.id,
+      p_ward_id: wardId,
+    } as never);
+
     toast.success("Patient admitted");
     onAdmitted();
   }
