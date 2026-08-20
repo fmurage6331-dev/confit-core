@@ -341,6 +341,28 @@ function RegisterPatient() {
       return;
     }
 
+    // Check for duplicate national ID — warn but allow (child may use parent ID)
+    if (nationalId.trim()) {
+      const { data: dupes } = await supabase
+        .from("patients")
+        .select("id,patient_name,national_id_type")
+        .eq("national_id", nationalId.trim())
+        .limit(1);
+      if (dupes && dupes.length > 0) {
+        const existing = dupes[0];
+        const confirmed = window.confirm(
+          `⚠️ Another patient already uses this ID number:\n\n` +
+            `"${existing.patient_name}" (${existing.national_id_type ?? "ID"})\n\n` +
+            `This may be a child using a parent's ID or a family member.\n\n` +
+            `Do you want to continue with this registration?`,
+        );
+        if (!confirmed) {
+          scrollTo("demographics");
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     const patientName = [firstName, middleName, familyName].filter(Boolean).join(" ").trim();
     const hasTests = selectedTests.length > 0;
