@@ -53,6 +53,7 @@ type OrderRow = {
     sex: string | null;
     date_of_birth: string | null;
     estimated_age: number | null;
+    phone: string | null;
   } | null;
   lab_test_catalog: { name: string | null; category: string | null } | null;
 };
@@ -81,7 +82,7 @@ function RadiologyDetail() {
       const { data, error } = await supabase
         .from("radiology_orders")
         .select(
-          "id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,patients(patient_name,file_number,sex,date_of_birth,estimated_age),lab_test_catalog(name,category)",
+          "id,status,priority,clinical_indication,ordered_at,patient_id,encounter_id,patients(patient_name,file_number,sex,date_of_birth,estimated_age,phone),lab_test_catalog(name,category)",
         )
         .eq("id", id)
         .single();
@@ -183,11 +184,24 @@ function RadiologyDetail() {
         }
       }
     },
-    onSuccess: (_d, vars) => {
+    onSuccess: async (_d, vars) => {
       toast.success(vars?.markCompleted ? "Report finalized" : "Saved");
       qc.invalidateQueries({ queryKey: ["radiology-result", id] });
       qc.invalidateQueries({ queryKey: ["radiology-order", id] });
       qc.invalidateQueries({ queryKey: ["radiology-orders"] });
+
+      // Send SMS notification on finalize — no PHI in message (ODPC compliant)
+      if (vars?.markCompleted) {
+        const phone = (order?.patients as unknown as { phone?: string | null })?.phone;
+        if (phone) {
+          await supabase.functions.invoke("send-sms", {
+            body: {
+              phone,
+              message: `Dear ${order?.patients?.patient_name ?? "Patient"}, your radiology report from AegisCare is ready. Please visit the facility or call us to discuss your results. Do not share this message.`,
+            },
+          });
+        }
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

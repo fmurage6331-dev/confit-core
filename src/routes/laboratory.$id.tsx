@@ -91,6 +91,7 @@ type OrderRow = {
     file_number: string | null;
     sex: string | null;
     estimated_age: number | null;
+    phone: string | null;
   } | null;
   lab_test_catalog: {
     name: string | null;
@@ -161,7 +162,7 @@ function LaboratoryDetail() {
       const { data, error } = await supabase
         .from("lab_orders")
         .select(
-          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,requested_by_room_id,patients(patient_name,file_number,sex,estimated_age),lab_test_catalog(name,category,loinc_code,parameters),rooms(name)",
+          "id,order_number,status,priority,instructions,ordered_at,patient_id,encounter_id,requested_by_room_id,patients(patient_name,file_number,sex,estimated_age,phone),lab_test_catalog(name,category,loinc_code,parameters),rooms(name)",
         )
         .eq("id", id)
         .single();
@@ -373,11 +374,26 @@ function LaboratoryDetail() {
         }
       }
     },
-    onSuccess: (_d, vars) => {
-      toast.success(vars?.finalize ? "Result finalized" : "Saved");
+    onSuccess: async (_d, vars) => {
+      toast.success(
+        vars?.finalize ? "Result finalized" : vars?.verify ? "Result verified" : "Saved",
+      );
       qc.invalidateQueries({ queryKey: ["lab-result", id] });
       qc.invalidateQueries({ queryKey: ["lab-order", id] });
       qc.invalidateQueries({ queryKey: ["lab-orders"] });
+
+      // Send SMS notification on verify only — no PHI in message (ODPC compliant)
+      if (vars?.verify) {
+        const phone = (order?.patients as unknown as { phone?: string | null })?.phone;
+        if (phone) {
+          await supabase.functions.invoke("send-sms", {
+            body: {
+              phone,
+              message: `Dear ${order?.patients?.patient_name ?? "Patient"}, your laboratory result from AegisCare is ready. Please visit the facility or call us to discuss your results. Do not share this message.`,
+            },
+          });
+        }
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
