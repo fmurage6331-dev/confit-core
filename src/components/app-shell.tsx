@@ -130,8 +130,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             r.kind !== "radiology" &&
             !(r.kind === "ward" && !facilityLevel.hasInpatient) &&
             !(r.kind === "mortuary" && !facilityLevel.hasMortuary) &&
-            !(r.kind === "icu" && !facilityLevel.hasICU) &&
-            !(r.kind === "theatre" && !facilityLevel.hasTheatre),
+            !(r.kind === "theatre" && !facilityLevel.hasTheatre) &&
+            !(
+              (r.kind === "icu" ||
+                r.name.toLowerCase().includes("icu") ||
+                r.name.toLowerCase().includes("intensive care") ||
+                r.name.toLowerCase().includes("intense care") ||
+                r.name.toLowerCase().includes("hdu")) &&
+              !facilityLevel.hasICU
+            ),
         );
         setAccessibleRooms(rows.map((r) => ({ id: r.id, name: r.name })));
       } else {
@@ -153,8 +160,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               r.kind !== "radiology" &&
               !(r.kind === "ward" && !facilityLevel.hasInpatient) &&
               !(r.kind === "mortuary" && !facilityLevel.hasMortuary) &&
-              !(r.kind === "icu" && !facilityLevel.hasICU) &&
-              !(r.kind === "theatre" && !facilityLevel.hasTheatre),
+              !(r.kind === "theatre" && !facilityLevel.hasTheatre) &&
+              !(
+                (r.kind === "icu" ||
+                  r.name.toLowerCase().includes("icu") ||
+                  r.name.toLowerCase().includes("intensive care") ||
+                  r.name.toLowerCase().includes("intense care") ||
+                  r.name.toLowerCase().includes("hdu")) &&
+                !facilityLevel.hasICU
+              ),
           );
         setAccessibleRooms(rows.map((r) => ({ id: r.id, name: r.name })));
       }

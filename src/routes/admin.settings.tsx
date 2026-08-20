@@ -133,17 +133,20 @@ function SettingsPage() {
     e.preventDefault();
     setSavingFacility(true);
     try {
-      const { error } = await supabase.from("app_settings").update({
-        facility_name: facility.facility_name.trim() || null,
-        facility_kmhfl_code: facility.facility_kmhfl_code.trim() || null,
-        facility_sha_id: facility.facility_sha_id.trim() || null,
-        facility_sha_provider_no: facility.facility_sha_provider_no.trim() || null,
-        facility_county: facility.facility_county.trim() || null,
-        facility_address: facility.facility_address.trim() || null,
-        facility_phone: facility.facility_phone.trim() || null,
-        facility_email: facility.facility_email.trim() || null,
-        facility_level: facility.facility_level.trim() || null,
-      } as never).eq("id", "global");
+      const { error } = await supabase
+        .from("app_settings")
+        .update({
+          facility_name: facility.facility_name.trim() || null,
+          facility_kmhfl_code: facility.facility_kmhfl_code.trim() || null,
+          facility_sha_id: facility.facility_sha_id.trim() || null,
+          facility_sha_provider_no: facility.facility_sha_provider_no.trim() || null,
+          facility_county: facility.facility_county.trim() || null,
+          facility_address: facility.facility_address.trim() || null,
+          facility_phone: facility.facility_phone.trim() || null,
+          facility_email: facility.facility_email.trim() || null,
+          facility_level: facility.facility_level.trim() || null,
+        } as never)
+        .eq("id", "global");
       if (error) throw error;
       toast.success("Facility details saved");
     } catch (err) {
@@ -327,11 +330,12 @@ function SettingsPage() {
                         >
                           <option value="">— Select level —</option>
                           <option value="1">Level 1 — Community Health Unit</option>
-                          <option value="2">Level 2 — Dispensary</option>
-                          <option value="3">Level 3 — Health Centre</option>
-                          <option value="4">Level 4 — County Referral Hospital</option>
-                          <option value="5">Level 5 — Regional Referral Hospital</option>
-                          <option value="6">Level 6 — National Referral Hospital</option>
+                          <option value="2">Level 2 — Dispensary / Clinic</option>
+                          <option value="3A">Level 3A — Health Centre (Basic)</option>
+                          <option value="3B">Level 3B — Health Centre (Advanced)</option>
+                          <option value="4">Level 4 — Primary / Sub-County Hospital</option>
+                          <option value="5">Level 5 — County / Secondary Hospital</option>
+                          <option value="6">Level 6 — National / Teaching Hospital</option>
                         </select>
                         <p className="mt-1 text-xs text-muted-foreground">
                           Used to filter applicable SHA benefit packages.
