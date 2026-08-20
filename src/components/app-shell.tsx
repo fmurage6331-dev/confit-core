@@ -125,7 +125,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           .eq("is_active", true)
           .order("name");
         const rows = ((data ?? []) as { id: string; name: string; kind: string }[]).filter(
-          (r) => r.kind !== "lab" && r.kind !== "radiology",
+          (r) =>
+            r.kind !== "lab" &&
+            r.kind !== "radiology" &&
+            !(r.kind === "ward" && !facilityLevel.hasInpatient) &&
+            !(r.kind === "mortuary" && !facilityLevel.hasMortuary) &&
+            !(r.kind === "icu" && !facilityLevel.hasICU) &&
+            !(r.kind === "theatre" && !facilityLevel.hasTheatre),
         );
         setAccessibleRooms(rows.map((r) => ({ id: r.id, name: r.name })));
       } else {
@@ -141,12 +147,26 @@ export function AppShell({ children }: { children: ReactNode }) {
           .map((r) => r.rooms)
           .filter(
             (r): r is { id: string; name: string; is_active: boolean; kind: string } =>
-              !!r && r.is_active && r.kind !== "lab" && r.kind !== "radiology",
+              !!r &&
+              r.is_active &&
+              r.kind !== "lab" &&
+              r.kind !== "radiology" &&
+              !(r.kind === "ward" && !facilityLevel.hasInpatient) &&
+              !(r.kind === "mortuary" && !facilityLevel.hasMortuary) &&
+              !(r.kind === "icu" && !facilityLevel.hasICU) &&
+              !(r.kind === "theatre" && !facilityLevel.hasTheatre),
           );
         setAccessibleRooms(rows.map((r) => ({ id: r.id, name: r.name })));
       }
     })();
-  }, [user, isAdmin]);
+  }, [
+    user,
+    isAdmin,
+    facilityLevel.hasInpatient,
+    facilityLevel.hasMortuary,
+    facilityLevel.hasICU,
+    facilityLevel.hasTheatre,
+  ]);
 
   const { data: lowStockCount } = useQuery({
     queryKey: ["low-stock-count"],
