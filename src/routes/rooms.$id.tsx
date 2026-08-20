@@ -484,7 +484,7 @@ function RoomPage() {
       (room?.name?.toLowerCase().includes("insurance") || room?.name?.toLowerCase().includes("sha"))
     )
       return "Process Claim";
-    return "Request services";
+    return "Open";
   }
 
   if (kind === "ward") {
