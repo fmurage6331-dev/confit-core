@@ -2614,6 +2614,7 @@ function InsuranceDialog({
     reg.insurance_coverage_percentage != null ? String(reg.insurance_coverage_percentage) : "",
   );
   const [clearing, setClearing] = useState(false);
+  const { user } = useAuth();
 
   async function applyClearance(status: "approved" | "rejected" | "waived") {
     setClearing(true);
@@ -2641,6 +2642,14 @@ function InsuranceDialog({
       return;
     }
     setClearanceStatus(status);
+    if (status === "waived") {
+      await db.rpc("log_break_glass_access", {
+        p_patient_id: reg.patient_id,
+        p_justification: "Emergency insurance waiver applied at insurance desk",
+        p_accessed_by: user?.id ?? "",
+        p_accessor_email: user?.email ?? "",
+      } as never);
+    }
     toast.success(
       status === "approved"
         ? "Clearance approved — patient routed to triage"
