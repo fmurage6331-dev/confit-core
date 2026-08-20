@@ -795,6 +795,164 @@ export type Database = {
           },
         ]
       }
+      dialysis_sessions: {
+        Row: {
+          access_site: string | null
+          access_type: string | null
+          admission_id: string | null
+          anticoagulation_type: string | null
+          blood_flow_rate: number | null
+          complications: string[] | null
+          created_at: string | null
+          dialysate_flow_rate: number | null
+          edema_grade: string | null
+          encounter_id: string | null
+          end_time: string | null
+          heparin_bolus: number | null
+          heparin_maintenance: number | null
+          id: string
+          machine_id: string | null
+          nurse_notes: string | null
+          patient_id: string
+          performed_by: string | null
+          post_bp_diastolic: number | null
+          post_bp_systolic: number | null
+          post_heart_rate: number | null
+          post_weight_kg: number | null
+          pre_bp_diastolic: number | null
+          pre_bp_systolic: number | null
+          pre_heart_rate: number | null
+          pre_weight_kg: number | null
+          room_id: string | null
+          session_date: string
+          start_time: string | null
+          status: string | null
+          uf_achieved: number | null
+          uf_goal: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_site?: string | null
+          access_type?: string | null
+          admission_id?: string | null
+          anticoagulation_type?: string | null
+          blood_flow_rate?: number | null
+          complications?: string[] | null
+          created_at?: string | null
+          dialysate_flow_rate?: number | null
+          edema_grade?: string | null
+          encounter_id?: string | null
+          end_time?: string | null
+          heparin_bolus?: number | null
+          heparin_maintenance?: number | null
+          id?: string
+          machine_id?: string | null
+          nurse_notes?: string | null
+          patient_id: string
+          performed_by?: string | null
+          post_bp_diastolic?: number | null
+          post_bp_systolic?: number | null
+          post_heart_rate?: number | null
+          post_weight_kg?: number | null
+          pre_bp_diastolic?: number | null
+          pre_bp_systolic?: number | null
+          pre_heart_rate?: number | null
+          pre_weight_kg?: number | null
+          room_id?: string | null
+          session_date?: string
+          start_time?: string | null
+          status?: string | null
+          uf_achieved?: number | null
+          uf_goal?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_site?: string | null
+          access_type?: string | null
+          admission_id?: string | null
+          anticoagulation_type?: string | null
+          blood_flow_rate?: number | null
+          complications?: string[] | null
+          created_at?: string | null
+          dialysate_flow_rate?: number | null
+          edema_grade?: string | null
+          encounter_id?: string | null
+          end_time?: string | null
+          heparin_bolus?: number | null
+          heparin_maintenance?: number | null
+          id?: string
+          machine_id?: string | null
+          nurse_notes?: string | null
+          patient_id?: string
+          performed_by?: string | null
+          post_bp_diastolic?: number | null
+          post_bp_systolic?: number | null
+          post_heart_rate?: number | null
+          post_weight_kg?: number | null
+          pre_bp_diastolic?: number | null
+          pre_bp_systolic?: number | null
+          pre_heart_rate?: number | null
+          pre_weight_kg?: number | null
+          room_id?: string | null
+          session_date?: string
+          start_time?: string | null
+          status?: string | null
+          uf_achieved?: number | null
+          uf_goal?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dialysis_sessions_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dialysis_sessions_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounter_records_summary"
+            referencedColumns: ["encounter_id"]
+          },
+          {
+            foreignKeyName: "dialysis_sessions_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dialysis_sessions_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "patient_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dialysis_sessions_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dialysis_sessions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dialysis_sessions_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       encounter_amendments: {
         Row: {
           amendment_text: string | null
@@ -1356,6 +1514,128 @@ export type Database = {
           validated_at?: string | null
         }
         Relationships: []
+      }
+      icu_hourly_charts: {
+        Row: {
+          admission_id: string
+          blood_in: number | null
+          bp_diastolic: number | null
+          bp_systolic: number | null
+          created_at: string | null
+          drain_out: number | null
+          ett_depth: string | null
+          ett_size: string | null
+          fio2: number | null
+          gcs_eye: number | null
+          gcs_motor: number | null
+          gcs_verbal: number | null
+          heart_rate: number | null
+          id: string
+          iv_fluid_in: number | null
+          iv_lines: string | null
+          ngt: boolean | null
+          nursing_notes: string | null
+          oral_in: number | null
+          other_out: number | null
+          peep: number | null
+          rass_score: number | null
+          recorded_at: string
+          recorded_by: string | null
+          respiratory_rate: number | null
+          sedation_dose: string | null
+          sedation_drug: string | null
+          spo2: number | null
+          temperature_c: number | null
+          tidal_volume: number | null
+          updated_at: string | null
+          urinary_catheter: boolean | null
+          urine_out: number | null
+          vent_mode: string | null
+          vent_rate: number | null
+        }
+        Insert: {
+          admission_id: string
+          blood_in?: number | null
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          created_at?: string | null
+          drain_out?: number | null
+          ett_depth?: string | null
+          ett_size?: string | null
+          fio2?: number | null
+          gcs_eye?: number | null
+          gcs_motor?: number | null
+          gcs_verbal?: number | null
+          heart_rate?: number | null
+          id?: string
+          iv_fluid_in?: number | null
+          iv_lines?: string | null
+          ngt?: boolean | null
+          nursing_notes?: string | null
+          oral_in?: number | null
+          other_out?: number | null
+          peep?: number | null
+          rass_score?: number | null
+          recorded_at?: string
+          recorded_by?: string | null
+          respiratory_rate?: number | null
+          sedation_dose?: string | null
+          sedation_drug?: string | null
+          spo2?: number | null
+          temperature_c?: number | null
+          tidal_volume?: number | null
+          updated_at?: string | null
+          urinary_catheter?: boolean | null
+          urine_out?: number | null
+          vent_mode?: string | null
+          vent_rate?: number | null
+        }
+        Update: {
+          admission_id?: string
+          blood_in?: number | null
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          created_at?: string | null
+          drain_out?: number | null
+          ett_depth?: string | null
+          ett_size?: string | null
+          fio2?: number | null
+          gcs_eye?: number | null
+          gcs_motor?: number | null
+          gcs_verbal?: number | null
+          heart_rate?: number | null
+          id?: string
+          iv_fluid_in?: number | null
+          iv_lines?: string | null
+          ngt?: boolean | null
+          nursing_notes?: string | null
+          oral_in?: number | null
+          other_out?: number | null
+          peep?: number | null
+          rass_score?: number | null
+          recorded_at?: string
+          recorded_by?: string | null
+          respiratory_rate?: number | null
+          sedation_dose?: string | null
+          sedation_drug?: string | null
+          spo2?: number | null
+          temperature_c?: number | null
+          tidal_volume?: number | null
+          updated_at?: string | null
+          urinary_catheter?: boolean | null
+          urine_out?: number | null
+          vent_mode?: string | null
+          vent_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "icu_hourly_charts_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       insurance_benefit_categories: {
         Row: {
@@ -2054,6 +2334,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_active: boolean | null
+          kind: string | null
           location: string | null
           model: string | null
           name: string
@@ -2066,6 +2348,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean | null
+          kind?: string | null
           location?: string | null
           model?: string | null
           name: string
@@ -2078,6 +2362,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean | null
+          kind?: string | null
           location?: string | null
           model?: string | null
           name?: string
@@ -5112,6 +5398,8 @@ export type Database = {
         | "hts_counsellor"
         | "insurance_agent"
         | "system_admin"
+        | "store_keeper"
+        | "director"
       machine_log_type: "maintenance" | "service" | "calibration"
     }
     CompositeTypes: {
@@ -5260,6 +5548,8 @@ export const Constants = {
         "hts_counsellor",
         "insurance_agent",
         "system_admin",
+        "store_keeper",
+        "director",
       ],
       machine_log_type: ["maintenance", "service", "calibration"],
     },

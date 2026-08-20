@@ -56,6 +56,7 @@ import {
   Search,
   Loader2,
   Lock as LockIcon,
+  Droplets,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -83,7 +84,9 @@ type RoomKind =
   | "ward"
   | "theatre"
   | "mortuary"
-  | "mch";
+  | "mch"
+  | "icu"
+  | "dialysis";
 type Room = {
   id: string;
   name: string;
@@ -206,6 +209,8 @@ const kindIcon: Record<RoomKind, React.ReactNode> = {
   theatre: <Scissors className="h-7 w-7 text-primary" />,
   mortuary: <Archive className="h-7 w-7 text-primary" />,
   mch: <Baby className="h-7 w-7 text-primary" />,
+  icu: <Activity className="h-7 w-7 text-primary" />,
+  dialysis: <Droplets className="h-7 w-7 text-primary" />,
 };
 const kindBlurb: Record<RoomKind, string> = {
   general:
@@ -224,6 +229,8 @@ const kindBlurb: Record<RoomKind, string> = {
   theatre: "Surgical theatre. Manage active cases and pre-op patients.",
   mortuary: "Deceased storage and release management. Daily charges accrue automatically.",
   mch: "Maternal and Child Health / Family Planning consultation workflow and service capture.",
+  icu: "Intensive Care Unit. Record hourly vitals, GCS, ventilator settings, fluid balance and nursing notes.",
+  dialysis: "Dialysis unit. Record sessions, machine usage, fluid balance and complications.",
 };
 const KIND_LABELS: Record<string, string> = {
   service: "Services",
@@ -488,6 +495,8 @@ function RoomPage() {
     if (kind === "consultation" || kind === "mch") return "Consult";
     if (kind === "pharmacy") return "Dispense";
     if (kind === "billing") return "Open in Accounting";
+    if (kind === "icu") return "Open ICU Chart";
+    if (kind === "dialysis") return "Open Session";
     if (
       kind === "general" &&
       (room?.name?.toLowerCase().includes("insurance") || room?.name?.toLowerCase().includes("sha"))
@@ -498,6 +507,14 @@ function RoomPage() {
 
   if (kind === "ward") {
     return <WardRoomView room={room} navigate={navigate} />;
+  }
+
+  if (kind === "icu") {
+    return <ICURoomView room={room} />;
+  }
+
+  if (kind === "dialysis") {
+    return <DialysisRoomView room={room} />;
   }
 
   if (kind === "theatre") {
@@ -5855,6 +5872,955 @@ function TheatreNotesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── ICURoomView ──────────────────────────────────────────────────────────────
+
+function ICURoomView({ room }: { room: Room }) {
+  const { user } = useAuth();
+  const [admissions, setAdmissions] = useState<
+    {
+      id: string;
+      patient_name: string;
+      bed_number: string;
+      admitted_at: string;
+    }[]
+  >([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [charts, setCharts] = useState<Record<string, unknown>[]>([]);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    bp_systolic: "",
+    bp_diastolic: "",
+    heart_rate: "",
+    spo2: "",
+    respiratory_rate: "",
+    temperature_c: "",
+    gcs_eye: "",
+    gcs_verbal: "",
+    gcs_motor: "",
+    vent_mode: "",
+    fio2: "",
+    peep: "",
+    tidal_volume: "",
+    vent_rate: "",
+    iv_fluid_in: "",
+    oral_in: "",
+    blood_in: "",
+    urine_out: "",
+    drain_out: "",
+    other_out: "",
+    rass_score: "",
+    sedation_drug: "",
+    sedation_dose: "",
+    ett_size: "",
+    ett_depth: "",
+    ngt: false,
+    urinary_catheter: false,
+    iv_lines: "",
+    nursing_notes: "",
+  });
+
+  useEffect(() => {
+    supabase
+      .from("admissions")
+      .select("id,patients(patient_name),beds(bed_number),admitted_at")
+      .eq("status", "admitted")
+      .then(({ data }) => {
+        type A = {
+          id: string;
+          admitted_at: string;
+          patients: { patient_name: string } | null;
+          beds: { bed_number: string } | null;
+        };
+        setAdmissions(
+          ((data ?? []) as unknown as A[]).map((a) => ({
+            id: a.id,
+            patient_name: a.patients?.patient_name ?? "—",
+            bed_number: a.beds?.bed_number ?? "—",
+            admitted_at: a.admitted_at,
+          })),
+        );
+      });
+  }, [room.id]);
+
+  useEffect(() => {
+    if (!selected) return;
+    supabase
+      .from("icu_hourly_charts")
+      .select("*")
+      .eq("admission_id", selected)
+      .order("recorded_at", { ascending: false })
+      .limit(48)
+      .then(({ data }) => setCharts((data ?? []) as Record<string, unknown>[]));
+  }, [selected]);
+
+  async function saveChart() {
+    if (!selected) return;
+    setSaving(true);
+    const num = (v: string) => (v.trim() ? Number(v) : null);
+    const { error } = await supabase.from("icu_hourly_charts").insert({
+      admission_id: selected,
+      recorded_by: user?.id,
+      recorded_at: new Date().toISOString(),
+      bp_systolic: num(form.bp_systolic),
+      bp_diastolic: num(form.bp_diastolic),
+      heart_rate: num(form.heart_rate),
+      spo2: num(form.spo2),
+      respiratory_rate: num(form.respiratory_rate),
+      temperature_c: num(form.temperature_c),
+      gcs_eye: num(form.gcs_eye),
+      gcs_verbal: num(form.gcs_verbal),
+      gcs_motor: num(form.gcs_motor),
+      vent_mode: form.vent_mode || null,
+      fio2: num(form.fio2),
+      peep: num(form.peep),
+      tidal_volume: num(form.tidal_volume),
+      vent_rate: num(form.vent_rate),
+      iv_fluid_in: num(form.iv_fluid_in),
+      oral_in: num(form.oral_in),
+      blood_in: num(form.blood_in),
+      urine_out: num(form.urine_out),
+      drain_out: num(form.drain_out),
+      other_out: num(form.other_out),
+      rass_score: num(form.rass_score),
+      sedation_drug: form.sedation_drug || null,
+      sedation_dose: form.sedation_dose || null,
+      ett_size: form.ett_size || null,
+      ett_depth: form.ett_depth || null,
+      ngt: form.ngt,
+      urinary_catheter: form.urinary_catheter,
+      iv_lines: form.iv_lines || null,
+      nursing_notes: form.nursing_notes || null,
+    } as never);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Hourly chart saved");
+    setChartOpen(false);
+    supabase
+      .from("icu_hourly_charts")
+      .select("*")
+      .eq("admission_id", selected)
+      .order("recorded_at", { ascending: false })
+      .limit(48)
+      .then(({ data }) => setCharts((data ?? []) as Record<string, unknown>[]));
+  }
+
+  const admission = admissions.find((a) => a.id === selected);
+  const gcsTotalOf = (c: Record<string, unknown>) =>
+    ((c.gcs_eye as number) ?? 0) +
+      ((c.gcs_verbal as number) ?? 0) +
+      ((c.gcs_motor as number) ?? 0) || null;
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Activity className="h-7 w-7 text-primary" />
+            {room.name}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Hourly patient monitoring. Select a patient to view or add chart entries.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => window.print()}>
+          <Printer className="mr-2 h-4 w-4" /> Print
+        </Button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {admissions.map((a) => (
+          <div
+            key={a.id}
+            className={`rounded-xl border p-4 cursor-pointer transition ${selected === a.id ? "ring-2 ring-primary bg-primary/5" : "bg-card hover:bg-accent/40"}`}
+            onClick={() => setSelected(a.id === selected ? null : a.id)}
+          >
+            <div className="font-semibold">{a.patient_name}</div>
+            <div className="text-xs text-muted-foreground">Bed {a.bed_number}</div>
+            <div className="text-xs text-muted-foreground">
+              Admitted {new Date(a.admitted_at).toLocaleDateString()}
+            </div>
+          </div>
+        ))}
+        {admissions.length === 0 && (
+          <p className="col-span-full text-center text-sm text-muted-foreground py-12">
+            No active ICU admissions.
+          </p>
+        )}
+      </div>
+
+      {selected && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Hourly charts — {admission?.patient_name}</h2>
+            <Button onClick={() => setChartOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add hourly entry
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border bg-card">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40 text-left uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">Time</th>
+                  <th className="px-3 py-2">BP</th>
+                  <th className="px-3 py-2">HR</th>
+                  <th className="px-3 py-2">SpO2</th>
+                  <th className="px-3 py-2">RR</th>
+                  <th className="px-3 py-2">Temp</th>
+                  <th className="px-3 py-2">GCS</th>
+                  <th className="px-3 py-2">Urine(mL)</th>
+                  <th className="px-3 py-2">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {charts.map((c) => (
+                  <tr key={c.id as string} className="hover:bg-accent/30">
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {new Date(c.recorded_at as string).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-3 py-2">
+                      {(c.bp_systolic as number | null) ?? "—"}/
+                      {(c.bp_diastolic as number | null) ?? "—"}
+                    </td>
+                    <td className="px-3 py-2">{(c.heart_rate as number | null) ?? "—"}</td>
+                    <td className="px-3 py-2">{c.spo2 != null ? `${c.spo2 as number}%` : "—"}</td>
+                    <td className="px-3 py-2">{(c.respiratory_rate as number | null) ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      {c.temperature_c != null ? `${c.temperature_c as number}°C` : "—"}
+                    </td>
+                    <td className="px-3 py-2">{gcsTotalOf(c) ?? "—"}</td>
+                    <td className="px-3 py-2">{(c.urine_out as number | null) ?? "—"}</td>
+                    <td className="px-3 py-2 max-w-xs truncate">
+                      {(c.nursing_notes as string | null) ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+                {charts.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
+                      No chart entries yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={chartOpen} onOpenChange={(o) => !o && setChartOpen(false)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Hourly chart entry — {admission?.patient_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Vitals</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  ["bp_systolic", "BP Systolic"],
+                  ["bp_diastolic", "BP Diastolic"],
+                  ["heart_rate", "HR (bpm)"],
+                  ["spo2", "SpO2 (%)"],
+                  ["respiratory_rate", "RR (/min)"],
+                  ["temperature_c", "Temp (°C)"],
+                ].map(([k, l]) => (
+                  <div key={k}>
+                    <Label className="text-xs">{l}</Label>
+                    <Input
+                      type="number"
+                      value={form[k as keyof typeof form] as string}
+                      onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">GCS</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  ["gcs_eye", "Eye (1-4)"],
+                  ["gcs_verbal", "Verbal (1-5)"],
+                  ["gcs_motor", "Motor (1-6)"],
+                ].map(([k, l]) => (
+                  <div key={k}>
+                    <Label className="text-xs">{l}</Label>
+                    <Input
+                      type="number"
+                      value={form[k as keyof typeof form] as string}
+                      onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Ventilator
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Mode</Label>
+                  <Input
+                    value={form.vent_mode}
+                    onChange={(e) => setForm((f) => ({ ...f, vent_mode: e.target.value }))}
+                    placeholder="e.g. SIMV"
+                  />
+                </div>
+                {[
+                  ["fio2", "FiO2 (%)"],
+                  ["peep", "PEEP (cmH2O)"],
+                  ["tidal_volume", "Tidal Vol (mL)"],
+                  ["vent_rate", "Rate (/min)"],
+                ].map(([k, l]) => (
+                  <div key={k}>
+                    <Label className="text-xs">{l}</Label>
+                    <Input
+                      type="number"
+                      value={form[k as keyof typeof form] as string}
+                      onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Fluid Balance (mL)
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  ["iv_fluid_in", "IV Fluid In"],
+                  ["oral_in", "Oral In"],
+                  ["blood_in", "Blood In"],
+                  ["urine_out", "Urine Out"],
+                  ["drain_out", "Drain Out"],
+                  ["other_out", "Other Out"],
+                ].map(([k, l]) => (
+                  <div key={k}>
+                    <Label className="text-xs">{l}</Label>
+                    <Input
+                      type="number"
+                      value={form[k as keyof typeof form] as string}
+                      onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Sedation</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">RASS (-5 to +4)</Label>
+                  <Input
+                    type="number"
+                    value={form.rass_score}
+                    onChange={(e) => setForm((f) => ({ ...f, rass_score: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Sedation Drug</Label>
+                  <Input
+                    value={form.sedation_drug}
+                    onChange={(e) => setForm((f) => ({ ...f, sedation_drug: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Dose</Label>
+                  <Input
+                    value={form.sedation_dose}
+                    onChange={(e) => setForm((f) => ({ ...f, sedation_dose: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Lines & Tubes
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">ETT Size</Label>
+                  <Input
+                    value={form.ett_size}
+                    onChange={(e) => setForm((f) => ({ ...f, ett_size: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">ETT Depth (cm)</Label>
+                  <Input
+                    value={form.ett_depth}
+                    onChange={(e) => setForm((f) => ({ ...f, ett_depth: e.target.value }))}
+                  />
+                </div>
+                <div className="flex items-center gap-2 col-span-2">
+                  <input
+                    type="checkbox"
+                    id="ngt"
+                    checked={form.ngt}
+                    onChange={(e) => setForm((f) => ({ ...f, ngt: e.target.checked }))}
+                  />
+                  <Label htmlFor="ngt" className="text-xs">
+                    NGT in situ
+                  </Label>
+                  <input
+                    type="checkbox"
+                    id="uc"
+                    checked={form.urinary_catheter}
+                    onChange={(e) => setForm((f) => ({ ...f, urinary_catheter: e.target.checked }))}
+                  />
+                  <Label htmlFor="uc" className="text-xs">
+                    Urinary catheter
+                  </Label>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">IV Lines / Sites</Label>
+                  <Input
+                    value={form.iv_lines}
+                    onChange={(e) => setForm((f) => ({ ...f, iv_lines: e.target.value }))}
+                    placeholder="e.g. Left antecubital 18G, Right IJV CVC"
+                  />
+                </div>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Nursing Notes</Label>
+              <Textarea
+                value={form.nursing_notes}
+                onChange={(e) => setForm((f) => ({ ...f, nursing_notes: e.target.value }))}
+                placeholder="Shift observations, interventions, response to treatment…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChartOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveChart} disabled={saving}>
+              {saving ? "Saving…" : "Save entry"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── DialysisRoomView ─────────────────────────────────────────────────────────
+
+function DialysisRoomView({ room }: { room: Room }) {
+  const { user } = useAuth();
+  const [patients, setPatients] = useState<
+    { id: string; patient_name: string; file_number: string | null }[]
+  >([]);
+  const [machines, setMachines] = useState<{ id: string; name: string; status: string }[]>([]);
+  const [sessions, setSessions] = useState<Record<string, unknown>[]>([]);
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    patient_id: "",
+    machine_id: "",
+    session_date: new Date().toISOString().slice(0, 10),
+    start_time: "",
+    end_time: "",
+    access_type: "av_fistula",
+    access_site: "",
+    pre_weight_kg: "",
+    pre_bp_systolic: "",
+    pre_bp_diastolic: "",
+    pre_heart_rate: "",
+    edema_grade: "none",
+    blood_flow_rate: "",
+    dialysate_flow_rate: "",
+    uf_goal: "",
+    uf_achieved: "",
+    anticoagulation_type: "heparin",
+    heparin_bolus: "",
+    heparin_maintenance: "",
+    post_weight_kg: "",
+    post_bp_systolic: "",
+    post_bp_diastolic: "",
+    post_heart_rate: "",
+    complications: [] as string[],
+    nurse_notes: "",
+  });
+
+  const COMPLICATIONS = [
+    "Hypotension",
+    "Cramps",
+    "Bleeding",
+    "Access issues",
+    "Nausea/Vomiting",
+    "Chest pain",
+    "Arrhythmia",
+  ];
+
+  const loadSessions = useCallback(async () => {
+    const { data } = await supabase
+      .from("dialysis_sessions")
+      .select("*, patients(patient_name), machines(name)")
+      .eq("room_id", room.id)
+      .order("session_date", { ascending: false })
+      .limit(100);
+    setSessions((data ?? []) as Record<string, unknown>[]);
+  }, [room.id]);
+
+  useEffect(() => {
+    db.from("patients")
+      .select("id,patient_name,file_number")
+      .order("patient_name")
+      .limit(200)
+      .then(({ data }) =>
+        setPatients(
+          (data ?? []) as { id: string; patient_name: string; file_number: string | null }[],
+        ),
+      );
+    db.from("machines")
+      .select("id,name,status")
+      .eq("kind", "dialysis")
+      .eq("is_active", true)
+      .then(({ data }) =>
+        setMachines((data ?? []) as { id: string; name: string; status: string }[]),
+      );
+    loadSessions();
+  }, [room.id, loadSessions]);
+
+  async function saveSession() {
+    setSaving(true);
+    const num = (v: string) => (v.trim() ? Number(v) : null);
+    const { error } = await supabase.from("dialysis_sessions").insert({
+      patient_id: form.patient_id || null,
+      machine_id: form.machine_id || null,
+      room_id: room.id,
+      session_date: form.session_date,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
+      access_type: form.access_type,
+      access_site: form.access_site || null,
+      pre_weight_kg: num(form.pre_weight_kg),
+      pre_bp_systolic: num(form.pre_bp_systolic),
+      pre_bp_diastolic: num(form.pre_bp_diastolic),
+      pre_heart_rate: num(form.pre_heart_rate),
+      edema_grade: form.edema_grade,
+      blood_flow_rate: num(form.blood_flow_rate),
+      dialysate_flow_rate: num(form.dialysate_flow_rate),
+      uf_goal: num(form.uf_goal),
+      uf_achieved: num(form.uf_achieved),
+      anticoagulation_type: form.anticoagulation_type,
+      heparin_bolus: num(form.heparin_bolus),
+      heparin_maintenance: num(form.heparin_maintenance),
+      post_weight_kg: num(form.post_weight_kg),
+      post_bp_systolic: num(form.post_bp_systolic),
+      post_bp_diastolic: num(form.post_bp_diastolic),
+      post_heart_rate: num(form.post_heart_rate),
+      complications: form.complications.length > 0 ? form.complications : null,
+      nurse_notes: form.nurse_notes || null,
+      performed_by: user?.id,
+      status: "completed",
+    } as never);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Dialysis session saved");
+    setSessionOpen(false);
+    loadSessions();
+  }
+
+  function toggleComplication(c: string) {
+    setForm((f) => ({
+      ...f,
+      complications: f.complications.includes(c)
+        ? f.complications.filter((x) => x !== c)
+        : [...f.complications, c],
+    }));
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex items-end justify-between print:hidden">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Droplets className="h-7 w-7 text-primary" />
+            {room.name}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Record and manage dialysis sessions.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
+          <Button onClick={() => setSessionOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New session
+          </Button>
+        </div>
+      </div>
+
+      {machines.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-3 print:hidden">
+          {machines.map((m) => (
+            <div
+              key={m.id}
+              className={`rounded-xl border p-3 text-sm ${m.status === "active" ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"}`}
+            >
+              <div className="font-semibold">{m.name}</div>
+              <div
+                className={`text-xs font-medium ${m.status === "active" ? "text-emerald-700" : "text-rose-700"}`}
+              >
+                {m.status === "active"
+                  ? "Operational"
+                  : m.status === "maintenance"
+                    ? "In maintenance"
+                    : "Out of service"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Patient</th>
+              <th className="px-4 py-3">Machine</th>
+              <th className="px-4 py-3">Duration</th>
+              <th className="px-4 py-3">UF Achieved</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Complications</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {sessions.map((s) => {
+              type P = { patient_name: string } | null;
+              type M = { name: string } | null;
+              const p = s.patients as P;
+              const m = s.machines as M;
+              return (
+                <tr key={s.id as string} className="hover:bg-accent/30">
+                  <td className="px-4 py-3">{s.session_date as string}</td>
+                  <td className="px-4 py-3 font-medium">{p?.patient_name ?? "—"}</td>
+                  <td className="px-4 py-3">{m?.name ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {s.start_time && s.end_time ? `${s.start_time} – ${s.end_time}` : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {s.uf_achieved != null ? `${s.uf_achieved} L` : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge
+                      variant={
+                        s.status === "completed"
+                          ? "default"
+                          : s.status === "aborted"
+                            ? "destructive"
+                            : "outline"
+                      }
+                    >
+                      {s.status as string}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {Array.isArray(s.complications) && s.complications.length > 0
+                      ? (s.complications as string[]).join(", ")
+                      : "None"}
+                  </td>
+                </tr>
+              );
+            })}
+            {sessions.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                  No sessions recorded.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <Dialog open={sessionOpen} onOpenChange={(o) => !o && setSessionOpen(false)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>New dialysis session</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Patient *</Label>
+                <Select
+                  value={form.patient_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, patient_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select patient…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.patient_name}
+                        {p.file_number ? ` (#${p.file_number})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Machine</Label>
+                <Select
+                  value={form.machine_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, machine_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select machine…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {machines.map((m) => (
+                      <SelectItem key={m.id} value={m.id} disabled={m.status !== "active"}>
+                        {m.name} {m.status !== "active" ? "(unavailable)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={form.session_date}
+                  onChange={(e) => setForm((f) => ({ ...f, session_date: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Start</Label>
+                  <Input
+                    type="time"
+                    value={form.start_time}
+                    onChange={(e) => setForm((f) => ({ ...f, start_time: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>End</Label>
+                  <Input
+                    type="time"
+                    value={form.end_time}
+                    onChange={(e) => setForm((f) => ({ ...f, end_time: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Access</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Type</Label>
+                  <Select
+                    value={form.access_type}
+                    onValueChange={(v) => setForm((f) => ({ ...f, access_type: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="av_fistula">AV Fistula</SelectItem>
+                      <SelectItem value="av_graft">AV Graft</SelectItem>
+                      <SelectItem value="catheter">Catheter</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Site</Label>
+                  <Input
+                    value={form.access_site}
+                    onChange={(e) => setForm((f) => ({ ...f, access_site: e.target.value }))}
+                    placeholder="e.g. Left forearm"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Pre-Session
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  ["pre_weight_kg", "Weight (kg)"],
+                  ["pre_bp_systolic", "BP Systolic"],
+                  ["pre_bp_diastolic", "BP Diastolic"],
+                  ["pre_heart_rate", "HR (bpm)"],
+                ].map(([k, l]) => (
+                  <div key={k}>
+                    <Label className="text-xs">{l}</Label>
+                    <Input
+                      type="number"
+                      value={form[k as keyof typeof form] as string}
+                      onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+                <div>
+                  <Label className="text-xs">Edema</Label>
+                  <Select
+                    value={form.edema_grade}
+                    onValueChange={(v) => setForm((f) => ({ ...f, edema_grade: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["none", "1+", "2+", "3+", "4+"].map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {g}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Dialysis Parameters
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["blood_flow_rate", "Blood Flow (mL/min)"],
+                  ["dialysate_flow_rate", "Dialysate Flow (mL/min)"],
+                  ["uf_goal", "UF Goal (L)"],
+                  ["uf_achieved", "UF Achieved (L)"],
+                ].map(([k, l]) => (
+                  <div key={k}>
+                    <Label className="text-xs">{l}</Label>
+                    <Input
+                      type="number"
+                      value={form[k as keyof typeof form] as string}
+                      onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Anticoagulation
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Type</Label>
+                  <Select
+                    value={form.anticoagulation_type}
+                    onValueChange={(v) => setForm((f) => ({ ...f, anticoagulation_type: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="heparin">Heparin</SelectItem>
+                      <SelectItem value="heparin_free">Heparin-free</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.anticoagulation_type === "heparin" && (
+                  <>
+                    <div>
+                      <Label className="text-xs">Bolus (units)</Label>
+                      <Input
+                        type="number"
+                        value={form.heparin_bolus}
+                        onChange={(e) => setForm((f) => ({ ...f, heparin_bolus: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Maintenance (units/hr)</Label>
+                      <Input
+                        type="number"
+                        value={form.heparin_maintenance}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, heparin_maintenance: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Post-Session
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["post_weight_kg", "Weight (kg)"],
+                  ["post_bp_systolic", "BP Systolic"],
+                  ["post_bp_diastolic", "BP Diastolic"],
+                  ["post_heart_rate", "HR (bpm)"],
+                ].map(([k, l]) => (
+                  <div key={k}>
+                    <Label className="text-xs">{l}</Label>
+                    <Input
+                      type="number"
+                      value={form[k as keyof typeof form] as string}
+                      onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Complications
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {COMPLICATIONS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggleComplication(c)}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${form.complications.includes(c) ? "bg-rose-100 border-rose-400 text-rose-700" : "bg-muted text-muted-foreground hover:bg-accent"}`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Nurse Notes</Label>
+              <Textarea
+                value={form.nurse_notes}
+                onChange={(e) => setForm((f) => ({ ...f, nurse_notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSessionOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveSession} disabled={saving || !form.patient_id}>
+              {saving ? "Saving…" : "Save session"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
