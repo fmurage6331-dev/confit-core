@@ -152,6 +152,10 @@ function RegisterPatient() {
     patientName: string;
     phone: string;
   } | null>(null);
+  const [benefitPlans, setBenefitPlans] = useState<
+    { id: string; plan_name: string; benefit_period: string }[]
+  >([]);
+  const [plansLoading, setPlansLoading] = useState(false);
 
   useEffect(() => {
     db.from("insurance_providers")
@@ -184,6 +188,26 @@ function RegisterPatient() {
   };
 
   const insurer = insurers.find((item) => item.id === insurerId);
+
+  useEffect(() => {
+    if (!insurerId || insurer?.insurer_type === "sha_shif" || insurer?.insurer_type === "sha_phf") {
+      setBenefitPlans([]);
+      return;
+    }
+    setPlansLoading(true);
+    supabase
+      .from("insurance_benefit_plans")
+      .select("id,plan_name,benefit_period")
+      .eq("insurer_id", insurerId)
+      .eq("is_active", true)
+      .order("plan_name")
+      .then(({ data }) => {
+        setBenefitPlans(
+          (data ?? []) as { id: string; plan_name: string; benefit_period: string }[],
+        );
+        setPlansLoading(false);
+      });
+  }, [insurerId, insurer?.insurer_type]);
 
   const selectedTests = useMemo(
     () => tests.filter((test) => selectedTestIds.has(test.id)),
@@ -1030,6 +1054,34 @@ function RegisterPatient() {
                       </SelectContent>
                     </Select>
                   </Field>
+
+                  {benefitPlans.length > 0 &&
+                    insurer?.insurer_type !== "sha_shif" &&
+                    insurer?.insurer_type !== "sha_phf" && (
+                      <div className="col-span-full rounded-lg border border-blue-200 bg-blue-50 p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                          Active benefit plans for {insurer?.name}
+                        </p>
+                        <div className="space-y-1">
+                          {benefitPlans.map((plan) => (
+                            <div
+                              key={plan.id}
+                              className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm border border-blue-100"
+                            >
+                              <span className="font-medium">{plan.plan_name}</span>
+                              <span className="text-xs text-muted-foreground capitalize">
+                                {plan.benefit_period.replace(/_/g, " ")}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  {plansLoading && (
+                    <div className="col-span-full text-xs text-muted-foreground">
+                      Loading benefit plans…
+                    </div>
+                  )}
 
                   <Field label="Policy / member number" required>
                     <Input
