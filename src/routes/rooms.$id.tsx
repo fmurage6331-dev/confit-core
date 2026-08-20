@@ -249,6 +249,8 @@ function RoomPage() {
   const [openReg, setOpenReg] = useState<Reg | null>(null);
   const [rxByReg, setRxByReg] = useState<Map<string, Prescription[]>>(new Map());
   const [consultFilter, setConsultFilter] = useState<ConsultPriority | null>(null);
+  const [insDateFrom, setInsDateFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [insDateTo, setInsDateTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     (async () => {
@@ -275,15 +277,22 @@ function RoomPage() {
 
   async function loadRequests() {
     setLoading(true);
-    const { data, error } = await supabase
+    const isInsuranceRoom = room?.kind === "insurance";
+    let q = supabase
       .from("patient_registrations")
       .select(
         "id,patient_id,patient_name,file_number,from_room,tests,vitals,history,diagnoses,payment_mode,insurance_coverage_percentage,payment_status,status,created_at,sha_member_number,sha_relationship_to_principal,sha_notification_number,preauth_number,claim_number,claim_status,insurance_provider_id,insurer_type,sha_fund_type,insurance_clearance_status,insurance_policy_number",
       )
-      .eq("current_room_id", id)
-      .neq("status", "done")
-      .neq("status", "cancelled")
       .order("created_at", { ascending: false });
+    if (isInsuranceRoom) {
+      q = q
+        .eq("payment_mode", "insurance")
+        .gte("created_at", insDateFrom + "T00:00:00.000Z")
+        .lte("created_at", insDateTo + "T23:59:59.999Z");
+    } else {
+      q = q.eq("current_room_id", id).neq("status", "done").neq("status", "cancelled");
+    }
+    const { data, error } = await q;
     setLoading(false);
     if (error) {
       toast.error(error.message);
@@ -609,6 +618,31 @@ function RoomPage() {
               : "overflow-hidden rounded-xl border bg-card"
           }
         >
+          {kind === "insurance" && (
+            <div className="flex items-end gap-3 border-b p-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">From</label>
+                <input
+                  type="date"
+                  value={insDateFrom}
+                  onChange={(e) => setInsDateFrom(e.target.value)}
+                  className="rounded-md border px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">To</label>
+                <input
+                  type="date"
+                  value={insDateTo}
+                  onChange={(e) => setInsDateTo(e.target.value)}
+                  className="rounded-md border px-3 py-2 text-sm"
+                />
+              </div>
+              <Button variant="outline" onClick={loadRequests}>
+                Search
+              </Button>
+            </div>
+          )}
           {kind !== "consultation" && (
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
