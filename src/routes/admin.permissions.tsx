@@ -133,6 +133,7 @@ const PERMS: { group: string; items: { key: string; label: string }[] }[] = [
     group: "Accounting",
     items: [
       { key: "accounting", label: "Process bills & payments" },
+      { key: "change_payment_method", label: "Change payment method" },
       { key: "insurance_claims", label: "Manage insurance claims" },
     ],
   },
@@ -217,7 +218,7 @@ function PermissionsPage() {
     }
 
     if (toInsert.length) {
-            const { error: e1 } = await supabase.from("role_permissions").insert(toInsert as never);
+      const { error: e1 } = await supabase.from("role_permissions").insert(toInsert as never);
       if (e1) {
         toast.error(e1.message);
         setSaving(false);
@@ -228,7 +229,7 @@ function PermissionsPage() {
       const { error: e2 } = await supabase
         .from("role_permissions")
         .delete()
-                .eq("role", d.role as never)
+        .eq("role", d.role as never)
         .eq("permission", d.permission);
       if (e2) {
         toast.error(e2.message);

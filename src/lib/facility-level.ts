@@ -43,6 +43,7 @@ export function useFacilityLevel() {
     hasTheatre: numeric >= 4,
     // Maternity ward from Level 3A
     hasMaternity: numeric >= 3.1,
+    hasDialysis: numeric >= 4,
     isLoading,
   };
 }

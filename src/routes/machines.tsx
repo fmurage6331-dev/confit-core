@@ -138,6 +138,7 @@ function MachinesPage() {
                     model: f.get("model"),
                     serial_number: f.get("serial_number"),
                     location: f.get("location"),
+                    kind: f.get("kind"),
                     status: f.get("status"),
                     notes: f.get("notes"),
                   });
@@ -164,18 +165,34 @@ function MachinesPage() {
                     <Input name="location" />
                   </div>
                   <div>
-                    <Label>Status</Label>
-                    <Select name="status" defaultValue="active">
+                    <Label>Kind</Label>
+                    <Select name="kind" defaultValue="general">
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="maintenance">In maintenance</SelectItem>
-                        <SelectItem value="out_of_service">Out of service</SelectItem>
+                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="dialysis">Dialysis</SelectItem>
+                        <SelectItem value="ventilator">Ventilator</SelectItem>
+                        <SelectItem value="icu_monitor">ICU monitor</SelectItem>
+                        <SelectItem value="lab">Lab</SelectItem>
+                        <SelectItem value="theatre">Theatre</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select name="status" defaultValue="active">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="maintenance">In maintenance</SelectItem>
+                      <SelectItem value="out_of_service">Out of service</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Notes</Label>
@@ -204,9 +221,14 @@ function MachinesPage() {
             onClick={() => setSelected(selected === m.id ? null : m.id)}
           >
             <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <CardTitle className="text-base">{m.name}</CardTitle>
-                <Badge variant={m.status === "active" ? "default" : "secondary"}>{m.status}</Badge>
+                <div className="flex flex-wrap justify-end gap-1">
+                  <Badge variant="outline">{m.kind ?? "general"}</Badge>
+                  <Badge variant={m.status === "active" ? "default" : "secondary"}>
+                    {m.status}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground space-y-0.5">

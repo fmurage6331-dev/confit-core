@@ -34,6 +34,7 @@ import {
   Banknote,
   ShieldCheck,
   Clock,
+  Database,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -181,6 +182,99 @@ function useMortuaryCensus() {
   });
 }
 
+type SystemHealth = {
+  lastCronRunAt: string | null;
+  lastCronStatus: string | null;
+  cronError: string | null;
+  postmasterStartedAt: string | null;
+  postmasterError: string | null;
+  activeAdmissions: number;
+  outstandingInvoices: number;
+};
+
+type SchemaClient = {
+  schema: (schema: string) => {
+    from: typeof db.from;
+  };
+};
+
+function postmasterStartFrom(data: unknown): string | null {
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object" && "pg_postmaster_start_time" in data) {
+    const value = (data as { pg_postmaster_start_time?: unknown }).pg_postmaster_start_time;
+    return typeof value === "string" ? value : null;
+  }
+  return null;
+}
+
+function useSystemHealth() {
+  return useQuery({
+    queryKey: ["dashboard-system-health"],
+    queryFn: async (): Promise<SystemHealth> => {
+      const health: SystemHealth = {
+        lastCronRunAt: null,
+        lastCronStatus: null,
+        cronError: null,
+        postmasterStartedAt: null,
+        postmasterError: null,
+        activeAdmissions: 0,
+        outstandingInvoices: 0,
+      };
+
+      const cronClient = (supabase as unknown as SchemaClient).schema("cron");
+      const cronResult = await cronClient
+        .from<
+          {
+            start_time: string | null;
+            end_time: string | null;
+            status: string | null;
+          }[]
+        >("job_run_details")
+        .select("start_time,end_time,status")
+        .order("start_time", { ascending: false })
+        .limit(1);
+      if (cronResult.error) {
+        health.cronError = cronResult.error.message;
+      } else {
+        const lastRun = cronResult.data?.[0];
+        health.lastCronRunAt = lastRun?.end_time ?? lastRun?.start_time ?? null;
+        health.lastCronStatus = lastRun?.status ?? null;
+      }
+
+      const postmasterResult = await db.rpc<unknown>("pg_postmaster_start_time");
+      if (postmasterResult.error) {
+        health.postmasterError = postmasterResult.error.message;
+      } else {
+        health.postmasterStartedAt = postmasterStartFrom(postmasterResult.data);
+      }
+
+      const { count: activeAdmissions, error: activeAdmissionsError } = await supabase
+        .from("admissions")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "admitted");
+      if (activeAdmissionsError) throw activeAdmissionsError;
+      health.activeAdmissions = activeAdmissions ?? 0;
+
+      const { count: outstandingInvoices, error: outstandingInvoicesError } = await supabase
+        .from("invoices")
+        .select("id", { count: "exact", head: true })
+        .gt("balance", 0);
+      if (outstandingInvoicesError) throw outstandingInvoicesError;
+      health.outstandingInvoices = outstandingInvoices ?? 0;
+
+      return health;
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function formatHealthDate(value: string | null) {
+  if (!value) return "Unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return format(date, "dd MMM yyyy, HH:mm");
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 function Dashboard() {
@@ -196,6 +290,7 @@ function Dashboard() {
   const { data: admissions, isLoading: loadingAdmissions } = useInpatientCensus();
   const { data: beds, isLoading: loadingBeds } = useBedCounts();
   const { data: mortuaryStored, isLoading: loadingMortuary } = useMortuaryCensus();
+  const { data: systemHealth, isLoading: loadingSystemHealth } = useSystemHealth();
 
   // MOH queries (existing — unchanged)
   const { data: diseases, isLoading: loadingDiseases } = useQuery({
@@ -406,7 +501,42 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* ── Section 3: Revenue Today ─────────────────────────────────────── */}
+      {/* ── Section 3: System Health ─────────────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionLabel icon={Database} label="System Health" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <OpCard
+            label="Last Cron Job Run"
+            value={
+              loadingSystemHealth ? "—" : formatHealthDate(systemHealth?.lastCronRunAt ?? null)
+            }
+            accent={systemHealth?.cronError ? "amber" : "primary"}
+            sub={systemHealth?.cronError ?? systemHealth?.lastCronStatus ?? undefined}
+          />
+          <OpCard
+            label="DB Postmaster Start"
+            value={
+              loadingSystemHealth
+                ? "—"
+                : formatHealthDate(systemHealth?.postmasterStartedAt ?? null)
+            }
+            accent={systemHealth?.postmasterError ? "amber" : "green"}
+            sub={systemHealth?.postmasterError ?? "Overnight pause check"}
+          />
+          <OpCard
+            label="Active Admissions"
+            value={loadingSystemHealth ? "—" : (systemHealth?.activeAdmissions ?? 0)}
+            accent="blue"
+          />
+          <OpCard
+            label="Outstanding Invoices"
+            value={loadingSystemHealth ? "—" : (systemHealth?.outstandingInvoices ?? 0)}
+            accent={(systemHealth?.outstandingInvoices ?? 0) > 0 ? "amber" : "ok"}
+          />
+        </div>
+      </section>
+
+      {/* ── Section 4: Revenue Today ─────────────────────────────────────── */}
       <section className="space-y-3">
         <SectionLabel icon={TrendingUp} label="Revenue — Today" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

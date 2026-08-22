@@ -131,6 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             !(r.kind === "ward" && !facilityLevel.hasInpatient) &&
             !(r.kind === "mortuary" && !facilityLevel.hasMortuary) &&
             !(r.kind === "theatre" && !facilityLevel.hasTheatre) &&
+            !(r.kind === "dialysis" && !facilityLevel.hasDialysis) &&
             !(
               (r.kind === "icu" ||
                 r.name.toLowerCase().includes("icu") ||
@@ -161,6 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               !(r.kind === "ward" && !facilityLevel.hasInpatient) &&
               !(r.kind === "mortuary" && !facilityLevel.hasMortuary) &&
               !(r.kind === "theatre" && !facilityLevel.hasTheatre) &&
+              !(r.kind === "dialysis" && !facilityLevel.hasDialysis) &&
               !(
                 (r.kind === "icu" ||
                   r.name.toLowerCase().includes("icu") ||
@@ -180,6 +182,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     facilityLevel.hasMortuary,
     facilityLevel.hasICU,
     facilityLevel.hasTheatre,
+    facilityLevel.hasDialysis,
   ]);
 
   const { data: lowStockCount } = useQuery({
