@@ -5881,6 +5881,8 @@ function TheatreNotesDialog({
 
 // ─── ICURoomView ──────────────────────────────────────────────────────────────
 
+const ICU_STORE_ID = "a99583cd-9354-470a-9299-73457734284d";
+
 function ICURoomView({ room }: { room: Room }) {
   const { user } = useAuth();
   const [admissions, setAdmissions] = useState<
@@ -5926,6 +5928,69 @@ function ICURoomView({ room }: { room: Room }) {
     iv_lines: "",
     nursing_notes: "",
   });
+
+  const [icuPrescriptions, setIcuPrescriptions] = useState<
+    {
+      id: string;
+      drug_name: string | null;
+      dosage: string | null;
+      frequency: string | null;
+      duration: string | null;
+      quantity: number | null;
+      prescribed_by_name: string | null;
+    }[]
+  >([]);
+  const [updatingPrescriptionId, setUpdatingPrescriptionId] = useState<string | null>(null);
+
+  const loadIcuPrescriptions = useCallback(async () => {
+    if (!selected) {
+      setIcuPrescriptions([]);
+      return;
+    }
+
+    const { data, error } = await db
+      .from("prescriptions")
+      .select("id,drug_name,dosage,frequency,duration,quantity,prescribed_by_name")
+      .eq("admission_id", selected)
+      .eq("encounter_type", "inpatient")
+      .eq("status", "pending")
+      .eq("dispensed_from_store_id", ICU_STORE_ID)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    setIcuPrescriptions((data ?? []) as typeof icuPrescriptions);
+  }, [selected]);
+
+  useEffect(() => {
+    void loadIcuPrescriptions();
+  }, [loadIcuPrescriptions]);
+
+  async function updateIcuPrescriptionStatus(id: string, status: "dispensed" | "cancelled") {
+    setUpdatingPrescriptionId(id);
+    const payload =
+      status === "dispensed"
+        ? {
+            status,
+            dispensed_by: user?.id ?? null,
+            dispensed_at: new Date().toISOString(),
+            dispensed_by_name: user?.email ?? null,
+          }
+        : { status };
+    const { error } = await db.from("prescriptions").update(payload).eq("id", id);
+    setUpdatingPrescriptionId(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(status === "dispensed" ? "Prescription dispensed" : "Prescription cancelled");
+    await loadIcuPrescriptions();
+  }
 
   useEffect(() => {
     supabase
@@ -6066,6 +6131,73 @@ function ICURoomView({ room }: { room: Room }) {
             <Button onClick={() => setChartOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Add hourly entry
             </Button>
+          </div>
+
+          <div className="rounded-xl border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Pill className="h-4 w-4 text-primary" /> Medications
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Pending ICU store prescriptions for this admission.
+                </p>
+              </div>
+              <Badge variant="secondary">{icuPrescriptions.length} pending</Badge>
+            </div>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/40 text-left uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">Drug</th>
+                    <th className="px-3 py-2">Dosage</th>
+                    <th className="px-3 py-2">Frequency</th>
+                    <th className="px-3 py-2">Duration</th>
+                    <th className="px-3 py-2">Qty</th>
+                    <th className="px-3 py-2">Prescribed by</th>
+                    <th className="px-3 py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {icuPrescriptions.map((rx) => (
+                    <tr key={rx.id} className="hover:bg-accent/30">
+                      <td className="px-3 py-2 font-medium">{rx.drug_name ?? "—"}</td>
+                      <td className="px-3 py-2">{rx.dosage ?? "—"}</td>
+                      <td className="px-3 py-2">{rx.frequency ?? "—"}</td>
+                      <td className="px-3 py-2">{rx.duration ?? "—"}</td>
+                      <td className="px-3 py-2">{rx.quantity ?? "—"}</td>
+                      <td className="px-3 py-2">{rx.prescribed_by_name ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => updateIcuPrescriptionStatus(rx.id, "dispensed")}
+                            disabled={updatingPrescriptionId === rx.id}
+                          >
+                            <Check className="mr-1 h-3 w-3" /> Dispense
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateIcuPrescriptionStatus(rx.id, "cancelled")}
+                            disabled={updatingPrescriptionId === rx.id}
+                          >
+                            <X className="mr-1 h-3 w-3" /> Cancel
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {icuPrescriptions.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                        No pending ICU medications for this admission.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-xl border bg-card">
