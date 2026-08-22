@@ -344,6 +344,7 @@ function RoomPage() {
         .select("*")
         .eq("encounter_type", "inpatient")
         .eq("status", "pending")
+        .neq("dispensed_from_store_id", "a99583cd-9354-470a-9299-73457734284d")
         .order("created_at", { ascending: true });
 
       if (ipdRxData && ipdRxData.length > 0) {
@@ -2854,8 +2855,7 @@ function InsuranceDialog({
       .eq("id", otpRecordId)
       .limit(1);
     const recArr = recordRows as
-      | { otp_hash: string; expires_at: string; verified: boolean }[]
-      | null;
+      { otp_hash: string; expires_at: string; verified: boolean }[] | null;
     if (error || !recArr || recArr.length === 0) {
       toast.error("OTP record not found");
       setOtpVerifying(false);
@@ -3721,9 +3721,7 @@ function RequestServicesInline({
     if (reg.payment_mode !== "insurance" || !_insurerConfig)
       return { insuranceCovered: 0, patientDue: subtotal };
     const rule = _insurerConfig.coverage_rule as
-      | "percentage"
-      | "fixed_per_visit"
-      | "percentage_with_cap";
+      "percentage" | "fixed_per_visit" | "percentage_with_cap";
     const limit = Number(_insurerConfig.per_visit_limit ?? 0);
     let covered = 0;
     if (rule === "fixed_per_visit") {
