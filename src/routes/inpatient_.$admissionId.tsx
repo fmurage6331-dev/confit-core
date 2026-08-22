@@ -418,6 +418,7 @@ function InpatientChart() {
               admissionId={admissionId}
               userId={user?.id ?? null}
               userEmail={user?.email ?? null}
+              wardId={adm.ward_id ?? null}
               onSaved={() =>
                 qc.invalidateQueries({
                   queryKey: ["ipd-prescriptions", admissionId],
@@ -1247,12 +1248,14 @@ function MedicationsTab({
   admissionId,
   userId,
   userEmail,
+  wardId,
   onSaved,
 }: {
   encounterId: string;
   admissionId: string;
   userId: string | null;
   userEmail: string | null;
+  wardId: string | null;
   onSaved: () => void;
 }) {
   const [drugName, setDrugName] = useState("");
@@ -1264,6 +1267,25 @@ function MedicationsTab({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [stock, setStock] = useState<StockItem[]>([]);
+
+  const ICU_STORE_ID = "a99583cd-9354-470a-9299-73457734284d";
+  const PHARMACY_STORE_ID = "a0000000-0000-0000-0000-000000000003";
+
+  const [isIcu, setIsIcu] = useState(false);
+
+  useEffect(() => {
+    if (!wardId) {
+      setIsIcu(false);
+      return;
+    }
+    supabase
+      .from("rooms")
+      .select("id,kind")
+      .eq("ward_id", wardId)
+      .eq("kind", "icu")
+      .maybeSingle()
+      .then(({ data }) => setIsIcu(!!data));
+  }, [wardId]);
 
   useEffect(() => {
     supabase
@@ -1329,13 +1351,18 @@ function MedicationsTab({
       status: "pending",
       created_by: userId ?? null,
       prescribed_by_name: userEmail ?? null,
+      dispensed_from_store_id: isIcu ? ICU_STORE_ID : PHARMACY_STORE_ID,
     });
     setSaving(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Prescription added — routed to pharmacy (INPATIENT)");
+    toast.success(
+      isIcu
+        ? "Prescription added — routed to ICU store"
+        : "Prescription added — routed to pharmacy (INPATIENT)",
+    );
     setSelectedStockId("");
     setDrugName("");
     setDosage("");
