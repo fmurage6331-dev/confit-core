@@ -31,7 +31,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Electron build artifacts (never commit — they exceed Lovable's 100 MB limit)
+# Electron build artifacts (never commit — large binary files)
 electron-release/
 electron-dist/
 release/

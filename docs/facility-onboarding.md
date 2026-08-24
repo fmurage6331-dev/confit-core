@@ -10,7 +10,7 @@
 Aegiscare is designed so each facility gets its own isolated deployment:
 - Own GitHub repository (forked from master)
 - Own Supabase project (own database, own auth, own storage)
-- Own Lovable deployment (own URL)
+- Own Vercel deployment (own URL)
 
 No facility can see another facility's patient data.
 
@@ -35,13 +35,15 @@ No facility can see another facility's patient data.
 In the new Supabase project's SQL Editor, run all files in
 `supabase/migrations/` in filename order (oldest first).
 
-### Step 4 — Connect to Lovable
+### Step 4 — Deploy to Vercel
 
-1. Go to `lovable.dev` → New project → Import from GitHub
-2. Select the forked repo
-3. Set environment variables:
+1. Go to `https://vercel.com` → New Project → Import from GitHub
+2. Select the forked repository
+3. Set environment variables in Vercel dashboard:
    - `VITE_SUPABASE_URL` — your Supabase project URL
    - `VITE_SUPABASE_ANON_KEY` — your Supabase anon key
+4. Click **Deploy** → Vercel builds and publishes automatically
+5. Note your deployment URL (e.g. `https://aegiscare-facilityname.vercel.app`)
 
 ### Step 5 — Configure facility details
 
@@ -67,6 +69,50 @@ Set their role to `admin` in the `user_roles` table.
 
 ---
 
+
+## Kenya Data Residency & Cloud Migration
+
+### Current Hosting (Development Phase)
+- Supabase Cloud: servers in `us-east-1` (USA) — acceptable for development
+- Vercel: global CDN — acceptable for frontend
+
+### Required for ODPC + DHA Compliance (Production)
+Kenya law (ODPC Data Protection Act 2019) requires health data to remain in Kenya.
+
+**Recommended Kenya-compliant hosting options:**
+
+| Provider | Type | Notes |
+|---|---|---|
+| Safaricom Cloud | Kenya-based VPS | Preferred — local support |
+| Azure East Africa | Johannesburg region | Closest Azure region |
+| AWS af-south-1 | Cape Town | Closest AWS region |
+| Angani | Kenya-based | Local Kenyan cloud provider |
+
+### Migration Steps (When Ready)
+
+**Step 1 — Self-host Supabase on Kenya server:**
+```bash
+# On your Kenya cloud server
+git clone https://github.com/supabase/supabase
+cd supabase/docker
+cp .env.example .env
+# Edit .env with your settings
+docker compose up -d
+Step 2 — Export existing Supabase data:
+
+Bash
+
+# Export from current Supabase project
+supabase db dump -p your-password > aegiscare-backup.sql
+
+# Import to new Kenya-hosted Supabase
+psql -h your-kenya-server -U postgres -d postgres < aegiscare-backup.sql
+Step 3 — Update environment variables:
+
+text
+
+VITE_SUPABASE_URL=https://your-kenya-server.com
+VITE_SUPABASE_ANON_KEY=your-new-anon-key
 ## Pushing updates to a deployed facility
 
 When the master repo gets updates:

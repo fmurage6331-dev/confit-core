@@ -88,10 +88,10 @@ function Consent() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-8">
       <div className="rounded-2xl border bg-card p-8 shadow-[var(--shadow-elevated)]">
-        <h1 className="text-2xl font-bold">Connect {clientName} to Aegiscare</h1>
+        <h1 className="text-2xl font-bold">Connect {clientName} to AegisCare HMS</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          This will let {clientName} read patients, services, and clinical activity as you. You can
-          revoke access at any time.
+          This will allow {clientName} to access AegisCare HMS data on your behalf. You can revoke
+          access at any time from your account settings.
         </p>
         {error && (
           <p className="mt-4 text-sm text-destructive" role="alert">

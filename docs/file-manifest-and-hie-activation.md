@@ -148,7 +148,7 @@ confit-core/
         ├── forgot-password.tsx          # Password recovery request
         ├── reset-password.tsx           # Password token reset confirmation
         ├── mcp.ts                       # MCP HTTP handler endpoint
-        ├── [.]lovable.oauth.consent.tsx # OAuth consent handler
+        ├──├── [.]oauth.consent.tsx         # OAuth consent handler (legacy — not used in production)
         ├── [.mcp]/invoke-tool/$tool.ts  # MCP tool invocation gateway
         ├── [.mcp]/list-tools.ts         # MCP tool discovery manifest
         └── [.well-known]/*              # OAuth protected resource metadata
