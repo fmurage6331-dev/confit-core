@@ -22,7 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Radio,
@@ -35,6 +41,9 @@ import {
   XCircle,
   SkipForward,
   FileDown,
+  Send,
+  CreditCard,
+  RotateCcw,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -51,10 +60,14 @@ export const Route = createFileRoute("/admin/queue")({
         <Tabs defaultValue="outbound">
           <TabsList className="mb-6">
             <TabsTrigger value="outbound">Outbound Queue</TabsTrigger>
+            <TabsTrigger value="shaClaims">SHA Claims</TabsTrigger>
             <TabsTrigger value="claims">Claims Aging</TabsTrigger>
           </TabsList>
           <TabsContent value="outbound">
             <QueuePage />
+          </TabsContent>
+          <TabsContent value="shaClaims">
+            <ShaClaimsQueue />
           </TabsContent>
           <TabsContent value="claims">
             <ClaimsAging />
@@ -448,6 +461,439 @@ function QueuePage() {
                 </>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+// ── SHA Claims State Machine ─────────────────────────────────────────────────
+
+type ShaClaimRow = {
+  id: string;
+  encounter_id: string | null;
+  patient_id: string | null;
+  claim_number: string | null;
+  dha_claim_id: string | null;
+  fund_type: string | null;
+  status: string | null;
+  claim_subtype: string | null;
+  total_amount: number | null;
+  approved_amount: number | null;
+  rejected_amount: number | null;
+  rejection_reason: string | null;
+  resubmission_count: number | null;
+  preauth_status: string | null;
+  cr_number_missing: boolean | null;
+  sha_member_missing: boolean | null;
+  fhir_built_at: string | null;
+  submitted_at: string | null;
+  created_at: string | null;
+  payment_reference: string | null;
+  payment_date: string | null;
+  patient_name: string | null;
+  file_number: string | null;
+  sha_member_number: string | null;
+  age_days: number | null;
+  aging_status: string | null;
+};
+
+const SHA_STATUS_COLORS: Record<string, string> = {
+  draft: "bg-gray-100 text-gray-700 border-gray-200",
+  pending_otp: "bg-gray-100 text-gray-700 border-gray-200",
+  pending_preauth: "bg-amber-100 text-amber-800 border-amber-200",
+  ready: "bg-blue-100 text-blue-800 border-blue-200",
+  submitted: "bg-blue-100 text-blue-800 border-blue-200",
+  acknowledged: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  approved: "bg-green-100 text-green-800 border-green-200",
+  rejected: "bg-red-100 text-red-800 border-red-200",
+  appealed: "bg-orange-100 text-orange-800 border-orange-200",
+  paid: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  payment_completed: "bg-emerald-100 text-emerald-800 border-emerald-200",
+};
+
+function ShaClaimsQueue() {
+  const { isAdmin, user } = useAuth();
+  const qc = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [busy, setBusy] = useState(false);
+  const [paymentRow, setPaymentRow] = useState<ShaClaimRow | null>(null);
+  const [paymentRef, setPaymentRef] = useState("");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const {
+    data: rows = [],
+    isLoading,
+    refetch,
+  } = useQuery<ShaClaimRow[]>({
+    queryKey: ["sha-claims-queue", statusFilter],
+    queryFn: async () => {
+      let q = db.from("sha_claims_aging").select("*").order("created_at", { ascending: false });
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ShaClaimRow[];
+    },
+  });
+
+  if (!isAdmin) return <AccessDenied message="Admin only." />;
+
+  async function insertHistory(row: ShaClaimRow, newStatus: string, reason: string | null) {
+    const { error } = await db.from("sha_claim_status_history").insert({
+      claim_id: row.id,
+      previous_status: row.status ?? null,
+      new_status: newStatus,
+      changed_by: user?.id ?? null,
+      reason,
+      notes: reason,
+      created_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async function transition(
+    row: ShaClaimRow,
+    newStatus: string,
+    extra: Record<string, unknown>,
+    reason: string | null,
+    successMessage: string,
+  ) {
+    setBusy(true);
+    try {
+      const now = new Date().toISOString();
+      const { error } = await db
+        .from("sha_claims")
+        .update({
+          status: newStatus,
+          updated_at: now,
+          last_status_check: now,
+          ...extra,
+        } as Record<string, unknown>)
+        .eq("id", row.id);
+      if (error) throw new Error(error.message);
+      await insertHistory(row, newStatus, reason);
+      toast.success(successMessage);
+      qc.invalidateQueries({ queryKey: ["sha-claims-queue"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recordPayment() {
+    if (!paymentRow) return;
+    if (!paymentRef.trim()) {
+      toast.error("Payment reference is required");
+      return;
+    }
+    await transition(
+      paymentRow,
+      "payment_completed",
+      {
+        payment_reference: paymentRef.trim(),
+        payment_date: paymentDate || new Date().toISOString().slice(0, 10),
+        approved_amount: paymentRow.approved_amount ?? paymentRow.total_amount,
+      },
+      "Payment recorded on SHA claim",
+      "Payment recorded",
+    );
+    setPaymentRow(null);
+    setPaymentRef("");
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+  }
+
+  function rejectWithReason(row: ShaClaimRow) {
+    const reason = window.prompt("Rejection reason");
+    if (reason === null) return;
+    void transition(
+      row,
+      "rejected",
+      {},
+      reason.trim() || "Rejected from SHA claims queue",
+      "Claim marked rejected",
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Radio className="h-5 w-5 text-primary" />
+            SHA Claims State Machine
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Review draft/submitted/rejected SHA claims and process approvals, rejections,
+            resubmissions and payments.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => refetch()} disabled={busy}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label className="text-xs">Status</Label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="submitted">Submitted</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="payment_completed">Payment completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="text-xs text-muted-foreground pb-2">
+          {rows.length} claim{rows.length !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Patient</th>
+                <th className="px-4 py-3">Claim Ref</th>
+                <th className="px-4 py-3">Fund</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3">Preauth</th>
+                <th className="px-4 py-3">Alerts</th>
+                <th className="px-4 py-3 text-center">Age</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {isLoading && (
+                <tr>
+                  <td colSpan={9} className="p-6 text-center text-muted-foreground">
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!isLoading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                    No SHA claims match the selected filters.
+                  </td>
+                </tr>
+              )}
+              {rows.map((row) => {
+                const status = row.status ?? "draft";
+                const resubCount = row.resubmission_count ?? 0;
+                const missingData =
+                  Boolean(row.cr_number_missing) || Boolean(row.sha_member_missing);
+                const submittedAt = row.submitted_at ? new Date(row.submitted_at).getTime() : 0;
+                const overdueResponse =
+                  row.status === "submitted" &&
+                  submittedAt > 0 &&
+                  (Date.now() - submittedAt) / (1000 * 60 * 60 * 24) > 30;
+                const overdueSubmission = row.aging_status === "overdue_submission";
+                const overdue = overdueResponse || overdueSubmission;
+
+                return (
+                  <tr key={row.id} className="hover:bg-muted/20 align-top">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{row.patient_name ?? "—"}</div>
+                      {row.file_number && (
+                        <div className="text-xs text-muted-foreground">{row.file_number}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <code className="text-xs">{row.claim_number ?? "—"}</code>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className="text-xs">
+                        {row.fund_type ?? "—"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs uppercase ${SHA_STATUS_COLORS[status] ?? "bg-gray-100"}`}
+                      >
+                        {status.replace(/_/g, " ")}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      KSh {Number(row.total_amount ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-xs capitalize">{row.preauth_status ?? "—"}</td>
+                    <td className="px-4 py-3 space-y-1 min-w-[180px]">
+                      {row.fund_type === "PHF" && (
+                        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+                          PHF Claim — SHA covers 100%. Zero patient copay.
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {overdue && (
+                          <Badge className="bg-red-100 text-red-700 border-red-200">Overdue</Badge>
+                        )}
+                        {resubCount > 0 && (
+                          <Badge className="bg-orange-100 text-orange-700 border-orange-200">
+                            Resubmitted ×{resubCount}
+                          </Badge>
+                        )}
+                        {missingData && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                            Missing data
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs tabular-nums">
+                      {row.age_days != null ? `${row.age_days}d` : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        {status === "draft" && (
+                          <Button
+                            size="sm"
+                            className="h-7 px-2"
+                            disabled={busy}
+                            onClick={() =>
+                              void transition(
+                                row,
+                                "submitted",
+                                { submitted_at: new Date().toISOString() },
+                                "Submitted from claims queue",
+                                "Claim submitted",
+                              )
+                            }
+                          >
+                            <Send className="mr-1 h-3.5 w-3.5" />
+                            Submit Claim
+                          </Button>
+                        )}
+                        {status === "submitted" && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="h-7 px-2 bg-green-600 hover:bg-green-700"
+                              disabled={busy}
+                              onClick={() =>
+                                void transition(
+                                  row,
+                                  "approved",
+                                  { approved_amount: row.approved_amount ?? row.total_amount },
+                                  "Marked approved from claims queue",
+                                  "Claim approved",
+                                )
+                              }
+                            >
+                              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                              Mark Approved
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-red-600 hover:text-red-700"
+                              disabled={busy}
+                              onClick={() => rejectWithReason(row)}
+                            >
+                              <XCircle className="mr-1 h-3.5 w-3.5" />
+                              Mark Rejected
+                            </Button>
+                          </>
+                        )}
+                        {status === "approved" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-emerald-700"
+                            disabled={busy}
+                            onClick={() => setPaymentRow(row)}
+                          >
+                            <CreditCard className="mr-1 h-3.5 w-3.5" />
+                            Record Payment
+                          </Button>
+                        )}
+                        {status === "rejected" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2"
+                            disabled={busy}
+                            onClick={() =>
+                              void transition(
+                                row,
+                                "submitted",
+                                {
+                                  resubmission_count: resubCount + 1,
+                                  submitted_at: new Date().toISOString(),
+                                },
+                                `Resubmitted (attempt ${resubCount + 1})`,
+                                "Claim resubmitted",
+                              )
+                            }
+                          >
+                            <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                            Resubmit
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {paymentRow && (
+        <Dialog open onOpenChange={(o) => !o && setPaymentRow(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Record SHA Payment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="text-xs text-muted-foreground">
+                Claim {paymentRow.claim_number ?? paymentRow.id}
+              </div>
+              <div>
+                <Label>Payment reference</Label>
+                <Input
+                  value={paymentRef}
+                  onChange={(e) => setPaymentRef(e.target.value)}
+                  placeholder="e.g. SHA-PAY-2026-12345"
+                />
+              </div>
+              <div>
+                <Label>Payment date</Label>
+                <Input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setPaymentRow(null);
+                  setPaymentRef("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="button" onClick={() => void recordPayment()} disabled={busy}>
+                <CreditCard className="mr-1 h-4 w-4" />
+                Record payment
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
