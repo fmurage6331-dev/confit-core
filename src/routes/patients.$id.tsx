@@ -42,6 +42,7 @@ import {
   Printer,
   ShieldAlert,
   MapPin,
+  FileDown,
 } from "lucide-react";
 import { PrintHeader } from "@/components/print-header";
 import { ConsentDialog } from "@/components/consent-dialog";
@@ -151,6 +152,122 @@ function PatientProfile() {
     },
   });
 
+  const [exportingDsar, setExportingDsar] = useState(false);
+
+  async function exportDsar() {
+    if (!isAdmin) return;
+    setExportingDsar(true);
+    try {
+      const [patientRes, encountersRes, admissionsRes, labRes, radRes, invoicesRes, consentsRes] =
+        await Promise.all([
+          db.from("patients").select("*").eq("id", id).limit(1),
+          db.from("encounters").select("*").eq("patient_id", id).order("created_at"),
+          db.from("admissions").select("*").eq("patient_id", id),
+          db.from("lab_orders").select("*").eq("patient_id", id),
+          db.from("radiology_orders").select("*").eq("patient_id", id),
+          db.from("invoices").select("*").eq("patient_id", id),
+          db.from("patient_consents").select("*").eq("patient_id", id),
+        ]);
+
+      const fetchResults = [
+        patientRes,
+        encountersRes,
+        admissionsRes,
+        labRes,
+        radRes,
+        invoicesRes,
+        consentsRes,
+      ] as { error: { message: string } | null }[];
+      const firstError = fetchResults.find((r) => r.error);
+      if (firstError?.error) throw new Error(firstError.error.message);
+
+      const patientRow = ((patientRes.data as Array<Record<string, unknown>> | null) ??
+        [])[0] as Record<string, unknown> | null;
+      const encounterRows = (encountersRes.data ?? []) as Array<Record<string, unknown>>;
+      const encounterIds = encounterRows
+        .map((e) => e.id)
+        .filter((val): val is string => typeof val === "string");
+
+      const emptyResult = () =>
+        Promise.resolve({ data: [] as Array<Record<string, unknown>>, error: null });
+
+      const [notesRes, prescRes] = await Promise.all([
+        encounterIds.length > 0
+          ? db
+              .from("clinical_notes")
+              .select("*")
+              .in("encounter_id", encounterIds)
+              .order("created_at")
+          : emptyResult(),
+        encounterIds.length > 0
+          ? db
+              .from("prescriptions")
+              .select("*")
+              .in("encounter_id", encounterIds)
+              .order("created_at")
+          : emptyResult(),
+      ]);
+      if (notesRes.error) throw new Error(notesRes.error.message);
+      if (prescRes.error) throw new Error(prescRes.error.message);
+
+      const settingsRes = await db
+        .from("app_settings")
+        .select("facility_name")
+        .eq("id", "global")
+        .limit(1);
+      if (settingsRes.error) throw new Error(settingsRes.error.message);
+      const facilityName =
+        ((settingsRes.data as Array<Record<string, unknown>> | null)?.[0]?.facility_name as
+          string | null) ?? "";
+
+      const exportData = {
+        export_metadata: {
+          exported_at: new Date().toISOString(),
+          exported_by: user?.email,
+          purpose: "DSAR — Kenya ODPC Data Protection Act 2019",
+          facility: facilityName,
+          retention_notice: "This data is confidential health information.",
+        },
+        patient: patientRow,
+        encounters: encounterRows,
+        admissions: (admissionsRes.data ?? []) as Array<Record<string, unknown>>,
+        lab_orders: (labRes.data ?? []) as Array<Record<string, unknown>>,
+        radiology_orders: (radRes.data ?? []) as Array<Record<string, unknown>>,
+        prescriptions: (prescRes.data ?? []) as Array<Record<string, unknown>>,
+        invoices: (invoicesRes.data ?? []) as Array<Record<string, unknown>>,
+        consents: (consentsRes.data ?? []) as Array<Record<string, unknown>>,
+        clinical_notes: (notesRes.data ?? []) as Array<Record<string, unknown>>,
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const fileNumber =
+        (patientRow?.file_number as string | null) ?? patientRow?.id ?? id ?? "patient";
+      a.href = url;
+      a.download = `patient-${fileNumber}-dsar-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      await db.from("audit_log").insert({
+        table_name: "patients",
+        record_id: id,
+        action: "DSAR_EXPORT",
+        new_data: { exported_by: user?.id, exported_at: new Date().toISOString() },
+        changed_by: user?.id,
+        changed_at: new Date().toISOString(),
+      });
+
+      toast.success("Patient data export downloaded (DSAR)");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to export patient data");
+    } finally {
+      setExportingDsar(false);
+    }
+  }
+
   if (pLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (!patient) {
     return (
@@ -176,6 +293,17 @@ function PatientProfile() {
           <ArrowLeft className="mr-1 h-4 w-4" /> Patients
         </Button>
         <div className="flex gap-2">
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void exportDsar()}
+              disabled={exportingDsar}
+            >
+              <FileDown className="mr-1 h-4 w-4" />
+              {exportingDsar ? "Exporting…" : "Export Patient Data (DSAR)"}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="mr-1 h-4 w-4" /> Print outpatient card
           </Button>
