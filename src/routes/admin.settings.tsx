@@ -124,7 +124,7 @@ function SettingsPage() {
     setSyncingKmhfl(true);
     try {
       const res = await fetch(
-        `https://kmhfr.health.go.ke/api/facilities/facilities/?code=${encodeURIComponent(code)}&format=json`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kmhfl-proxy?code=${encodeURIComponent(code)}`,
       );
       if (!res.ok) throw new Error(`KMHFL request failed (${res.status})`);
       const data = (await res.json()) as {
@@ -150,7 +150,11 @@ function SettingsPage() {
         `Synced from KMHFL: ${found.name ?? "Unknown facility"}, Level ${level || "—"}, ${county || "—"}`,
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to sync from KMHFL");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "KMHFL unavailable — please fill in facility details manually",
+      );
     } finally {
       setSyncingKmhfl(false);
     }
