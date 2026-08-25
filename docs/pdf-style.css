@@ -1,0 +1,130 @@
+/* AegisCare HMS — Documentation PDF Stylesheet */
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #1a1a2e;
+}
+
+h1 {
+  color: #1e3a5f;
+  font-size: 22pt;
+  border-bottom: 3px solid #1e3a5f;
+  padding-bottom: 8px;
+  margin-top: 40px;
+}
+
+h2 {
+  color: #2563eb;
+  font-size: 16pt;
+  border-bottom: 1px solid #93c5fd;
+  padding-bottom: 4px;
+  margin-top: 28px;
+}
+
+h3 {
+  color: #1e40af;
+  font-size: 13pt;
+  margin-top: 20px;
+}
+
+h4 {
+  color: #1e3a5f;
+  font-size: 11pt;
+  margin-top: 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 10pt;
+}
+
+th {
+  background-color: #1e3a5f;
+  color: white;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+td {
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+}
+
+tr:nth-child(even) {
+  background-color: #f1f5f9;
+}
+
+code {
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'Courier New', monospace;
+  font-size: 9.5pt;
+  color: #dc2626;
+}
+
+pre {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 9pt;
+  line-height: 1.5;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #e2e8f0;
+}
+
+blockquote {
+  border-left: 4px solid #2563eb;
+  margin: 16px 0;
+  padding: 8px 16px;
+  background-color: #eff6ff;
+  color: #1e40af;
+  border-radius: 0 4px 4px 0;
+}
+
+.cover-page {
+  text-align: center;
+  padding-top: 120px;
+  page-break-after: always;
+}
+
+.doc-section {
+  page-break-before: always;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 24px 0;
+}
+
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+ul, ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+li {
+  margin: 4px 0;
+}
+
+strong {
+  color: #1e3a5f;
+}
