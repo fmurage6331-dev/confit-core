@@ -2734,6 +2734,8 @@ function InsuranceDialog({
   const [claimItems, setClaimItems] = useState<ClaimItemRow[]>([]);
   const [draftClaimId, setDraftClaimId] = useState<string | null>(null);
   const [packageWarning, setPackageWarning] = useState<string | null>(null);
+  const [preauthRequestedAt, setPreauthRequestedAt] = useState<string | null>(null);
+  const [preauthApprovedAt, setPreauthApprovedAt] = useState<string | null>(null);
 
   // OTP state
   const [patientPhone, setPatientPhone] = useState("");
@@ -2778,6 +2780,25 @@ function InsuranceDialog({
                 );
               }
             });
+        }
+      });
+  }, [reg.id]);
+
+  // Load preauth SLA timestamps from the linked SHA claim
+  useEffect(() => {
+    db.from("sha_claims")
+      .select("preauth_requested_at,preauth_approved_at,preauth_status,preauth_id")
+      .eq("encounter_id", reg.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        const row = (
+          data as
+            { preauth_requested_at: string | null; preauth_approved_at: string | null }[] | null
+        )?.[0];
+        if (row) {
+          setPreauthRequestedAt(row.preauth_requested_at ?? null);
+          setPreauthApprovedAt(row.preauth_approved_at ?? null);
         }
       });
   }, [reg.id]);
@@ -3329,6 +3350,50 @@ function InsuranceDialog({
                 </div>
               </Grid>
             </Section>
+
+            {/* 72hr SLA Timer */}
+            {isSha &&
+              preauthRequestedAt &&
+              !preauthApprovedAt &&
+              (() => {
+                const requestedAt = new Date(preauthRequestedAt);
+                const hoursElapsed = (Date.now() - requestedAt.getTime()) / (1000 * 60 * 60);
+                const hoursRemaining = Math.max(0, 72 - hoursElapsed);
+                const isOverdue = hoursElapsed > 72;
+                return (
+                  <div
+                    className={`rounded-lg border p-3 text-sm ${
+                      isOverdue ? "bg-rose-50 border-rose-300" : "bg-amber-50 border-amber-300"
+                    }`}
+                  >
+                    {isOverdue ? (
+                      <p className="text-rose-700 font-medium">
+                        ⚠️ Preauth overdue — {Math.round(hoursElapsed - 72)}hrs past 72hr SLA
+                      </p>
+                    ) : (
+                      <p className="text-amber-700">
+                        Preauth pending — {Math.round(hoursRemaining)}hrs remaining in 72hr SLA
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+            {/* SHA Eligibility placeholder */}
+            {isSha && (
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                  SHA Eligibility Check
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  SHA API credentials pending. Eligibility verification will be available once DHA
+                  credentials are configured.
+                </p>
+                <Button size="sm" variant="outline" disabled className="mt-2">
+                  Check Eligibility (Pending credentials)
+                </Button>
+              </div>
+            )}
 
             {preauthMissing && isSha && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400">
