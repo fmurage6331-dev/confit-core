@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/settings")({ component: SettingsPage });
@@ -42,6 +43,20 @@ const EMPTY_FACILITY: FacilitySettings = {
   facility_level: "",
 };
 
+function mapKephLevel(level: string): string {
+  const normalized = (level ?? "").trim();
+  const label = /^Level\s/i.test(normalized) ? normalized : normalized ? `Level ${normalized}` : "";
+  const map: Record<string, string> = {
+    "Level 1": "1",
+    "Level 2": "2",
+    "Level 3": "3A",
+    "Level 4": "4",
+    "Level 5": "5",
+    "Level 6": "6",
+  };
+  return map[label] ?? "";
+}
+
 function SettingsPage() {
   const { isAdmin, rolesLoading } = useAuth();
   const { appName, logoUrl, refresh } = useBranding();
@@ -56,6 +71,7 @@ function SettingsPage() {
   const [facility, setFacility] = useState<FacilitySettings>(EMPTY_FACILITY);
   const [savingFacility, setSavingFacility] = useState(false);
   const [loadingFacility, setLoadingFacility] = useState(true);
+  const [syncingKmhfl, setSyncingKmhfl] = useState(false);
 
   useEffect(() => {
     setName(appName);
@@ -97,6 +113,47 @@ function SettingsPage() {
   function setF(k: keyof FacilitySettings) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
       setFacility((prev) => ({ ...prev, [k]: e.target.value }));
+  }
+
+  async function syncFromKmhfl() {
+    const code = facility.facility_kmhfl_code.trim();
+    if (!code) {
+      toast.error("Enter a KMHFL code before syncing");
+      return;
+    }
+    setSyncingKmhfl(true);
+    try {
+      const res = await fetch(
+        `https://kmhfr.health.go.ke/api/facilities/facilities/?code=${encodeURIComponent(code)}&format=json`,
+      );
+      if (!res.ok) throw new Error(`KMHFL request failed (${res.status})`);
+      const data = (await res.json()) as {
+        results?: Array<{
+          name?: string;
+          keph_level?: string | number;
+          county?: { name?: string } | string;
+        }>;
+      };
+      const found = data.results?.[0];
+      if (!found) {
+        throw new Error("Facility not found in KMHFL registry. Check the MFL code.");
+      }
+      const level = mapKephLevel(String(found.keph_level ?? ""));
+      const county = typeof found.county === "string" ? found.county : (found.county?.name ?? "");
+      setFacility((prev) => ({
+        ...prev,
+        facility_name: found.name ?? prev.facility_name,
+        facility_level: level || prev.facility_level,
+        facility_county: county || prev.facility_county,
+      }));
+      toast.success(
+        `Synced from KMHFL: ${found.name ?? "Unknown facility"}, Level ${level || "—"}, ${county || "—"}`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sync from KMHFL");
+    } finally {
+      setSyncingKmhfl(false);
+    }
   }
 
   async function onSubmitBranding(e: FormEvent) {
@@ -293,12 +350,31 @@ function SettingsPage() {
                     <div className="grid gap-4 sm:grid-cols-2 pt-2">
                       <div>
                         <Label htmlFor="facility_kmhfl_code">KMHFL code</Label>
-                        <Input
-                          id="facility_kmhfl_code"
-                          value={facility.facility_kmhfl_code}
-                          onChange={setF("facility_kmhfl_code")}
-                          placeholder="e.g. 13247"
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            id="facility_kmhfl_code"
+                            className="flex-1"
+                            value={facility.facility_kmhfl_code}
+                            onChange={setF("facility_kmhfl_code")}
+                            placeholder="e.g. 13247"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 shrink-0"
+                            onClick={() => void syncFromKmhfl()}
+                            disabled={syncingKmhfl || loadingFacility}
+                          >
+                            <RefreshCw
+                              className={`mr-1 h-3.5 w-3.5 ${syncingKmhfl ? "animate-spin" : ""}`}
+                            />
+                            Sync from KMHFL
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Fetch facility name, level and county from the public KMHFR registry.
+                        </p>
                       </div>
                       <div>
                         <Label htmlFor="facility_sha_id">SHA facility ID</Label>
