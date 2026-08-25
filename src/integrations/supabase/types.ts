@@ -3983,6 +3983,47 @@ export type Database = {
           },
         ]
       }
+      sha_claim_status_history: {
+        Row: {
+          changed_by: string | null
+          claim_id: string | null
+          created_at: string | null
+          id: string
+          new_status: string
+          notes: string | null
+          previous_status: string | null
+          reason: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          claim_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_status: string
+          notes?: string | null
+          previous_status?: string | null
+          reason?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          claim_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_status?: string
+          notes?: string | null
+          previous_status?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sha_claim_status_history_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "sha_claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sha_claims: {
         Row: {
           acknowledged_at: string | null
@@ -4000,10 +4041,13 @@ export type Database = {
           fhir_bundle: Json | null
           fund_type: string | null
           id: string
+          last_status_check: string | null
           notes: string | null
           otp_verified: boolean | null
           otp_verified_at: string | null
           patient_id: string | null
+          payment_date: string | null
+          payment_reference: string | null
           preauth_approved_at: string | null
           preauth_id: string | null
           preauth_notes: string | null
@@ -4014,6 +4058,7 @@ export type Database = {
           rejected_amount: number | null
           rejection_reason: string | null
           resolved_at: string | null
+          resubmission_count: number | null
           sha_member_missing: boolean | null
           sha_member_no_at_claim: string | null
           status: string | null
@@ -4038,10 +4083,13 @@ export type Database = {
           fhir_bundle?: Json | null
           fund_type?: string | null
           id?: string
+          last_status_check?: string | null
           notes?: string | null
           otp_verified?: boolean | null
           otp_verified_at?: string | null
           patient_id?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
           preauth_approved_at?: string | null
           preauth_id?: string | null
           preauth_notes?: string | null
@@ -4052,6 +4100,7 @@ export type Database = {
           rejected_amount?: number | null
           rejection_reason?: string | null
           resolved_at?: string | null
+          resubmission_count?: number | null
           sha_member_missing?: boolean | null
           sha_member_no_at_claim?: string | null
           status?: string | null
@@ -4076,10 +4125,13 @@ export type Database = {
           fhir_bundle?: Json | null
           fund_type?: string | null
           id?: string
+          last_status_check?: string | null
           notes?: string | null
           otp_verified?: boolean | null
           otp_verified_at?: string | null
           patient_id?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
           preauth_approved_at?: string | null
           preauth_id?: string | null
           preauth_notes?: string | null
@@ -4090,6 +4142,7 @@ export type Database = {
           rejected_amount?: number | null
           rejection_reason?: string | null
           resolved_at?: string | null
+          resubmission_count?: number | null
           sha_member_missing?: boolean | null
           sha_member_no_at_claim?: string | null
           status?: string | null
@@ -5067,6 +5120,38 @@ export type Database = {
             columns: ["sha_benefit_package_id"]
             isOneToOne: false
             referencedRelation: "sha_benefit_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sha_claims_aging: {
+        Row: {
+          age_days: number | null
+          aging_status: string | null
+          approved_amount: number | null
+          claim_subtype: string | null
+          created_at: string | null
+          cr_number_missing: boolean | null
+          fhir_built_at: string | null
+          file_number: string | null
+          fund_type: string | null
+          id: string | null
+          patient_name: string | null
+          preauth_status: string | null
+          rejected_amount: number | null
+          resubmission_count: number | null
+          sha_member_missing: boolean | null
+          sha_member_number: string | null
+          status: string | null
+          submitted_at: string | null
+          total_amount: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sha_claims_pkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "sha_claims"
             referencedColumns: ["id"]
           },
         ]
