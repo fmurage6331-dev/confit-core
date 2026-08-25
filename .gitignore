@@ -50,3 +50,6 @@ build.out
 .env
 .env.*
 !.env.example
+
+# Supabase CLI temp files
+supabase/.temp/
