@@ -130,7 +130,7 @@ with the national HIS certification pathway.
 
 ### Requirement: DHA HIE authentication (JWT/OAuth2 client credentials)
 **Source:** `https://afyalink.dha.go.ke/claim-integration`, `https://afyalink.dha.go.ke/sha-portal-api-integration`
-**Status:** 🔴 GAP
+**Status:**  GAP
 **Implementation:** `claims-dispatcher` edge function exists and is designed to send queued items,
 but it is not live because no credential configuration exists.
 **Gap:** Access/secret keys, OAuth2 client credentials, callback URL configuration, and IP
@@ -166,7 +166,7 @@ optionally integrate with DHA terminology/OCL in production.
 
 ### Requirement: SHA claim lifecycle (draft → submitted → approved/rejected → resubmission → payment)
 **Source:** Kenya SHA / AfyaLink claims guide; DHA SHA Claim Bundle API docs
-**Status:** ✅ COMPLIANT (local workflow) / ⚠️ PARTIAL (live submission)
+**Status:** ✅ COMPLIANT (local workflow) /  PARTIAL (live submission)
 **Implementation:**
 - `sha_claims`, `sha_claim_items`, `sha_benefit_packages`, `sha_tariffs`, `sha_claim_packages`.
 - `auto_generate_sha_claim()` creates draft claims on encounter sign.
@@ -253,7 +253,7 @@ certification application.
 
 ### Requirement: Data subject access / DSAR and export
 **Source:** Kenya Data Protection Act, 2019; DHA Health Data Rules
-**Status:** ✅ COMPLIANT (feature) / ⚠️ PARTIAL (governance)
+**Status:** ✅ COMPLIANT (feature) /  PARTIAL (governance)
 **Implementation:** "Export Patient Data (DSAR)" button on patient record (admin-only) exports
 patient, encounters, admissions, clinical notes, lab orders, radiology orders, prescriptions,
 invoices, and consents as JSON, and logs `DSAR_EXPORT` to `audit_log`.
@@ -326,31 +326,31 @@ with 20-year retention.
 | 1 | DHA certification application / certificate | 🔴 GAP |
 | 2 | DHA ESB onboarding | 🔴 GAP |
 | 3 | DHA/AfyaLink credentials (OAuth/JWT/access keys) | 🔴 GAP |
-| 4 | Kenya eClaims FHIR profile conformance | ⚠️ PARTIAL |
+| 4 | Kenya eClaims FHIR profile conformance |  PARTIAL |
 | 5 | Full SHA Claim `message` Bundle assembly | 🔴 GAP |
 | 6 | `servicedPeriod` / `billablePeriod` / CareTeam on Claim | 🔴 GAP |
 | 7 | PHC/PHF zero total amount | 🔴 GAP |
-| 8 | SHA intervention code validation | ⚠️ PARTIAL |
+| 8 | SHA intervention code validation |  PARTIAL |
 | 9 | Local SHA claims state machine | ✅ COMPLIANT |
 | 10 | `build_fhir_claim()` column fix | ✅ COMPLIANT |
 | 11 | `sha_claim_status_history` | ✅ COMPLIANT |
 | 12 | `resubmission_count` / payment columns | ✅ COMPLIANT |
 | 13 | `sha_claims_aging` view | ✅ COMPLIANT |
 | 14 | KMHFL facility sync | ✅ COMPLIANT |
-| 15 | DSAR export | ✅ COMPLIANT (feature) / ⚠️ PARTIAL (governance) |
-| 16 | Preauth 72hr SLA timer | ✅ COMPLIANT (UI) / ⚠️ PARTIAL (live) |
+| 15 | DSAR export | ✅ COMPLIANT (feature) /  PARTIAL (governance) |
+| 16 | Preauth 72hr SLA timer | ✅ COMPLIANT (UI) /  PARTIAL (live) |
 | 17 | SHA Eligibility check | 🔴 GAP (pending credentials) |
 | 18 | ODPC registration / DPO | 🔴 GAP |
-| 19 | DPIA submission | ⚠️ PARTIAL |
+| 19 | DPIA submission |  PARTIAL |
 | 20 | Breach notification workflow | 🔴 GAP |
 | 21 | MFA | 🔴 GAP |
 | 22 | Penetration test | 🔴 GAP |
-| 23 | 20-year retention/archival | ⚠️ PARTIAL |
-| 24 | Kenya data hosting / cross-border controls | ⚠️ PARTIAL |
+| 23 | 20-year retention/archival |  PARTIAL |
+| 24 | Kenya data hosting / cross-border controls |  PARTIAL |
 | 25 | Biometric verification | 🔴 GAP |
-| 26 | Supabase free-tier cron availability | ⚠️ PARTIAL |
-| 27 | Audit log immutability | ⚠️ PARTIAL |
-| 28 | KHIS / MoH reporting integration | ⚠️ PARTIAL |
+| 26 | Supabase free-tier cron availability |  PARTIAL |
+| 27 | Audit log immutability |  PARTIAL |
+| 28 | KHIS / MoH reporting integration |  PARTIAL |
 | 29 | Live ClaimResponse / payment reconciliation | 🔴 GAP |
 
 ---
