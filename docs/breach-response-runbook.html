@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>breach-response-runbook.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="aegiscare-hms--data-breach-response-runbook">AegisCare HMS — Data Breach Response Runbook</h1>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>System</strong></td>
+<td>AegisCare HMS / LabTrack v5.16</td>
+</tr>
+<tr>
+<td><strong>Document type</strong></td>
+<td>Incident Response Runbook</td>
+</tr>
+<tr>
+<td><strong>Version</strong></td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><strong>Date</strong></td>
+<td>2026-08-27</td>
+</tr>
+<tr>
+<td><strong>Owner</strong></td>
+<td>Francis Muhoro</td>
+</tr>
+<tr>
+<td><strong>Legal basis</strong></td>
+<td>Data Protection Act 2019; Digital Health Act 2023; ODPC Guidelines</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>This runbook must be followed immediately upon discovery of any actual or
+suspected personal data breach. Timelines are strict and legally binding.</p>
+</blockquote>
+<hr>
+<!-- pagebreak -->
+<h2 id="notification-deadlines">Notification Deadlines</h2>
+<table>
+<thead>
+<tr>
+<th>Authority</th>
+<th>Deadline</th>
+<th>Contact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ODPC</strong></td>
+<td><strong>72 hours</strong> from discovery</td>
+<td>odpc@odpc.go.ke / 0800 722 522</td>
+</tr>
+<tr>
+<td><strong>DHA</strong></td>
+<td><strong>48 hours</strong> from discovery</td>
+<td>dha@health.go.ke</td>
+</tr>
+<tr>
+<td><strong>Affected individuals</strong></td>
+<td>Without undue delay (if high risk)</td>
+<td>Direct contact</td>
+</tr>
+<tr>
+<td><strong>Internal escalation</strong></td>
+<td><strong>Immediately</strong> on discovery</td>
+<td>See Step 1 below</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<!-- pagebreak -->
+<h2 id="step-1--immediate-actions-02-hours">Step 1 — Immediate Actions (0–2 Hours)</h2>
+<h3 id="11-confirm-the-incident">1.1 Confirm the Incident</h3>
+<ul>
+<li><input type="checkbox" id="checkbox0"><label for="checkbox0">Determine if this is a confirmed breach or suspected breach</label></li>
+<li><input type="checkbox" id="checkbox1"><label for="checkbox1">Identify what data is involved (PHI, financial, credentials)</label></li>
+<li><input type="checkbox" id="checkbox2"><label for="checkbox2">Identify how many patients/records are affected</label></li>
+<li><input type="checkbox" id="checkbox3"><label for="checkbox3">Identify the source (external attack, internal error, third-party)</label></li>
+</ul>
+<h3 id="12-contain-the-breach">1.2 Contain the Breach</h3>
+<ul>
+<li><input type="checkbox" id="checkbox4"><label for="checkbox4">If system compromise: immediately revoke all active sessions in Supabase</label></li>
+<li><input type="checkbox" id="checkbox5"><label for="checkbox5">If API key exposed: rotate all Supabase keys immediately</label></li>
+<li><input type="checkbox" id="checkbox6"><label for="checkbox6">If Edge Function compromised: disable via Dashboard</label></li>
+<li><input type="checkbox" id="checkbox7"><label for="checkbox7">If database breach: immediately enable Supabase network restrictions</label></li>
+<li><input type="checkbox" id="checkbox8"><label for="checkbox8">Document the time of containment</label></li>
+</ul>
+<h3 id="13-escalate-internally">1.3 Escalate Internally</h3>
+<ul>
+<li><input type="checkbox" id="checkbox9"><label for="checkbox9">Notify: Francis Muhoro (system owner)</label></li>
+<li><input type="checkbox" id="checkbox10"><label for="checkbox10">Notify: Facility Director / Medical Superintendent</label></li>
+<li><input type="checkbox" id="checkbox11"><label for="checkbox11">Notify: Data Protection Officer (DPO) — once appointed</label></li>
+<li><input type="checkbox" id="checkbox12"><label for="checkbox12">Open an entry in <code>docs/incident-register.md</code></label></li>
+<li><input type="checkbox" id="checkbox13"><label for="checkbox13">Do NOT delete any logs or evidence</label></li>
+</ul>
+<hr>
+<!-- pagebreak -->
+<h2 id="step-2--assessment-212-hours">Step 2 — Assessment (2–12 Hours)</h2>
+<h3 id="21-scope-the-breach">2.1 Scope the Breach</h3>
+<p>Run in <strong>Supabase SQL Editor</strong> to check audit trail:</p>
+<pre class="hljs"><code><div><span class="hljs-comment">-- What happened in the last 24 hours?</span>
+<span class="hljs-keyword">SELECT</span>
+table_name,
+action,
+performed_by,
+created_at,
+old_data,
+new_data
+<span class="hljs-keyword">FROM</span> public.audit_log
+<span class="hljs-keyword">WHERE</span> created_at <span class="hljs-operator">&gt;</span> now() <span class="hljs-operator">-</span> <span class="hljs-type">INTERVAL</span> <span class="hljs-string">&#x27;24 hours&#x27;</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> created_at <span class="hljs-keyword">DESC</span>
+LIMIT <span class="hljs-number">100</span>;
+<span class="hljs-comment">-- Check for unusual access patterns</span>
+<span class="hljs-keyword">SELECT</span>
+  performed_by,
+  table_name,
+  action,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">AS</span> action_count
+<span class="hljs-keyword">FROM</span> public.audit_log
+<span class="hljs-keyword">WHERE</span> created_at <span class="hljs-operator">&gt;</span> now() <span class="hljs-operator">-</span> <span class="hljs-type">INTERVAL</span> <span class="hljs-string">&#x27;24 hours&#x27;</span>
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> performed_by, table_name, action
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> action_count <span class="hljs-keyword">DESC</span>
+LIMIT <span class="hljs-number">20</span>;
+<span class="hljs-comment">-- Check break-glass access</span>
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span>
+<span class="hljs-keyword">FROM</span> public.audit_log
+<span class="hljs-keyword">WHERE</span> action <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;BREAK_GLASS&#x27;</span>
+  <span class="hljs-keyword">AND</span> created_at <span class="hljs-operator">&gt;</span> now() <span class="hljs-operator">-</span> <span class="hljs-type">INTERVAL</span> <span class="hljs-string">&#x27;7 days&#x27;</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> created_at <span class="hljs-keyword">DESC</span>;
+</div></code></pre>
+<h3 id="22-document-impact">2.2 Document Impact</h3>
+<ul>
+<li>Number of patients affected: ___________</li>
+<li>Data categories exposed:
+<ul>
+<li>Names / contact details</li>
+<li>National ID numbers</li>
+<li>Medical records / diagnoses</li>
+<li>Financial / billing records</li>
+<li>SHA member numbers</li>
+<li>Prescriptions / lab results</li>
+</ul>
+</li>
+<li>Likely consequence to individuals: Low / Medium / High / Very High</li>
+<li>Was data exfiltrated or only accessed?</li>
+</ul>
+<h3 id="23-determine-notification-requirement">2.3 Determine Notification Requirement</h3>
+<table>
+<thead>
+<tr>
+<th>Risk Level</th>
+<th>Action Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Low (no PHI, no exfiltration)</td>
+<td>Internal record only</td>
+</tr>
+<tr>
+<td>Medium (limited PHI, no exfiltration)</td>
+<td>ODPC + DHA notify</td>
+</tr>
+<tr>
+<td>High (PHI exfiltrated, financial data)</td>
+<td>ODPC + DHA + individuals</td>
+</tr>
+<tr>
+<td>Very High (large scale, sensitive)</td>
+<td>ODPC + DHA + individuals + public</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<!-- pagebreak -->
+<h2 id="step-3--odpc-notification-within-72-hours">Step 3 — ODPC Notification (Within 72 Hours)</h2>
+<p>Deadline: 72 hours from the moment the breach was discovered.</p>
+<h3 id="31-odpc-notification-template">3.1 ODPC Notification Template</h3>
+<pre class="hljs"><code><div>TO: odpc@odpc.go.ke
+SUBJECT: Personal Data Breach Notification — AegisCare HMS — [DATE]
+
+Dear Office of the Data Protection Commissioner,
+
+Pursuant to Section 43 of the Data Protection Act, 2019, we hereby notify
+you of a personal data breach affecting our health management system.
+
+SYSTEM DETAILS:
+  Organization: [Facility Name]
+  System: AegisCare HMS v5.16
+  Data Controller Registration: [ODPC Reg Number — pending]
+
+BREACH DETAILS:
+  Date/Time of Discovery: [DATETIME]
+  Date/Time of Breach (if known): [DATETIME]
+  Date/Time of Containment: [DATETIME]
+
+NATURE OF BREACH:
+  [Describe what happened — e.g., unauthorized access, accidental disclosure]
+
+DATA INVOLVED:
+  Categories of data: [list categories]
+  Approximate number of records: [number]
+  Approximate number of individuals: [number]
+
+LIKELY CONSEQUENCES:
+  [Describe risk to individuals]
+
+MEASURES TAKEN:
+  [Describe containment and remediation steps]
+
+CONTACT:
+  Name: Francis Muhoro
+  Role: System Owner / Data Controller
+  Email: [email]
+  Phone: [phone]
+
+We will provide a full incident report within 14 days.
+
+Yours faithfully,
+Francis Muhoro
+AegisCare HMS
+</div></code></pre>
+<h3 id="32-dha-submission-checklist">3.2 DHA Submission Checklist</h3>
+<ul>
+<li><input type="checkbox" id="checkbox14"><label for="checkbox14">Email sent to dha@health.go.ke within 48 hours</label></li>
+<li><input type="checkbox" id="checkbox15"><label for="checkbox15">Reference number recorded</label></li>
+<li><input type="checkbox" id="checkbox16"><label for="checkbox16">Full incident report submitted within 14 days</label></li>
+</ul>
+<hr>
+<!-- pagebreak -->
+<h2 id="step-4--individual-notification-if-high-risk">Step 4 — Individual Notification (If High Risk)</h2>
+<p>If the breach is likely to result in high risk to individuals:</p>
+<ul>
+<li>Identify affected patients by querying audit_log</li>
+<li>Notify each patient via:
+<ul>
+<li>SMS (use send-sms edge function)</li>
+<li>Phone call for high-risk cases</li>
+</ul>
+</li>
+<li>Notification must include:
+<ul>
+<li>What data was involved</li>
+<li>What steps we have taken</li>
+<li>What they can do to protect themselves</li>
+<li>Our contact details</li>
+</ul>
+</li>
+</ul>
+<h3 id="sms-notification-template">SMS Notification Template</h3>
+<pre class="hljs"><code><div>AegisCare Security Notice: We have detected a security incident that
+may have affected your health records. We have secured the system.
+Please call [phone] for more information. Ref: [incident-id]
+</div></code></pre>
+<hr>
+<!-- pagebreak -->
+<h2 id="step-5--recovery-and-evidence-preservation">Step 5 — Recovery and Evidence Preservation</h2>
+<ul>
+<li><input type="checkbox" id="checkbox17"><label for="checkbox17">Restore from last verified clean backup</label></li>
+<li><input type="checkbox" id="checkbox18"><label for="checkbox18">Verify backup integrity before restoring</label></li>
+<li><input type="checkbox" id="checkbox19"><label for="checkbox19">Document RPO (Recovery Point Objective) achieved</label></li>
+<li><input type="checkbox" id="checkbox20"><label for="checkbox20">Document RTO (Recovery Time Objective) achieved</label></li>
+<li><input type="checkbox" id="checkbox21"><label for="checkbox21">Preserve all logs — do NOT delete any audit_log records</label></li>
+<li><input type="checkbox" id="checkbox22"><label for="checkbox22">Engage forensics if criminal activity suspected</label></li>
+</ul>
+<hr>
+<!-- pagebreak -->
+<h2 id="step-6--post-incident-review-within-14-days">Step 6 — Post-Incident Review (Within 14 Days)</h2>
+<ul>
+<li><input type="checkbox" id="checkbox23"><label for="checkbox23">Root cause analysis completed</label></li>
+<li><input type="checkbox" id="checkbox24"><label for="checkbox24">Full incident report written</label></li>
+<li><input type="checkbox" id="checkbox25"><label for="checkbox25">ODPC full report submitted (within 14 days)</label></li>
+<li><input type="checkbox" id="checkbox26"><label for="checkbox26">DHA full report submitted</label></li>
+<li><input type="checkbox" id="checkbox27"><label for="checkbox27">Security controls reviewed and updated</label></li>
+<li><input type="checkbox" id="checkbox28"><label for="checkbox28">Staff training updated if human error involved</label></li>
+<li><input type="checkbox" id="checkbox29"><label for="checkbox29">Incident register updated with resolution</label></li>
+<li><input type="checkbox" id="checkbox30"><label for="checkbox30">DHA certification team notified of remediation</label></li>
+</ul>
+<hr>
+<!-- pagebreak -->
+<h2 id="emergency-contacts">Emergency Contacts</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Contact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>System Owner</td>
+<td>Francis Muhoro</td>
+<td>[phone/email]</td>
+</tr>
+<tr>
+<td>Facility Director</td>
+<td>[Name]</td>
+<td>[phone]</td>
+</tr>
+<tr>
+<td>DPO</td>
+<td>[TBA — pending appointment]</td>
+<td>[TBA]</td>
+</tr>
+<tr>
+<td>ODPC Helpline</td>
+<td>—</td>
+<td>0800 722 522</td>
+</tr>
+<tr>
+<td>ODPC Email</td>
+<td>—</td>
+<td>odpc@odpc.go.ke</td>
+</tr>
+<tr>
+<td>DHA Email</td>
+<td>—</td>
+<td>dha@health.go.ke</td>
+</tr>
+<tr>
+<td>Supabase Support</td>
+<td>—</td>
+<td>support@supabase.com</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<!-- pagebreak -->
+<h2 id="incident-register-link">Incident Register Link</h2>
+<p>All incidents must be recorded in docs/incident-register.md.</p>
+
+</body>
+</html>
