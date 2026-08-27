@@ -1,11 +1,18 @@
+---
+title: AegisCare HMS — Incident Register
+author: Francis Muhoro
+date: 2026-08-27
+version: v5.16
+---
+
 # AegisCare HMS — Incident Register
 
-| | |
-|---|---|
-| **System** | AegisCare HMS / LabTrack v5.16 |
-| **Document type** | Incident Register |
-| **Owner** | Francis Muhoro |
-| **Legal basis** | Data Protection Act 2019; Digital Health Act 2023 |
+|                   |                                                   |
+|-------------------|---------------------------------------------------|
+| **System**        | AegisCare HMS / LabTrack v5.16                    |
+| **Document type** | Incident Register                                 |
+| **Owner**         | Francis Muhoro                                    |
+| **Legal basis**   | Data Protection Act 2019; Digital Health Act 2023 |
 
 > All security incidents, data breaches (actual or suspected), and near-misses
 > must be recorded here. Records must be retained for 20 years per the
@@ -13,19 +20,25 @@
 
 ---
 
+<!-- pagebreak -->
+
 ## Active Incidents
 
 *No active incidents.*
 
 ---
 
+<!-- pagebreak -->
+
 ## Incident Log
 
 | Ref | Date Discovered | Nature | Severity | Status | ODPC Notified | DHA Notified | Resolved |
-|---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | — |
+|-----|-----------------|--------|----------|--------|---------------|--------------|----------|
+| —   | —               | —      | —        | —      | —             | —            | —        |
 
 ---
+
+<!-- pagebreak -->
 
 ## How to Log an Incident
 
@@ -36,24 +49,26 @@
 
 ---
 
+<!-- pagebreak -->
+
 ## Incident Detail Template
 
 ### INC-YYYY-NNN — [Brief Title]
 
-| Field | Detail |
-|---|---|
-| **Reference** | INC-YYYY-NNN |
-| **Discovered** | YYYY-MM-DD HH:MM UTC |
-| **Occurred** | YYYY-MM-DD HH:MM UTC (if known) |
-| **Contained** | YYYY-MM-DD HH:MM UTC |
-| **Resolved** | YYYY-MM-DD HH:MM UTC |
-| **Severity** | Low / Medium / High / Critical |
-| **Nature** | e.g., unauthorized access / data loss / system outage |
-| **Records affected** | [number] |
-| **Patients affected** | [number] |
-| **ODPC notified** | Yes / No — [date] |
-| **DHA notified** | Yes / No — [date] |
-| **Reported by** | [name] |
+| Field                 | Detail                                                |
+|-----------------------|-------------------------------------------------------|
+| **Reference**         | INC-YYYY-NNN                                          |
+| **Discovered**        | YYYY-MM-DD HH:MM UTC                                  |
+| **Occurred**          | YYYY-MM-DD HH:MM UTC (if known)                       |
+| **Contained**         | YYYY-MM-DD HH:MM UTC                                  |
+| **Resolved**          | YYYY-MM-DD HH:MM UTC                                  |
+| **Severity**          | Low / Medium / High / Critical                        |
+| **Nature**            | e.g., unauthorized access / data loss / system outage |
+| **Records affected**  | [number]                                              |
+| **Patients affected** | [number]                                              |
+| **ODPC notified**     | Yes / No — [date]                                     |
+| **DHA notified**      | Yes / No — [date]                                     |
+| **Reported by**       | [name]                                                |
 
 **Description:**
 [Full description of what happened]
@@ -62,6 +77,7 @@
 [Root cause analysis]
 
 **Actions Taken:**
+
 1. [Action 1]
 2. [Action 2]
 
