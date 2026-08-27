@@ -582,6 +582,58 @@ function ShaClaimsQueue() {
     }
   }
 
+  async function submitClaim(row: ShaClaimRow) {
+    setBusy(true);
+    try {
+      // Step 1: Validate (HWR + ICD-11 + intervention codes + PHF zero)
+      const { data: validation, error: valError } = await db.rpc(
+        "validate_sha_claim_for_submission",
+        { p_claim_id: row.id, p_user_id: (await supabase.auth.getUser()).data.user?.id ?? null },
+      );
+      if (valError) throw new Error(valError.message);
+      const v = validation as { valid: boolean; errors: string[] } | null;
+      if (v && !v.valid) {
+        const errs = v.errors.join("\n");
+        toast.error("Cannot submit — fix these issues first:\n" + errs);
+        return;
+      }
+
+      // Step 2: Build FHIR message Bundle
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const bundleRes = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/build-claim-bundle`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token ?? ""}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? "",
+          },
+          body: JSON.stringify({ claim_id: row.id, queue: true }),
+        },
+      );
+      if (!bundleRes.ok) {
+        const err = await bundleRes.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Failed to build claim bundle");
+      }
+
+      // Step 3: Mark as submitted
+      await transition(
+        row,
+        "submitted",
+        { submitted_at: new Date().toISOString() },
+        "Submitted from claims queue — FHIR Bundle built and queued",
+        "Claim submitted — queued for DHA AfyaLink",
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function recordPayment() {
     if (!paymentRow) return;
     if (!paymentRef.trim()) {
@@ -761,15 +813,7 @@ function ShaClaimsQueue() {
                             size="sm"
                             className="h-7 px-2"
                             disabled={busy}
-                            onClick={() =>
-                              void transition(
-                                row,
-                                "submitted",
-                                { submitted_at: new Date().toISOString() },
-                                "Submitted from claims queue",
-                                "Claim submitted",
-                              )
-                            }
+                            onClick={() => void submitClaim(row)}
                           >
                             <Send className="mr-1 h-3.5 w-3.5" />
                             Submit Claim
