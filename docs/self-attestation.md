@@ -1,16 +1,25 @@
+---
+title: AegisCare HMS — Developer Self-Attestation
+author: Francis Muhoro
+date: 2026-08-27
+version: v5.16
+---
+
 # AegisCare HMS — Developer Self-Attestation
 
-| | |
-|---|---|
-| **System** | AegisCare HMS (LabTrack v5.5 codebase) |
-| **Repository** | `fmurage6331-dev/confit-core` |
-| **Branch / commit basis** | `arena/01a037b8-confit-core` (based on `7b59358`) |
-| **Date** | 2026-08-25 |
-| **Prepared by** | Francis Muhoro / AegisCare development team |
-| **Document type** | Developer self-attestation for DHA certification readiness (Form HMIS 4 pathway) |
-| **Related docs** | `docs/dha-compliance-assessment.md`, `docs/certification/DOC-1 … DOC-8` |
+|                           |                                                                                  |
+|---------------------------|----------------------------------------------------------------------------------|
+| **System**                | AegisCare HMS (LabTrack v5.5 codebase)                                           |
+| **Repository**            | `fmurage6331-dev/confit-core`                                                    |
+| **Branch / commit basis** | `arena/01a037b8-confit-core` (based on `7b59358`)                                |
+| **Date**                  | 2026-08-25                                                                       |
+| **Prepared by**           | Francis Muhoro / AegisCare development team                                      |
+| **Document type**         | Developer self-attestation for DHA certification readiness (Form HMIS 4 pathway) |
+| **Related docs**          | `docs/dha-compliance-assessment.md`, `docs/certification/DOC-1 … DOC-8`          |
 
 ---
+
+<!-- pagebreak -->
 
 ## Developer Declaration
 
@@ -23,23 +32,27 @@ Protection Act, 2019, and the Social Health Insurance Act, 2023.
 
 I/we declare that:
 
-- The information in this attestation reflects the actual state of the code and infrastructure
-  at the date above.
+- The information in this attestation reflects the actual state of the code and infrastructure at
+  the date above.
 - Known gaps are disclosed below rather than hidden.
 - No regulatory certification is claimed on the basis of this document alone.
-- DHA certification, ODPC registration, healthcare-facility licensing, and clinical approval
-  remain separate responsibilities for the deploying facility / organization.
+- DHA certification, ODPC registration, healthcare-facility licensing, and clinical approval remain
+  separate responsibilities for the deploying facility / organization.
 
 ---
+
+<!-- pagebreak -->
 
 ## AI Tool Usage Declaration
 
 ### Claude (Anthropic) — Primary Development Assistant
+
 Claude was used throughout the AegisCare HMS development for code generation, code review,
 documentation drafting, SQL review, data-model design, and FHIR/SHA structure drafts.
 All generated code was reviewed, tested, and adapted by the developer before inclusion.
 
 ### Arena AI — Autonomous Agent
+
 An autonomous Arena AI agent was used in this session to implement the SHA claims state-machine
 UI, KMHFL sync, DSAR export, 72hr SLA timer, Supabase type updates, and draft compliance docs.
 The agent operated under explicit instructions to:
@@ -53,14 +66,16 @@ The agent operated under explicit instructions to:
 
 ---
 
+<!-- pagebreak -->
+
 ## What AI Was Used For
 
 AI was used for/assisted with:
 
 1. **Schema & SQL review** — reviewing existing `sha_claims`, `sha_claim_items`,
    `build_fhir_claim()`, triggers, audit triggers, and generated Supabase types.
-2. **SHA claims state machine** — Admin → Claims queue tab listing `sha_claims_aging`,
-   color-coded status badges, Submit / Approve / Reject / Record Payment / Resubmit buttons,
+2. **SHA claims state machine** — Admin → Claims queue tab listing `sha_claims_aging`, color-coded
+   status badges, Submit / Approve / Reject / Record Payment / Resubmit buttons,
    `sha_claim_status_history` writes, age/missing-data/resubmission badges, PHF banner.
 3. **KMHFL sync** — "Sync from KMHFL" button in facility settings calling the public KMHFR API.
 4. **DSAR export** — admin-only patient data export as JSON with audit logging.
@@ -69,6 +84,8 @@ AI was used for/assisted with:
 7. **SQL linting** — ensuring provided SQL is idempotent/re-runnable for Francis to apply.
 
 ---
+
+<!-- pagebreak -->
 
 ## What Developer Did Without AI
 
@@ -86,15 +103,17 @@ The developer (Francis Muhoro / AegisCare team) performed (at minimum):
 
 ---
 
+<!-- pagebreak -->
+
 ## AI Output Review Process
 
 For AI-generated code in this session:
 
 1. `npx eslint <file> --fix` was run.
-2. `npx eslint <file> --max-warnings=N` was run (0 warnings except `rooms.$id.tsx`, which is
-   allowed 4 existing warnings).
-3. `npx tsc --noEmit` was run; the only reported errors are pre-existing errors in
-   auto-generated MCP route files (`src/routes/[.mcp]/*`, `src/routes/mcp.ts`,
+2. `npx eslint <file> --max-warnings=N` was run (0 warnings except `rooms.$id.tsx`, which is allowed
+   4 existing warnings).
+3. `npx tsc --noEmit` was run; the only reported errors are pre-existing errors in auto-generated
+   MCP route files (`src/routes/[.mcp]/*`, `src/routes/mcp.ts`,
    `src/routes/[.well-known]/oauth-protected-resource.ts`).
 4. Changes were reviewed via `git diff` before committing.
 5. SQL was not run directly by the agent; exact SQL was provided to Francis and applied by the
@@ -108,6 +127,8 @@ production to confirm exact generated output.
 
 ---
 
+<!-- pagebreak -->
+
 ## Known Compliance Gaps
 
 These are acknowledged gaps. They are intentionally not hidden.
@@ -119,21 +140,22 @@ These are acknowledged gaps. They are intentionally not hidden.
    DHA's Afya Yangu biometric/self-registration path is not implemented.
 4. **Data hosted outside Kenya** — current hosting arrangement is not confirmed to be in-Kenya;
    cross-border transfer safeguards (SCCs/TIA) are incomplete.
-5. **ODPC registration pending** — no confirmed ODPC controller/processor certificate and no
-   DPO appointment.
+5. **ODPC registration pending** — no confirmed ODPC controller/processor certificate and no DPO
+   appointment.
 6. **DHA facility registration pending** — no confirmed DHA certification application, ESB
    onboarding, or facility/DHA certificate of compliance.
 7. **AT SMS Sender ID pending** — the SMS/OTP delivery path is not production-verified with a
    registered Kenyan messaging Sender ID.
 8. **Penetration test not done** — no third-party penetration test report on the deployment.
 9. **MFA not implemented** — login currently does not enforce multi-factor authentication.
-10. **Supabase cron pauses on free tier** — background automation (billing accrual, dispatcher)
-    may not run reliably on a free-tier Supabase plan.
+10. **Supabase cron pauses on free tier** — background automation (billing accrual, dispatcher) may
+    not run reliably on a free-tier Supabase plan.
 
 Additional gaps:
+
 - PHC/PHF zero total amount assertion not enforced in claim data yet.
-- Full SHA Claim `message` Bundle (Organization + Patient + Coverage + Claim) not assembled
-  with DHA profile meta and `servicedPeriod`.
+- Full SHA Claim `message` Bundle (Organization + Patient + Coverage + Claim) not assembled with DHA
+  profile meta and `servicedPeriod`.
 - Kenya eClaims FHIR profile conformance not validated.
 - 20-year audit/health-data retention not yet enforced as a lifecycle.
 - 48-hour DHA / 72-hour ODPC breach notification runbook not implemented.
@@ -141,27 +163,32 @@ Additional gaps:
 
 ---
 
+<!-- pagebreak -->
+
 ## Security Self-Assessment
 
-| Control | Status | Notes |
-|---|---|---|
-| Authentication | ⚠️ PARTIAL | Supabase Auth implemented; MFA not enforced |
-| Authorization / RBAC | ✅ COMPLIANT | roles + `PermGuard`, admin-only surfaces |
-| Row-level security | ✅ COMPLIANT | enabled on clinical and SHA tables |
-| Audit logging | ⚠️ PARTIAL | `audit_trigger_fn`, audit log UI; immutability/20-year retention to be proven |
-| Consent / OTP | ⚠️ PARTIAL | local OTP consent; live SHA consent token flow pending |
-| Access to sensitive data | ✅ COMPLIANT | role-gated patient/encounter views, break-glass logging |
-| Data encryption at rest/transit | ⚠️ PARTIAL | Supabase/TLS assumed; not independently verified |
-| Vulnerability / PEN test | 🔴 GAP | not performed |
-| Secrets management | ⚠️ PARTIAL | env-based secrets; not verified against a dedicated secrets manager |
-| Backup / recovery | ⚠️ PARTIAL | policy exists; tested restore not demonstrated |
+| Control                         | Status       | Notes                                                                         |
+|---------------------------------|--------------|-------------------------------------------------------------------------------|
+| Authentication                  | ⚠️ PARTIAL   | Supabase Auth implemented; MFA not enforced                                   |
+| Authorization / RBAC            | ✅ COMPLIANT | roles + `PermGuard`, admin-only surfaces                                      |
+| Row-level security              | ✅ COMPLIANT | enabled on clinical and SHA tables                                            |
+| Audit logging                   | ⚠️ PARTIAL   | `audit_trigger_fn`, audit log UI; immutability/20-year retention to be proven |
+| Consent / OTP                   | ⚠️ PARTIAL   | local OTP consent; live SHA consent token flow pending                        |
+| Access to sensitive data        | ✅ COMPLIANT | role-gated patient/encounter views, break-glass logging                       |
+| Data encryption at rest/transit | ⚠️ PARTIAL   | Supabase/TLS assumed; not independently verified                              |
+| Vulnerability / PEN test        | 🔴 GAP       | not performed                                                                 |
+| Secrets management              | ⚠️ PARTIAL   | env-based secrets; not verified against a dedicated secrets manager           |
+| Backup / recovery               | ⚠️ PARTIAL   | policy exists; tested restore not demonstrated                                |
 
 ---
 
+<!-- pagebreak -->
+
 ## Clinical Safety Declaration
 
-AegisCare HMS is intended to support clinical workflow **but is not a substitute for clinical
-judgment**. No warranty of clinical safety is made by this self-attestation. Before use:
+AegisCare HMS is intended to support clinical workflow
+**but is not a substitute for clinical judgment**. No warranty of clinical safety is made by this
+self-attestation. Before use:
 
 - Clinical workflows must be validated by a qualified clinical safety officer (or equivalent).
 - Any diagnostic or treatment decision supported by the system must be reviewed by a licensed
@@ -173,10 +200,12 @@ judgment**. No warranty of clinical safety is made by this self-attestation. Bef
 
 ---
 
+<!-- pagebreak -->
+
 ## Intellectual Property Declaration
 
-- The AegisCare HMS codebase, including the current branch work, is the property of
-  AegisCare / the repository owner.
+- The AegisCare HMS codebase, including the current branch work, is the property of AegisCare / the
+  repository owner.
 - No third-party proprietary code was knowingly copied into the codebase.
 - Open-source packages used by the system are listed in `package.json` / `bun.lock` /
   `package-lock.json` and retain their respective licenses.
@@ -185,15 +214,17 @@ judgment**. No warranty of clinical safety is made by this self-attestation. Bef
 
 ---
 
+<!-- pagebreak -->
+
 ## Formal Attestation Signature
 
-| | |
-|---|---|
+|                 |                                                                                                                                                                                             |
+|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Attestation** | I/we hereby attest that the development work, code, SQL, and documentation described in this self-attestation were produced as described, and that known gaps are honestly reflected above. |
-| **Name** | Francis Muhoro |
-| **Role** | Developer / System Owner (AegisCare) |
-| **Date** | 2026-08-25 |
-| **Signature** | *(electronic signature pending)* |
+| **Name**        | Francis Muhoro                                                                                                                                                                              |
+| **Role**        | Developer / System Owner (AegisCare)                                                                                                                                                        |
+| **Date**        | 2026-08-25                                                                                                                                                                                  |
+| **Signature**   | *(electronic signature pending)*                                                                                                                                                            |
 
 > This is a developer's self-attestation, not a DHA/ODPC certificate. Final compliance
 > determination rests with the DHA certification framework, ODPC registration/certification,
