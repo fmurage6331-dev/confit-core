@@ -13,7 +13,11 @@ const DOCS = [
   { file: 'docs/file-manifest-and-hie-activation.md', title: 'File Manifest & HIE Activation' },
   { file: 'docs/moh-tagging-architecture.md',         title: 'MOH Tagging Architecture' },
   { file: 'docs/dha-compliance-assessment.md',        title: 'DHA Compliance Assessment' },
+  { file: 'docs/dha-compliance-amendment-2026-08-27.md', title: 'DHA Compliance Amendment 2026-08-27' },
+  { file: 'docs/dha-compliance-implementation-plan.md', title: 'DHA Compliance Implementation Plan' },
   { file: 'docs/self-attestation.md',                 title: 'Developer Self-Attestation' },
+  { file: 'docs/breach-response-runbook.md',          title: 'Breach Response Runbook' },
+  { file: 'docs/incident-register.md',                title: 'Incident Register' },
 ]
 
 const TODAY = new Date().toISOString().slice(0, 10)
