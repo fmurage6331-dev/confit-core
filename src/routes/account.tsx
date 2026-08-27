@@ -157,6 +157,7 @@ function AccountPage() {
         </section>
       </div>
       <ProfileSection userId={user.id} />
+      <MfaSection />
     </AppShell>
   );
 }
@@ -404,6 +405,222 @@ function ProfileSection({ userId }: { userId: string }) {
             {saving ? "Saving…" : "Save profile"}
           </Button>
         </form>
+      )}
+    </section>
+  );
+}
+function MfaSection() {
+  const [factors, setFactors] = useState<
+    Array<{ id: string; friendly_name?: string; status: string }>
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [enrolling, setEnrolling] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [factorId, setFactorId] = useState<string | null>(null);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabase.auth.mfa.listFactors();
+    setFactors(data?.totp ?? []);
+    setLoading(false);
+  }
+
+  async function startEnroll() {
+    setEnrolling(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: "AegisCare HMS",
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setQrCode(data.totp.qr_code);
+      setSecret(data.totp.secret);
+      setFactorId(data.id);
+      const { data: cd, error: ce } = await supabase.auth.mfa.challenge({
+        factorId: data.id,
+      });
+      if (ce) {
+        toast.error(ce.message);
+        return;
+      }
+      setChallengeId(cd.id);
+    } finally {
+      setEnrolling(false);
+    }
+  }
+
+  async function verify() {
+    if (!factorId || !challengeId) return;
+    setVerifying(true);
+    try {
+      const { error } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId,
+        code: otp.trim(),
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Two-factor authentication enabled");
+      setQrCode(null);
+      setSecret(null);
+      setFactorId(null);
+      setChallengeId(null);
+      setOtp("");
+      await load();
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function removeFactor(id: string) {
+    setRemoving(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: id });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Two-factor authentication removed");
+      await load();
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  const verified = factors.filter((f) => f.status === "verified");
+
+  return (
+    <section className="rounded-2xl border bg-card p-6 shadow-sm mx-auto max-w-2xl mt-6">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold">Two-Factor Authentication (2FA)</h2>
+          <p className="text-sm text-muted-foreground">
+            Required for DHA compliance. Use Google Authenticator or Authy.
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <>
+          {verified.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-700">
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span className="font-medium">2FA is active</span>
+                <span className="text-xs text-emerald-600">— your account is protected</span>
+              </div>
+              {verified.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">{f.friendly_name ?? "Authenticator App"}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={removing}
+                    onClick={() => void removeFactor(f.id)}
+                  >
+                    {removing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Remove"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : qrCode ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
+                Scan the QR code with your authenticator app, then enter the 6-digit code to
+                confirm.
+              </div>
+              <div className="flex justify-center">
+                <img
+                  src={`data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`}
+                  alt="MFA QR Code"
+                  className="h-48 w-48 rounded-lg border"
+                />
+              </div>
+              {secret && (
+                <div className="rounded-lg border bg-muted px-3 py-2 text-xs font-mono text-center break-all">
+                  Manual key: {secret}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="otpCode">6-digit code from app</Label>
+                <Input
+                  id="otpCode"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="text-center text-lg tracking-widest font-mono w-40"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => void verify()} disabled={verifying || otp.length !== 6}>
+                  {verifying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying…
+                    </>
+                  ) : (
+                    "Confirm & Enable 2FA"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setQrCode(null);
+                    setSecret(null);
+                    setFactorId(null);
+                    setChallengeId(null);
+                    setOtp("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-700">
+                <ShieldX className="h-4 w-4 shrink-0" />
+                2FA is not enabled — your account is less secure
+              </div>
+              <Button onClick={() => void startEnroll()} disabled={enrolling}>
+                {enrolling ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Setting up…
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Enable Two-Factor Authentication
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
