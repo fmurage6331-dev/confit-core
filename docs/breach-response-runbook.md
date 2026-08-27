@@ -181,7 +181,7 @@ Francis Muhoro
 AegisCare HMS
 ```
 
-### 4.2 DHA Submission Checklist
+### 3.2 DHA Submission Checklist
 
 - [ ] Email sent to dha@health.go.ke within 48 hours
 - [ ] Reference number recorded
@@ -191,7 +191,7 @@ AegisCare HMS
 
 <!-- pagebreak -->
 
-## Step 5 — Individual Notification (If High Risk)
+## Step 4 — Individual Notification (If High Risk)
 
 If the breach is likely to result in high risk to individuals:
 
@@ -217,7 +217,7 @@ Please call [phone] for more information. Ref: [incident-id]
 
 <!-- pagebreak -->
 
-## Step 6 — Recovery and Evidence Preservation
+## Step 5 — Recovery and Evidence Preservation
 
 - [ ] Restore from last verified clean backup
 - [ ] Verify backup integrity before restoring
@@ -230,7 +230,7 @@ Please call [phone] for more information. Ref: [incident-id]
 
 <!-- pagebreak -->
 
-## Step 7 — Post-Incident Review (Within 14 Days)
+## Step 6 — Post-Incident Review (Within 14 Days)
 
 - [ ] Root cause analysis completed
 - [ ] Full incident report written
