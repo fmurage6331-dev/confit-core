@@ -553,9 +553,9 @@ function MfaSection() {
               </div>
               <div className="flex justify-center">
                 <img
-                  src={`data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`}
+                  src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrCode)}`}
                   alt="MFA QR Code"
-                  className="h-48 w-48 rounded-lg border"
+                  className="h-48 w-48 rounded-lg border bg-white"
                 />
               </div>
               {secret && (
