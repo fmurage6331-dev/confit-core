@@ -437,6 +437,15 @@ function MfaSection() {
   async function startEnroll() {
     setEnrolling(true);
     try {
+      // Clean up any existing unverified factors first
+      const { data: existing } = await supabase.auth.mfa.listFactors();
+      const unverified = (existing?.totp ?? []).filter(
+        (f) => (f.status as string) === "unverified",
+      );
+      for (const f of unverified) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id });
+      }
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
         friendlyName: "AegisCare HMS",
