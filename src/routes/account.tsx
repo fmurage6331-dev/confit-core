@@ -561,10 +561,9 @@ function MfaSection() {
                 confirm.
               </div>
               <div className="flex justify-center">
-                <img
-                  src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrCode)}`}
-                  alt="MFA QR Code"
-                  className="h-48 w-48 rounded-lg border bg-white"
+                <div
+                  className="h-48 w-48 rounded-lg border bg-white p-2 [&_svg]:h-full [&_svg]:w-full"
+                  dangerouslySetInnerHTML={{ __html: qrCode }}
                 />
               </div>
               {secret && (
