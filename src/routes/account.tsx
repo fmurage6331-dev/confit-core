@@ -454,8 +454,6 @@ function MfaSection() {
         toast.error(error.message);
         return;
       }
-      console.log("QR CODE VALUE:", data.totp.qr_code?.slice(0, 100));
-      console.log("QR CODE TYPE:", typeof data.totp.qr_code);
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
       setFactorId(data.id);
