@@ -677,7 +677,10 @@ export function TransferButton({
     });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      const msg = /No available beds/i.test(error.message)
+        ? "No available beds in destination ward. Please add beds in Admin → Inpatient first."
+        : error.message;
+      toast.error(msg);
       return;
     }
     toast.success("Patient transferred successfully");
@@ -1045,6 +1048,22 @@ function AdmitDialog({
       return;
     }
     setBusy(true);
+    // BUG-003: block re-admission of already admitted patient
+    const { data: activeAdm } = await supabase
+      .from("admissions")
+      .select("id, wards(name), beds(bed_number)")
+      .eq("patient_id", patientId)
+      .eq("status", "admitted")
+      .maybeSingle();
+    if (activeAdm) {
+      const wardName = (activeAdm.wards as { name: string } | null)?.name ?? "another ward";
+      const bedNo = (activeAdm.beds as { bed_number: string } | null)?.bed_number ?? "unknown";
+      toast.error(
+        `Patient is already admitted in ${wardName} — Bed ${bedNo}. Discharge or transfer first.`,
+      );
+      setBusy(false);
+      return;
+    }
     const { error } = await supabase.from("admissions").insert({
       patient_id: patientId,
       ward_id: wardId,
@@ -1059,9 +1078,12 @@ function AdmitDialog({
     setBusy(false);
     if (error) {
       // Postgres exclusion constraint on overlapping active admissions per bed
-      const msg = /exclu|conflict|overlap|unique/i.test(error.message)
-        ? "This bed was just taken — please choose another."
-        : error.message;
+      const msg =
+        error.code === "23505" && /admissions/i.test(error.message)
+          ? "Patient is already admitted. Discharge or transfer first."
+          : error.code === "23505" || /exclu|conflict|overlap|unique/i.test(error.message)
+            ? "This bed was just taken — please choose another."
+            : error.message;
       toast.error(msg);
       qc.invalidateQueries({ queryKey: ["ipd-beds"] });
       setBedId("");
