@@ -30,7 +30,7 @@ export async function generateAndSendOtp(
   const { data, error: dbError } = await db
     .from("consent_otps")
     .insert({
-      patient_id: patientId,
+      patient_id: patientId || null,
       encounter_id: encounterId || null,
       phone: phone,
       otp_hash: otpHash,
