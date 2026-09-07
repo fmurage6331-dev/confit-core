@@ -28,6 +28,7 @@ import { ServicePicker } from "@/components/service-picker";
 import { toast } from "sonner";
 import { calcInsuranceCoverage } from "@/lib/insurance-calc";
 import { Banknote, HeartHandshake, Plus, Shield, Trash2, type LucideIcon } from "lucide-react";
+import { dbError } from "@/lib/db-error";
 
 export const Route = createFileRoute("/register-patient")({
   component: () => (
@@ -470,7 +471,17 @@ function RegisterPatient() {
     setSubmitting(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(
+        dbError(error, {
+          duplicate: {
+            national_id: "A patient with this National ID already exists.",
+            sha_member_number: "A patient with this SHA member number already exists.",
+            cr_number: "A patient with this CR number already exists.",
+            phone: "A patient with this phone number already exists.",
+          },
+          fallback: "Registration failed. Please check your entries and try again.",
+        }),
+      );
       return;
     }
 
