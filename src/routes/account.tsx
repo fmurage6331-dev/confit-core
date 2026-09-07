@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Mail, KeyRound, User, ShieldCheck, ShieldX, Loader2 } from "lucide-react";
 import { db } from "@/lib/supabase-untyped";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 
 export const Route = createFileRoute("/account")({
   component: AccountPage,
@@ -219,7 +220,7 @@ function ProfileSection({ userId }: { userId: string }) {
     );
     setVerifying(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     const result = data as Record<string, unknown>;
@@ -261,7 +262,7 @@ function ProfileSection({ userId }: { userId: string }) {
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     await refreshProfile();
@@ -451,7 +452,12 @@ function MfaSection() {
         friendlyName: "AegisCare HMS",
       });
       if (error) {
-        toast.error(error.message);
+        toast.error(
+          dbError(error, {
+            duplicate: { mfa_factors: "MFA enrollment failed. Please try again." },
+            fallback: "MFA enrollment failed. Please try again.",
+          }),
+        );
         return;
       }
       setQrCode(data.totp.qr_code);

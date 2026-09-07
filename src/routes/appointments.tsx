@@ -32,6 +32,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import {
   CalendarDays,
   Plus,
@@ -224,7 +225,7 @@ function AppointmentsPage() {
       qc.invalidateQueries({ queryKey: ["appointments-day"] });
       qc.invalidateQueries({ queryKey: ["appointments-week"] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(dbError(err)),
   });
 
   /* ── Cancel mutation ── */
@@ -242,7 +243,7 @@ function AppointmentsPage() {
       qc.invalidateQueries({ queryKey: ["appointments-day"] });
       qc.invalidateQueries({ queryKey: ["appointments-week"] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(dbError(err)),
   });
 
   /* ── No-show mutation ── */
@@ -258,7 +259,7 @@ function AppointmentsPage() {
       toast.success("Marked as no-show");
       qc.invalidateQueries({ queryKey: ["appointments-day"] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(dbError(err)),
   });
 
   /* ── Day view: group by room + session ── */
@@ -759,7 +760,7 @@ function BookAppointmentDialog({
     setSaving(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Appointment booked successfully");

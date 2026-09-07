@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { PrintHeader } from "@/components/print-header";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 
 export const Route = createFileRoute("/stock")({
   component: () => (
@@ -303,7 +304,7 @@ function StockPage() {
       setOpenAddItem(false);
       qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(dbError(error)),
   });
 
   const receiveStock = useMutation({
@@ -328,7 +329,7 @@ function StockPage() {
       qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
       qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(dbError(error)),
   });
 
   const transferStock = useMutation({
@@ -354,7 +355,7 @@ function StockPage() {
       setOpenTransfer(false);
       qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(dbError(error)),
   });
 
   const recordUsage = useMutation({
@@ -383,7 +384,7 @@ function StockPage() {
       qc.invalidateQueries({ queryKey: ["stock-store-usage"] });
       qc.invalidateQueries({ queryKey: ["stock-items"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(dbError(error)),
   });
 
   const deleteItem = useMutation({
@@ -396,7 +397,7 @@ function StockPage() {
       qc.invalidateQueries({ queryKey: ["stock-items"] });
       qc.invalidateQueries({ queryKey: ["stock-store-balances"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(dbError(error)),
   });
 
   const pageLoading = locationsLoading || itemsLoading || balancesLoading;

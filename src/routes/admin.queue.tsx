@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import {
   Radio,
   RefreshCw,
@@ -179,7 +180,7 @@ function QueuePage() {
       toast.success("Item reset to pending — will retry on next dispatch");
       qc.invalidateQueries({ queryKey: ["admin-queue"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(dbError(e)),
   });
 
   if (!isAdmin) return <AccessDenied message="Admin only." />;
@@ -195,7 +196,7 @@ function QueuePage() {
     );
     setFhirLoading(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       setFhirRow(null);
       return;
     }
@@ -576,7 +577,7 @@ function ShaClaimsQueue() {
       toast.success(successMessage);
       qc.invalidateQueries({ queryKey: ["sha-claims-queue"] });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(dbError(e as Error));
     } finally {
       setBusy(false);
     }
@@ -628,7 +629,7 @@ function ShaClaimsQueue() {
         "Claim submitted — queued for DHA AfyaLink",
       );
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(dbError(e as Error));
     } finally {
       setBusy(false);
     }

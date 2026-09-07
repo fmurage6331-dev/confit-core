@@ -14,6 +14,7 @@ import { Guard } from "@/lib/require-access";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { ShieldCheck, Save } from "lucide-react";
 
 export const Route = createFileRoute("/admin/permissions")({
@@ -220,7 +221,7 @@ function PermissionsPage() {
     if (toInsert.length) {
       const { error: e1 } = await supabase.from("role_permissions").insert(toInsert as never);
       if (e1) {
-        toast.error(e1.message);
+        toast.error(dbError(e1));
         setSaving(false);
         return;
       }
@@ -232,7 +233,7 @@ function PermissionsPage() {
         .eq("role", d.role as never)
         .eq("permission", d.permission);
       if (e2) {
-        toast.error(e2.message);
+        toast.error(dbError(e2));
         setSaving(false);
         return;
       }

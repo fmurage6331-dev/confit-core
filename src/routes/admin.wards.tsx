@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { BedDouble, Pencil, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/wards")({
@@ -174,7 +175,7 @@ function AdminWardsPage() {
       return;
     const { error } = await supabase.from("wards").delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     setRows((r) => r.filter((x) => x.id !== id));
@@ -205,7 +206,7 @@ function AdminWardsPage() {
       const { error } = await supabase.from("wards").update(payload).eq("id", editing.id);
       if (error) {
         setSaving(false);
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
       toast.success("Ward updated");
@@ -217,7 +218,7 @@ function AdminWardsPage() {
         .single();
       if (error) {
         setSaving(false);
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
       wardId = inserted.id;

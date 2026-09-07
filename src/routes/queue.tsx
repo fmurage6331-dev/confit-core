@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { PaymentBadge } from "@/routes/register-patient";
 
 export const Route = createFileRoute("/queue")({
@@ -94,7 +95,7 @@ function Queue() {
       .update({ status } as never)
       .eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));

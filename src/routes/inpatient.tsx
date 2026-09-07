@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { BedDouble, Search, ArrowLeftRight } from "lucide-react";
 
 export const Route = createFileRoute("/inpatient")({
@@ -525,7 +526,7 @@ export function DischargeButton({
     });
     if (noteErr) {
       setBusy(false);
-      toast.error(noteErr.message);
+      toast.error(dbError(noteErr));
       return;
     }
     // 2) Then discharge
@@ -537,8 +538,8 @@ export function DischargeButton({
     if (error) {
       toast.error(
         /discharge summary/i.test(error.message)
-          ? error.message
-          : `Failed to discharge: ${error.message}`,
+          ? dbError(error)
+          : `Failed to discharge: ${dbError(error)}`,
       );
       return;
     }
@@ -678,8 +679,8 @@ export function TransferButton({
     setBusy(false);
     if (error) {
       const msg = /No available beds/i.test(error.message)
-        ? "No available beds in destination ward. Please add beds in Admin → Inpatient first."
-        : error.message;
+        ? "No available beds in destination ward."
+        : dbError(error);
       toast.error(msg);
       return;
     }
@@ -837,7 +838,7 @@ export function ReferOutButton({
       .eq("id", encounterId);
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Patient marked as referred out");
@@ -1082,8 +1083,8 @@ function AdmitDialog({
         error.code === "23505" && /admissions/i.test(error.message)
           ? "Patient is already admitted. Discharge or transfer first."
           : error.code === "23505" || /exclu|conflict|overlap|unique/i.test(error.message)
-            ? "This bed was just taken — please choose another."
-            : error.message;
+            ? "This bed is already occupied. Please choose another."
+            : dbError(error);
       toast.error(msg);
       qc.invalidateQueries({ queryKey: ["ipd-beds"] });
       setBedId("");
@@ -1293,7 +1294,7 @@ function BedManageControls({
     });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Bed added");
@@ -1313,7 +1314,7 @@ function BedManageControls({
     const { error } = await supabase.from("beds").delete().eq("id", removable.id);
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Bed removed");
