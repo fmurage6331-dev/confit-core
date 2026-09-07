@@ -34,6 +34,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { Pencil, Trash2, Plus, DoorOpen, Users } from "lucide-react";
 import { listUsers } from "@/lib/admin-users.functions";
 
@@ -134,7 +135,7 @@ function AdminRooms() {
     if (!confirm("Delete this room?")) return;
     const { error } = await supabase.from("rooms").delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     setRows((r) => r.filter((x) => x.id !== id));
@@ -164,13 +165,13 @@ function AdminRooms() {
     if (editing.id) {
       const { error } = await db.from("rooms").update(payload).eq("id", editing.id);
       if (error) {
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
     } else {
       const { error } = await db.from("rooms").insert({ ...payload, created_by: user!.id });
       if (error) {
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
     }
@@ -400,7 +401,7 @@ function AccessDialog({ room, onClose }: { room: Room; onClose: () => void }) {
         .from("user_room_access")
         .insert({ user_id: userId, room_id: room.id });
       if (error) {
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
       setGranted((s) => new Set(s).add(userId));
@@ -411,7 +412,7 @@ function AccessDialog({ room, onClose }: { room: Room; onClose: () => void }) {
         .eq("user_id", userId)
         .eq("room_id", room.id);
       if (error) {
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
       setGranted((s) => {

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Activity, BadgeCheck, FileText, Lock, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 
 type LoginSearch = { mode?: "signin" | "signup"; next?: string };
 
@@ -105,7 +106,7 @@ function LoginPage() {
           if (error.message.toLowerCase().includes("email not confirmed")) {
             toast.error("Please verify your email before logging in.");
           } else {
-            toast.error(error.message);
+            toast.error(dbError(error));
           }
           return;
         }
@@ -113,7 +114,7 @@ function LoginPage() {
       }
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : isSignup ? "Sign up failed" : "Sign in failed",
+        err instanceof Error ? dbError(err) : isSignup ? "Sign up failed" : "Sign in failed",
       );
     } finally {
       setSubmitting(false);

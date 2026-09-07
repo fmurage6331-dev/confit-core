@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { PaymentBadge } from "@/routes/register-patient";
 import { CheckCircle2, AlertCircle, CircleSlash, Search } from "lucide-react";
 
@@ -193,7 +194,7 @@ function Accounting() {
       .eq("id", payOpen.id);
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success(
@@ -239,7 +240,7 @@ function Accounting() {
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Credit note issued — invoice total adjusted automatically");
@@ -279,7 +280,7 @@ function Accounting() {
       } as never)
       .eq("id", r.id);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Marked as waived");
@@ -301,7 +302,7 @@ function Accounting() {
       .update(updates as never)
       .eq("id", chgPmtOpen.id);
     if (regErr) {
-      toast.error(regErr.message);
+      toast.error(dbError(regErr));
       setChgPmtSaving(false);
       return;
     }

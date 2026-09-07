@@ -32,6 +32,7 @@ import {
 import { PackageCheck, Plus, Printer, Truck, Warehouse } from "lucide-react";
 import { PrintHeader } from "@/components/print-header";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/deliveries")({
@@ -126,7 +127,7 @@ function DeliveriesPage() {
       qc.invalidateQueries({ queryKey: ["stock-items"] });
       setOpen(false);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(dbError(error)),
   });
 
   return (

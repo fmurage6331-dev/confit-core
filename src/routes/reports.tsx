@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { PrintHeader } from "@/components/print-header";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 
 type NlmisRow = {
   nlmis_code: string | null;
@@ -354,7 +355,7 @@ function ReportsPage() {
       qc.invalidateQueries({ queryKey: ["report_funds"] });
       setOpenFund(false);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(dbError(error)),
   });
 
   const summary = useMemo(() => {

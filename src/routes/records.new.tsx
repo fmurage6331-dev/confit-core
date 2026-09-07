@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TEST_TYPES } from "@/lib/test-types";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { ParameterTable } from "@/components/parameter-table";
 import { type StructuredResult, type Parameter } from "@/lib/test-parameters";
 import { fetchTemplateFor } from "@/lib/test-templates";
@@ -112,7 +113,8 @@ function NewRecord() {
       }
       const requested =
         (row.tests as
-          { id: string; name: string; requested_by_room_id?: string | null }[] | null) ?? [];
+          | { id: string; name: string; requested_by_room_id?: string | null }[]
+          | null) ?? [];
       const settled = row.payment_status === "paid" || row.payment_status === "waived";
       const base = {
         registrationId: row.id ?? undefined,
@@ -238,7 +240,7 @@ function NewRecord() {
       .single();
     setSubmitting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
 
@@ -286,7 +288,7 @@ function NewRecord() {
 
           if (routeError) {
             toast.error(
-              `Result saved, but couldn't route patient back automatically: ${routeError.message}`,
+              `Result saved, but couldn't route patient back automatically: ${dbError(routeError)}`,
             );
           } else {
             toast.success(
@@ -303,7 +305,7 @@ function NewRecord() {
       });
       if (routeError) {
         toast.error(
-          `Result saved, but couldn't route patient back automatically: ${routeError.message}`,
+          `Result saved, but couldn't route patient back automatically: ${dbError(routeError)}`,
         );
       } else {
         toast.success("Record saved — patient routed back to requesting room");

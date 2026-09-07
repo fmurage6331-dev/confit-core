@@ -53,6 +53,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 
 export const Route = createFileRoute("/inpatient_/$admissionId")({
   component: () => (
@@ -498,7 +499,7 @@ function ClinicalNotesTab({
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Daily note saved");
@@ -1026,7 +1027,7 @@ function ServicesTab({
     });
     setSavingLab(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Lab order sent — INPATIENT · Bedside");
@@ -1054,7 +1055,7 @@ function ServicesTab({
     });
     setSavingRad(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Radiology order sent — INPATIENT · Bedside");
@@ -1355,7 +1356,7 @@ function MedicationsTab({
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success(
@@ -1379,7 +1380,7 @@ function MedicationsTab({
       .update({ status: "cancelled" } as never)
       .eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     onSaved();
@@ -1622,7 +1623,7 @@ function AdministrationPanel({
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Administration recorded");
@@ -1829,7 +1830,7 @@ function BillingTab({ encounterId }: { encounterId: string }) {
       .eq("id", adjustItem.id);
     setAdjustSaving(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Charge adjusted — invoice recalculated");

@@ -25,6 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { Pencil, Trash2, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/admin/insurance")({
@@ -117,7 +118,7 @@ function AdminInsurance() {
     if (!confirm("Delete this insurer?")) return;
     const { error } = await supabase.from("insurance_providers").delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     setRows((r) => r.filter((x) => x.id !== id));
@@ -146,7 +147,7 @@ function AdminInsurance() {
         .update(parsed.data)
         .eq("id", editing.id);
       if (error) {
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
     } else {
@@ -154,7 +155,7 @@ function AdminInsurance() {
         .from("insurance_providers")
         .insert({ ...parsed.data, created_by: user!.id });
       if (error) {
-        toast.error(error.message);
+        toast.error(dbError(error));
         return;
       }
     }

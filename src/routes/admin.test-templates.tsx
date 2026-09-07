@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Trash2, Plus, Pencil, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 import { fetchMergedTemplates, type TestTemplate } from "@/lib/test-templates";
 import type { Parameter } from "@/lib/test-parameters";
 import { TEST_PARAMETERS } from "@/lib/test-parameters";
@@ -86,7 +87,7 @@ function TestTemplatesAdmin() {
       setEditing(null);
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
+      toast.error(e instanceof Error ? dbError(e) : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -96,7 +97,7 @@ function TestTemplatesAdmin() {
     if (!confirm(`Delete template "${t.test_name}"?`)) return;
     const { error } = await supabase.from("test_templates").delete().eq("test_name", t.test_name);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
     }
     toast.success("Template deleted");

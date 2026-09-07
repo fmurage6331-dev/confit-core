@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { dbError } from "@/lib/db-error";
 
 export const Route = createFileRoute("/admin/moh-indicators")({
   component: () => (
@@ -152,7 +153,7 @@ function MohIndicatorAdmin() {
       setCreating(null);
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      toast.error(err instanceof Error ? dbError(err) : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -161,7 +162,7 @@ function MohIndicatorAdmin() {
   async function onDelete(id: string, code: string) {
     if (!confirm(`Delete indicator "${code}"?`)) return;
     const { error } = await supabase.from("moh_indicator_definitions").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(dbError(error));
     toast.success("Deleted");
     await load();
   }
