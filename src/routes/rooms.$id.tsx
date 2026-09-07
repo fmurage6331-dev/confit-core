@@ -61,7 +61,7 @@ import {
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ServicePicker } from "@/components/service-picker";
-import { DischargeButton, ReferOutButton } from "@/routes/inpatient";
+import { DischargeButton, ReferOutButton, TransferButton } from "@/routes/inpatient";
 import { PrintHeader } from "@/components/print-header";
 
 export const Route = createFileRoute("/rooms/$id")({
@@ -5957,6 +5957,7 @@ function ICURoomView({ room }: { room: Room }) {
   const [admissions, setAdmissions] = useState<
     {
       id: string;
+      bed_id: string;
       patient_name: string;
       bed_number: string;
       admitted_at: string;
@@ -6064,12 +6065,13 @@ function ICURoomView({ room }: { room: Room }) {
   useEffect(() => {
     supabase
       .from("admissions")
-      .select("id,patients(patient_name),beds(bed_number),admitted_at")
+      .select("id,bed_id,patients(patient_name),beds(bed_number),admitted_at")
       .eq("status", "admitted")
       .eq("ward_id", "c7fe0794-a5f4-438d-bcc3-a3e4ff04333e")
       .then(({ data }) => {
         type A = {
           id: string;
+          bed_id: string;
           admitted_at: string;
           patients: { patient_name: string } | null;
           beds: { bed_number: string } | null;
@@ -6077,6 +6079,7 @@ function ICURoomView({ room }: { room: Room }) {
         setAdmissions(
           ((data ?? []) as unknown as A[]).map((a) => ({
             id: a.id,
+            bed_id: a.bed_id,
             patient_name: a.patients?.patient_name ?? "—",
             bed_number: a.beds?.bed_number ?? "—",
             admitted_at: a.admitted_at,
@@ -6184,6 +6187,27 @@ function ICURoomView({ room }: { room: Room }) {
             <div className="text-xs text-muted-foreground">Bed {a.bed_number}</div>
             <div className="text-xs text-muted-foreground">
               Admitted {new Date(a.admitted_at).toLocaleDateString()}
+            </div>
+            {/* BUG-005 + BUG-007: Transfer Out + Open Chart/MAR */}
+            <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 text-xs"
+                onClick={() => window.location.assign(`/inpatient/${a.id}`)}
+              >
+                Chart + MAR
+              </Button>
+              <TransferButton
+                admissionId={a.id}
+                encounterId={null}
+                currentWardId={"c7fe0794-a5f4-438d-bcc3-a3e4ff04333e"}
+                currentBedId={a.bed_id ?? null}
+                onDone={() => {
+                  setSelected(null);
+                  setAdmissions((prev) => prev.filter((x) => x.id !== a.id));
+                }}
+              />
             </div>
           </div>
         ))}
