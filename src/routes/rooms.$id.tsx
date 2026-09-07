@@ -2794,7 +2794,8 @@ function InsuranceDialog({
       .then(({ data }) => {
         const row = (
           data as
-            { preauth_requested_at: string | null; preauth_approved_at: string | null }[] | null
+            | { preauth_requested_at: string | null; preauth_approved_at: string | null }[]
+            | null
         )?.[0];
         if (row) {
           setPreauthRequestedAt(row.preauth_requested_at ?? null);
@@ -2876,7 +2877,8 @@ function InsuranceDialog({
       .eq("id", otpRecordId)
       .limit(1);
     const recArr = recordRows as
-      { otp_hash: string; expires_at: string; verified: boolean }[] | null;
+      | { otp_hash: string; expires_at: string; verified: boolean }[]
+      | null;
     if (error || !recArr || recArr.length === 0) {
       toast.error("OTP record not found");
       setOtpVerifying(false);
@@ -3786,7 +3788,9 @@ function RequestServicesInline({
     if (reg.payment_mode !== "insurance" || !_insurerConfig)
       return { insuranceCovered: 0, patientDue: subtotal };
     const rule = _insurerConfig.coverage_rule as
-      "percentage" | "fixed_per_visit" | "percentage_with_cap";
+      | "percentage"
+      | "fixed_per_visit"
+      | "percentage_with_cap";
     const limit = Number(_insurerConfig.per_visit_limit ?? 0);
     let covered = 0;
     if (rule === "fixed_per_visit") {
@@ -6062,6 +6066,7 @@ function ICURoomView({ room }: { room: Room }) {
       .from("admissions")
       .select("id,patients(patient_name),beds(bed_number),admitted_at")
       .eq("status", "admitted")
+      .eq("ward_id", "c7fe0794-a5f4-438d-bcc3-a3e4ff04333e")
       .then(({ data }) => {
         type A = {
           id: string;
