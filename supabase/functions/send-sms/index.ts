@@ -30,6 +30,9 @@ serve(async (req) => {
     formData.append('username', username!)
     formData.append('to', formattedTo)
     formData.append('message', message)
+    // Add Sender ID — required for Safaricom delivery
+    const senderId = Deno.env.get('AT_SENDER_ID')
+    if (senderId) formData.append('from', senderId)
 
     const response = await fetch(apiUrl, {
       method: 'POST',
