@@ -218,7 +218,8 @@ function PatientProfile() {
       if (settingsRes.error) throw new Error(settingsRes.error.message);
       const facilityName =
         ((settingsRes.data as Array<Record<string, unknown>> | null)?.[0]?.facility_name as
-          string | null) ?? "";
+          | string
+          | null) ?? "";
 
       const exportData = {
         export_metadata: {
@@ -466,7 +467,12 @@ function PatientProfile() {
                       KSh {bal.toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
-                      {e.current_room_name ? (
+                      {e.status === "done" || e.status === "signed" || e.status === "cancelled" ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          Visit Closed
+                        </span>
+                      ) : e.current_room_name ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
                           <MapPin className="h-3 w-3" />
                           {e.current_room_name}

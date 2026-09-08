@@ -114,7 +114,7 @@
 @media print {
   .no-print { display: none !important; }
   body { background: white !important; color: black !important; }
-  aside, header { display: none !important; }
+  aside, header, nav, footer { display: none !important; }
   .md\:pl-60 { padding-left: 0 !important; }
   main { padding: 0 !important; }
   .rounded-xl, .rounded-lg { border-radius: 0 !important; }
@@ -123,5 +123,9 @@
   tr { page-break-inside: avoid; page-break-after: auto; }
   thead { display: table-header-group; }
   th, td { border: 1px solid #ccc !important; padding: 6px 8px !important; font-size: 11px !important; }
+  /* BUG-013: Hide any URL text that might appear in print (links, href attributes) */
+  a[href]::after { content: none !important; }
+  a { text-decoration: none !important; color: inherit !important; }
+  [data-url], .site-url, .print-url { display: none !important; }
   @page { size: A4; margin: 12mm; }
 }

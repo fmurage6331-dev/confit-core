@@ -18,6 +18,7 @@ type FacilitySettings = {
   facility_kmhfl_code: string | null;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFacilitySettings() {
   const [settings, setSettings] = useState<FacilitySettings | null>(null);
   useEffect(() => {
@@ -35,13 +36,7 @@ export function useFacilitySettings() {
   return settings;
 }
 
-export function PrintHeader({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
+export function PrintHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   const s = useFacilitySettings();
   return (
     <div className="border-b-2 border-black pb-3 mb-4">
@@ -49,11 +44,7 @@ export function PrintHeader({
         {/* Left — logo + facility info */}
         <div className="flex items-center gap-3">
           {s?.logo_url && (
-            <img
-              src={s.logo_url}
-              alt="facility logo"
-              className="h-14 w-auto object-contain"
-            />
+            <img src={s.logo_url} alt="facility logo" className="h-14 w-auto object-contain" />
           )}
           <div>
             <div className="text-xl font-bold">
@@ -83,9 +74,7 @@ export function PrintHeader({
         {/* Right — document type + timestamp */}
         <div className="text-right">
           <div className="text-lg font-semibold">{title}</div>
-          {subtitle && (
-            <div className="text-xs text-gray-500">{subtitle}</div>
-          )}
+          {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
           <div className="text-xs text-gray-400 mt-1">
             Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}
           </div>
