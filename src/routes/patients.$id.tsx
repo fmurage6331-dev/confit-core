@@ -218,7 +218,8 @@ function PatientProfile() {
       if (settingsRes.error) throw new Error(settingsRes.error.message);
       const facilityName =
         ((settingsRes.data as Array<Record<string, unknown>> | null)?.[0]?.facility_name as
-          string | null) ?? "";
+          | string
+          | null) ?? "";
 
       const exportData = {
         export_metadata: {
