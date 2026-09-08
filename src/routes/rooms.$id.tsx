@@ -1112,6 +1112,7 @@ function ConsultationDialog({
     }
     toast.success("Encounter signed and locked");
     onSaved();
+    onClose();
   }
   // ── CHANGE 1: added "results" to the tab union type ──
   const [tab, setTab] = useState<
