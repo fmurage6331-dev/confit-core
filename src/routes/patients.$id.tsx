@@ -466,7 +466,12 @@ function PatientProfile() {
                       KSh {bal.toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
-                      {e.current_room_name ? (
+                      {e.status === "done" || e.status === "signed" || e.status === "cancelled" ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          Visit Closed
+                        </span>
+                      ) : e.current_room_name ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
                           <MapPin className="h-3 w-3" />
                           {e.current_room_name}

@@ -4,7 +4,7 @@
  * Sections render only when the current user has the relevant permission.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
@@ -45,6 +45,48 @@ function fmtDate(d?: string | null) {
   } catch {
     return "—";
   }
+}
+
+// BUG-011: Helper to check if a string looks like a UUID
+function isUuid(str: string | null | undefined): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
+// BUG-011: Hook to resolve user UUIDs to display names
+function useUserNameMap(userIds: (string | null | undefined)[]) {
+  const [nameMap, setNameMap] = useState<Map<string, string>>(new Map());
+  const userIdsKey = userIds.join(",");
+
+  useEffect(() => {
+    const uuids = userIds.filter((id): id is string => isUuid(id));
+    if (uuids.length === 0) return;
+
+    const uniqueIds = [...new Set(uuids)];
+    supabase
+      .from("profiles")
+      .select("id,full_name,first_name,last_name,username")
+      .in("id", uniqueIds)
+      .then(({ data }) => {
+        const map = new Map<string, string>();
+        (data ?? []).forEach((profile) => {
+          const name =
+            profile.full_name ||
+            [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+            profile.username ||
+            "System User";
+          map.set(profile.id, name);
+        });
+        setNameMap(map);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userIdsKey]);
+
+  return (userId: string | null | undefined): string => {
+    if (!userId) return "—";
+    if (!isUuid(userId)) return userId; // Already a name/email
+    return nameMap.get(userId) || "System User";
+  };
 }
 
 function EncounterRecordDetail() {
@@ -179,6 +221,21 @@ function EncounterRecordDetail() {
     return m;
   }, [printRadResults]);
 
+  // BUG-011: Collect all user IDs from print data and resolve to names
+  const printUserIds = useMemo(() => {
+    const ids: (string | null | undefined)[] = [];
+    // Lab performed_by
+    ((printLab.data ?? []) as unknown as LabOrderPrint[]).forEach((o) => {
+      o.lab_results?.forEach((r) => ids.push(r.performed_by));
+    });
+    // Radiology radiologist
+    (printRadResults.data ?? []).forEach((r) => ids.push(r.radiologist));
+    // Discharge notes authored_by
+    ((printDischargeNotes.data ?? []) as DischargeNote[]).forEach((n) => ids.push(n.authored_by));
+    return ids;
+  }, [printLab.data, printRadResults.data, printDischargeNotes.data]);
+  const resolveUserName = useUserNameMap(printUserIds);
+
   return (
     <div className="space-y-6">
       {/* ── screen-only back link + header ── */}
@@ -300,6 +357,7 @@ function EncounterRecordDetail() {
             enc={enc.data}
             prescriptions={printRx.data ?? []}
             dischargeNotes={(printDischargeNotes.data ?? []) as DischargeNote[]}
+            resolveUserName={resolveUserName}
           />
         ) : (
           <PrintableEncounterView
@@ -308,6 +366,7 @@ function EncounterRecordDetail() {
             radOrders={printRad.data ?? []}
             radResultMap={radResultMap}
             prescriptions={printRx.data ?? []}
+            resolveUserName={resolveUserName}
           />
         )}
       </div>
@@ -374,12 +433,14 @@ function PrintableEncounterView({
   radOrders,
   radResultMap,
   prescriptions,
+  resolveUserName,
 }: {
   enc: unknown;
   labOrders: LabOrderPrint[];
   radOrders: RadOrderPrint[];
   radResultMap: Map<string, RadResultPrint>;
   prescriptions: RxPrint[];
+  resolveUserName: (id: string | null | undefined) => string;
 }) {
   if (!enc) return null;
 
@@ -431,9 +492,13 @@ function PrintableEncounterView({
       {/* ── Page header ── */}
       <PrintHeader
         title="Full Encounter Summary"
-        subtitle={`Encounter: ${String(e.id ?? "—")
-          .slice(0, 8)
-          .toUpperCase()}`}
+        subtitle={
+          p.file_number
+            ? `File # ${p.file_number}`
+            : `Visit #${String(e.id ?? "—")
+                .slice(0, 8)
+                .toUpperCase()}`
+        }
       />
 
       {/* ── Patient demographics ── */}
@@ -598,7 +663,7 @@ function PrintableEncounterView({
                       </p>
                     )}
                     <div className="text-xs text-gray-500 mt-1">
-                      {r.performed_by && <>Performed by: {r.performed_by} · </>}
+                      {r.performed_by && <>Performed by: {resolveUserName(r.performed_by)} · </>}
                       {r.reported_at && <>Reported: {fmt(r.reported_at)}</>}
                     </div>
                   </>
@@ -634,7 +699,7 @@ function PrintableEncounterView({
                     {res.findings && <PrintNote label="Findings" value={res.findings} />}
                     {res.impression && <PrintNote label="Impression" value={res.impression} />}
                     <div className="text-xs text-gray-500 mt-1">
-                      {res.radiologist && <>Radiologist: {res.radiologist} · </>}
+                      {res.radiologist && <>Radiologist: {resolveUserName(res.radiologist)} · </>}
                       {res.reported_at && <>Reported: {fmt(res.reported_at)}</>}
                     </div>
                   </>
@@ -754,10 +819,12 @@ function DischargeSummaryPrintView({
   enc,
   prescriptions,
   dischargeNotes,
+  resolveUserName,
 }: {
   enc: unknown;
   prescriptions: RxPrint[];
   dischargeNotes: DischargeNote[];
+  resolveUserName: (id: string | null | undefined) => string;
 }) {
   if (!enc) return null;
 
@@ -787,10 +854,11 @@ function DischargeSummaryPrintView({
         <div className="text-right text-xs text-gray-500">
           <div>Printed: {format(new Date(), "dd MMM yyyy, HH:mm")}</div>
           <div>
-            Encounter ID:{" "}
-            {String(e.id ?? "—")
-              .slice(0, 8)
-              .toUpperCase()}
+            {p.file_number
+              ? `File # ${p.file_number}`
+              : `Visit #${String(e.id ?? "—")
+                  .slice(0, 8)
+                  .toUpperCase()}`}
           </div>
         </div>
       </div>
@@ -838,7 +906,10 @@ function DischargeSummaryPrintView({
         <PrintSection title="Discharge Notes &amp; Treatment">
           {dischargeNotes.map((n) => (
             <div key={n.id} className="mb-3">
-              <div className="text-xs text-gray-400 mb-1">{fmt(n.authored_at)}</div>
+              <div className="text-xs text-gray-400 mb-1">
+                {fmt(n.authored_at)}
+                {n.authored_by && <> · {resolveUserName(n.authored_by)}</>}
+              </div>
               <div className="whitespace-pre-wrap text-sm border-l-2 border-gray-300 pl-3">
                 {n.content}
               </div>
