@@ -62,6 +62,7 @@ import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ServicePicker } from "@/components/service-picker";
 import { DischargeButton, ReferOutButton, TransferButton } from "@/routes/inpatient";
+import { dbError } from "@/lib/db-error";
 import { PrintHeader } from "@/components/print-header";
 
 export const Route = createFileRoute("/rooms/$id")({
@@ -2690,8 +2691,30 @@ function InsuranceDialog({
       .eq("id", reg.id);
     setClearing(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(dbError(error));
       return;
+    }
+
+    // BUG-008: reset invoice to cash so accounting can collect payment
+    if (status === "rejected") {
+      const { data: inv } = await supabase
+        .from("invoices")
+        .select("id, total_due")
+        .eq("encounter_id", reg.id)
+        .maybeSingle();
+      if (inv) {
+        await supabase
+          .from("invoices")
+          .update({
+            payment_mode: "cash",
+            insurance_covered: 0,
+            patient_due: inv.total_due ?? 0,
+            balance: inv.total_due ?? 0,
+            insurer_type: null,
+            updated_at: new Date().toISOString(),
+          } as never)
+          .eq("id", inv.id);
+      }
     }
     setClearanceStatus(status);
     if (status === "waived") {
