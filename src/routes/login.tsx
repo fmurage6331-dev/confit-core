@@ -69,6 +69,8 @@ function LoginPage() {
   const [mfaStep, setMfaStep] = useState<MfaStep>({ kind: "none" });
   const [mfaCode, setMfaCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  // Prevents useEffect redirect while MFA challenge is in progress
+  const [mfaRequired, setMfaRequired] = useState(false);
 
   const goNext = () => {
     if (next) window.location.href = next;
@@ -76,9 +78,9 @@ function LoginPage() {
   };
 
   useEffect(() => {
-    if (!loading && user) goNext();
+    if (!loading && user && !mfaRequired) goNext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading]);
+  }, [user, loading, mfaRequired]);
 
   // ── Password sign-in ─────────────────────────────────────────────────────
   async function onSubmit(e: FormEvent) {
@@ -125,6 +127,9 @@ function LoginPage() {
         }
 
         // ── Check MFA factors ─────────────────────────────────────────────
+        // Block useEffect redirect while we check MFA
+        setMfaRequired(true);
+
         const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
         if (aal && aal.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
@@ -140,6 +145,7 @@ function LoginPage() {
             });
             if (challengeErr || !challenge) {
               toast.error("MFA challenge failed. Please try again.");
+              setMfaRequired(false);
               return;
             }
             setMfaStep({
@@ -152,6 +158,7 @@ function LoginPage() {
         }
 
         // No MFA enrolled — proceed but show enrollment reminder
+        setMfaRequired(false);
         toast.success("Signed in. Set up Authenticator in Settings for enhanced security.");
         goNext();
       }
