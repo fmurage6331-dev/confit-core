@@ -1396,7 +1396,20 @@ function ConsultationDialog({
   const v = reg.vitals ?? {};
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) {
+          if (reg.payment_mode === "insurance" && reg.status !== "signed") {
+            toast.warning(
+              "Insurance encounter — please Sign & Lock before closing to enable claim submission.",
+            );
+            return;
+          }
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-4xl max-h-[88vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -1849,7 +1862,18 @@ function ConsultationDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (reg.payment_mode === "insurance" && reg.status !== "signed") {
+                toast.warning(
+                  "Insurance encounter — please Sign & Lock before closing to enable claim submission.",
+                );
+                return;
+              }
+              onClose();
+            }}
+          >
             Close
           </Button>
           {canSign && reg.status !== "signed" && (
