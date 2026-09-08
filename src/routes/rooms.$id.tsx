@@ -1379,6 +1379,13 @@ function ConsultationDialog({
   }
 
   async function finishAndSend() {
+    // SHA/insurance encounters must be signed before closing
+    if (reg.payment_mode === "insurance" && reg.status !== "signed") {
+      toast.warning(
+        "This is an insurance encounter — please Sign & Lock before closing to enable claim submission.",
+      );
+      return;
+    }
     await saveNotes();
     if (rxs.some((r) => r.status === "pending")) {
       toast.info("Pending prescriptions will move the patient to pharmacy.");
@@ -1615,7 +1622,25 @@ function ConsultationDialog({
           )}
 
           {tab === "requests" && (
-            <RequestServicesInline reg={reg} roomId={roomId} onSaved={onSaved} />
+            <RequestServicesInline
+              reg={reg}
+              roomId={roomId}
+              onSaved={() => {
+                // BUG-010: refresh reg data without closing consultation dialog
+                // so clinician can continue consulting after ordering services
+                void supabase
+                  .from("patient_registrations")
+                  .select("tests,subtotal,patient_due,payment_status,insurance_covered")
+                  .eq("id", reg.id)
+                  .maybeSingle()
+                  .then(({ data }) => {
+                    if (data) {
+                      reg.tests = (data.tests ?? []) as TestItem[];
+                      reg.payment_status = data.payment_status as typeof reg.payment_status;
+                    }
+                  });
+              }}
+            />
           )}
 
           {/* ── CHANGE 4: results tab panel ── */}
