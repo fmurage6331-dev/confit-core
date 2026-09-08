@@ -47,15 +47,28 @@ const signupSchema = z
     path: ["confirm"],
   });
 
+// ── MFA step type ────────────────────────────────────────────────────────────
+type MfaStep =
+  | { kind: "none" }
+  | { kind: "totp"; factorId: string; challengeId: string }
+  | { kind: "email" };
+
 function LoginPage() {
   const navigate = useNavigate();
   const { mode, next } = Route.useSearch();
   const isSignup = mode === "signup";
   const { user, loading } = useAuth();
+
+  // ── Form state ───────────────────────────────────────────────────────────
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // ── MFA state ────────────────────────────────────────────────────────────
+  const [mfaStep, setMfaStep] = useState<MfaStep>({ kind: "none" });
+  const [mfaCode, setMfaCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
   const goNext = () => {
     if (next) window.location.href = next;
@@ -67,6 +80,7 @@ function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
+  // ── Password sign-in ─────────────────────────────────────────────────────
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -91,7 +105,6 @@ function LoginPage() {
           toast.success("Account created. Welcome!");
           goNext();
         } else {
-          // Email confirmation is required by project settings.
           toast.success("Check your email to confirm your account before signing in.");
           navigate({ to: "/login", search: { mode: "signin", next } });
         }
@@ -110,6 +123,36 @@ function LoginPage() {
           }
           return;
         }
+
+        // ── Check MFA factors ─────────────────────────────────────────────
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+        if (aal && aal.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
+          // User has TOTP enrolled — issue challenge
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totpFactor = factors?.totp?.find(
+            (f) => f.factor_type === "totp" && f.status === "verified",
+          );
+
+          if (totpFactor) {
+            const { data: challenge, error: challengeErr } = await supabase.auth.mfa.challenge({
+              factorId: totpFactor.id,
+            });
+            if (challengeErr || !challenge) {
+              toast.error("MFA challenge failed. Please try again.");
+              return;
+            }
+            setMfaStep({
+              kind: "totp",
+              factorId: totpFactor.id,
+              challengeId: challenge.id,
+            });
+            return; // ← stop here — wait for TOTP input
+          }
+        }
+
+        // No MFA enrolled — proceed but show enrollment reminder
+        toast.success("Signed in. Set up Authenticator in Settings for enhanced security.");
         goNext();
       }
     } catch (err) {
@@ -121,6 +164,82 @@ function LoginPage() {
     }
   }
 
+  // ── TOTP verification ────────────────────────────────────────────────────
+  async function verifyTotp(e: FormEvent) {
+    e.preventDefault();
+    if (mfaStep.kind !== "totp") return;
+    setVerifying(true);
+    const { error } = await supabase.auth.mfa.verify({
+      factorId: mfaStep.factorId,
+      challengeId: mfaStep.challengeId,
+      code: mfaCode.trim(),
+    });
+    setVerifying(false);
+    if (error) {
+      toast.error("Incorrect code — check your authenticator app and try again.");
+      setMfaCode("");
+      return;
+    }
+    toast.success("Verified ✓");
+    goNext();
+  }
+
+  // ── TOTP screen ──────────────────────────────────────────────────────────
+  if (mfaStep.kind === "totp") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-6">
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl border bg-card p-8 shadow-sm space-y-6">
+            <div className="text-center space-y-1">
+              <div className="flex justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <ShieldCheck className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+              <h1 className="text-xl font-bold mt-3">Two-factor authentication</h1>
+              <p className="text-sm text-muted-foreground">
+                Enter the 6-digit code from your authenticator app.
+              </p>
+            </div>
+            <form onSubmit={verifyTotp} className="space-y-4">
+              <div>
+                <Label htmlFor="mfa-code">Authenticator code</Label>
+                <Input
+                  id="mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  placeholder="000000"
+                  className="text-center text-2xl tracking-widest font-mono"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={verifying || mfaCode.length !== 6}>
+                {verifying ? "Verifying…" : "Verify"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-sm"
+                onClick={() => {
+                  setMfaStep({ kind: "none" });
+                  setMfaCode("");
+                  void supabase.auth.signOut();
+                }}
+              >
+                ← Back to sign in
+              </Button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main login screen ────────────────────────────────────────────────────
   return (
     <div className="flex min-h-screen">
       {/* ── LEFT PANEL ── */}
