@@ -159,6 +159,7 @@ function RegisterPatient() {
   // ── Layer-2 biometric consent (CHECK_IN) — Biometric Phase 3 ──────
   const [biometricOpen, setBiometricOpen] = useState(false);
   const biometricPendingRef = useRef(false);
+  const consentDoneRef = useRef(false);
   const biometric = useBiometricBridge();
   const [benefitPlans, setBenefitPlans] = useState<
     { id: string; plan_name: string; benefit_period: string }[]
@@ -1209,20 +1210,19 @@ function RegisterPatient() {
           open={consentOpen}
           onOpenChange={(o) => {
             setConsentOpen(o);
-            // Dismissed without completing — back to queue. When biometric
-            // consent is pending we keep the page alive for the bridge.
-            if (!o && !biometricPendingRef.current) navigate({ to: "/queue" });
-          }}
-          onComplete={() => {
-            // ODPC consent done → Layer-2 biometric for SHA-funded visits.
-            if (fundRequiresBiometric(consentFundType())) {
+            if (o || biometricPendingRef.current) return;
+            // ODPC consent completed → chain into Layer-2 biometric for
+            // SHA-funded visits. Dismissed early → back to the queue.
+            if (consentDoneRef.current && fundRequiresBiometric(consentFundType())) {
               biometricPendingRef.current = true;
-              setConsentOpen(false);
               setBiometricOpen(true);
               startCheckInBiometric();
             } else {
               navigate({ to: "/queue" });
             }
+          }}
+          onComplete={() => {
+            consentDoneRef.current = true;
           }}
           patientId={consentCtx.patientId}
           patientName={consentCtx.patientName}
