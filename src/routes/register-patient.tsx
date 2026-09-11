@@ -6,12 +6,14 @@
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PermGuard } from "@/lib/require-access";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/supabase-untyped";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { ConsentDialog } from "@/components/consent-dialog";
+import { BiometricConsentModal } from "@/components/BiometricConsentModal";
+import { fundRequiresBiometric, useBiometricBridge } from "@/hooks/useBiometricBridge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -153,6 +155,12 @@ function RegisterPatient() {
     patientName: string;
     phone: string;
   } | null>(null);
+
+  // ── Layer-2 biometric consent (CHECK_IN) — Biometric Phase 3 ──────
+  const [biometricOpen, setBiometricOpen] = useState(false);
+  const biometricPendingRef = useRef(false);
+  const consentDoneRef = useRef(false);
+  const biometric = useBiometricBridge();
   const [benefitPlans, setBenefitPlans] = useState<
     { id: string; plan_name: string; benefit_period: string }[]
   >([]);
@@ -189,6 +197,30 @@ function RegisterPatient() {
   };
 
   const insurer = insurers.find((item) => item.id === insurerId);
+
+  // Biometric CHECK_IN helpers — fund type from the chosen insurer.
+  function consentFundType(): string {
+    const it = insurer?.insurer_type ?? "";
+    if (it === "sha_shif") return "SHIF";
+    if (it === "sha_phf") return "PHF";
+    return it.toUpperCase();
+  }
+
+  function startCheckInBiometric() {
+    if (!consentCtx) return;
+    void biometric.verify({
+      patientId: consentCtx.patientId,
+      fundType: consentFundType(),
+      trigger: "CHECK_IN",
+      initiatedBy: user?.email ?? user?.id ?? "reception",
+    });
+  }
+
+  function finishCheckInBiometric() {
+    setBiometricOpen(false);
+    biometric.reset();
+    navigate({ to: "/queue" });
+  }
 
   useEffect(() => {
     if (!insurerId || insurer?.insurer_type === "sha_shif" || insurer?.insurer_type === "sha_phf") {
@@ -1178,12 +1210,49 @@ function RegisterPatient() {
           open={consentOpen}
           onOpenChange={(o) => {
             setConsentOpen(o);
-            if (!o) navigate({ to: "/queue" });
+            if (o || biometricPendingRef.current) return;
+            // ODPC consent completed → chain into Layer-2 biometric for
+            // SHA-funded visits. Dismissed early → back to the queue.
+            if (consentDoneRef.current && fundRequiresBiometric(consentFundType())) {
+              biometricPendingRef.current = true;
+              setBiometricOpen(true);
+              startCheckInBiometric();
+            } else {
+              navigate({ to: "/queue" });
+            }
+          }}
+          onComplete={() => {
+            consentDoneRef.current = true;
           }}
           patientId={consentCtx.patientId}
           patientName={consentCtx.patientName}
           patientPhone={consentCtx.phone}
           encounterId={consentCtx.encounterId}
+        />
+      )}
+      {consentCtx && biometricOpen && (
+        <BiometricConsentModal
+          open={biometricOpen}
+          trigger="CHECK_IN"
+          patientName={consentCtx.patientName}
+          fileNumber={null}
+          fundType={consentFundType()}
+          connectionStatus={biometric.connectionStatus}
+          scanStatus={biometric.scanStatus}
+          decision={biometric.decision}
+          error={biometric.error}
+          onContinue={() => {
+            biometricPendingRef.current = false;
+            finishCheckInBiometric();
+          }}
+          onRetry={() => {
+            biometric.reset();
+            startCheckInBiometric();
+          }}
+          onCancel={() => {
+            biometricPendingRef.current = false;
+            finishCheckInBiometric();
+          }}
         />
       )}
     </form>
