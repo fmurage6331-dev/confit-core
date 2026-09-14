@@ -5,8 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
-  "https://aegiscarehms.lovable.app",
-  "https://aegiscare.vercel.app",
+  "https://aegiscare-orcin.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -111,6 +110,29 @@ serve(async (req) => {
         profile: ["http://hl7.org/fhir/StructureDefinition/Encounter"],
       },
       status: fhirStatus,
+      type: [
+        {
+          coding: [
+            {
+              system: "https://fhir.dha.go.ke/terminology/CodeSystem/encounter-type-cs",
+              code: encounter.is_emergency
+                ? "EMERGENCY-VISIT"
+                : encounter.encounter_type === "inpatient"
+                  ? "INPATIENT-VISIT"
+                  : encounter.referral_direction === "in"
+                    ? "REFERRAL-VISIT"
+                    : "OUTPATIENT-VISIT",
+              display: encounter.is_emergency
+                ? "Emergency Visit"
+                : encounter.encounter_type === "inpatient"
+                  ? "Inpatient Visit"
+                  : encounter.referral_direction === "in"
+                    ? "Referral Visit"
+                    : "Outpatient Visit",
+            },
+          ],
+        },
+      ],
       class: {
         system: "http://terminology.hl7.org/CodeSystem/v3-ActCode",
         code: encClass.code,
@@ -140,8 +162,8 @@ serve(async (req) => {
           coding: [
             {
               system: "http://terminology.hl7.org/CodeSystem/diagnosis-role",
-              code: "AD",
-              display: "Admission diagnosis",
+              code: d.sequence === 1 ? "principal" : "secondary",
+              display: d.sequence === 1 ? "Principal Diagnosis" : "Secondary Diagnosis",
             },
           ],
         },

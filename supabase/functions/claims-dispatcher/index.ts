@@ -7,8 +7,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
-  "https://aegiscarehms.lovable.app",
-  "https://aegiscare.vercel.app",
+  "https://aegiscare-orcin.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -27,6 +26,12 @@ function getCorsHeaders(req: Request): Record<string, string> {
     "Vary": "Origin",
   };
 }
+
+// SHA HIE configuration (sandbox → production when creds arrive)
+const SHA_BASE_URL =
+  Deno.env.get("SHA_BASE_URL") ?? "https://ilm-dev.dha.go.ke/uat-middleware/api/v1";
+const SHA_CLIENT_ID = Deno.env.get("SHA_CLIENT_ID") ?? "";
+const SHA_CLIENT_SECRET = Deno.env.get("SHA_CLIENT_SECRET") ?? "";
 
 type QueueType = "fhir_sync" | "sha_claim" | "private_claim" | "cash_receipt";
 
