@@ -6,8 +6,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const ALLOWED_ORIGINS = [
-  "https://aegiscarehms.lovable.app",
-  "https://aegiscare.vercel.app",
+  "https://aegiscare-orcin.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];

@@ -12,8 +12,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
   "https://aegiscare-orcin.vercel.app",
-  "https://aegiscarehms.lovable.app",
-  "https://aegiscare.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -100,6 +98,12 @@ function buildOrganization(settings: Record<string, unknown>) {
     ],
     active: true,
     name: settings.facility_name ?? "AegisCare Facility",
+    extension: [
+      {
+        url: "https://fhir.dha.go.ke/terminology/CodeSystem/facility-level-cs",
+        valueCode: "LEVEL-3B",
+      },
+    ],
   };
 }
 
@@ -180,7 +184,8 @@ function buildCoverage(
     type: {
       coding: [
         {
-          system: "https://sha.go.ke/fund-type",
+          system:
+            "https://fhir.dha.go.ke/terminology/CodeSystem/coverage-type-cs",
           code: claim.fund_type ?? "SHIF",
           display: claim.fund_type ?? "SHIF",
         },
