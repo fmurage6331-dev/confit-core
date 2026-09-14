@@ -161,7 +161,8 @@ serve(async (req) => {
         use: {
           coding: [
             {
-              system: "http://terminology.hl7.org/CodeSystem/diagnosis-role",
+              system:
+                "https://fhir.dha.go.ke/terminology/CodeSystem/claim-diagnosis-codeable-concept-cs",
               code: d.sequence === 1 ? "principal" : "secondary",
               display: d.sequence === 1 ? "Principal Diagnosis" : "Secondary Diagnosis",
             },
