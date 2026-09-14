@@ -5,8 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
-  "https://aegiscarehms.lovable.app",
-  "https://aegiscare.vercel.app",
+  "https://aegiscare-orcin.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -96,6 +95,26 @@ serve(async (req) => {
       meta: {
         profile: ["http://hl7.org/fhir/StructureDefinition/Condition"],
       },
+      clinicalStatus: {
+        coding: [
+          {
+            system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
+            code: "active",
+            display: "Active",
+          },
+        ],
+      },
+      category: [
+        {
+          coding: [
+            {
+              system: "http://terminology.hl7.org/CodeSystem/condition-category",
+              code: "encounter-diagnosis",
+              display: "Encounter Diagnosis",
+            },
+          ],
+        },
+      ],
       verificationStatus: {
         coding: [
           {
@@ -125,7 +144,7 @@ serve(async (req) => {
       ...(d.notes ? { note: [{ text: d.notes }] } : {}),
       extension: [
         {
-          url: "http://aegiscare.co.ke/fhir/StructureDefinition/diagnosis-sequence",
+          url: "https://fhir.dha.go.ke/StructureDefinition/diagnosis-sequence",
           valueInteger: d.sequence ?? 1,
         },
       ],

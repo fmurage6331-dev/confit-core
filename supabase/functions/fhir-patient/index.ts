@@ -6,8 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
-  "https://aegiscarehms.lovable.app",
-  "https://aegiscare.vercel.app",
+  "https://aegiscare-orcin.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -50,7 +49,7 @@ serve(async (req) => {
     const { data: patient, error: patientError } = await supabase
       .from("patients")
       .select(
-        "id,file_number,first_name,middle_name,family_name,patient_name,date_of_birth,dob_known,estimated_age,sex,phone,email,address_line1,address_line2,city,county,postal_code,country,is_deceased,date_of_death",
+        "id,file_number,first_name,middle_name,family_name,patient_name,date_of_birth,dob_known,estimated_age,sex,phone,email,address_line1,address_line2,city,county,postal_code,country,is_deceased,date_of_death,national_id,sha_member_number,cr_number",
       )
       .eq("id", patient_id)
       .maybeSingle();
@@ -92,6 +91,33 @@ serve(async (req) => {
           system: `https://hiskenya.org/facility/${settings?.facility_kmhfl_code ?? "unknown"}/patients`,
           value: patient.file_number ?? patient.id,
         },
+        ...(patient.cr_number
+          ? [
+              {
+                use: "secondary",
+                system: "https://hiskenya.org/client-registry",
+                value: patient.cr_number,
+              },
+            ]
+          : []),
+        ...(patient.sha_member_number
+          ? [
+              {
+                use: "secondary",
+                system: "https://sha.go.ke/members",
+                value: patient.sha_member_number,
+              },
+            ]
+          : []),
+        ...(patient.national_id
+          ? [
+              {
+                use: "usual",
+                system: "https://hiskenya.org/national-id",
+                value: patient.national_id,
+              },
+            ]
+          : []),
       ],
       name: [
         {
@@ -124,6 +150,10 @@ serve(async (req) => {
           }
         : { deceasedBoolean: false }),
       managingOrganization: {
+        identifier: {
+          system: "https://kmhfl.health.go.ke/facilities",
+          value: settings?.facility_kmhfl_code ?? "unknown",
+        },
         display: settings?.facility_name ?? "Aegiscare",
       },
     };
