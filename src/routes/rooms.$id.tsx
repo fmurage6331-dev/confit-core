@@ -64,6 +64,10 @@ import { ServicePicker } from "@/components/service-picker";
 import { DischargeButton, ReferOutButton, TransferButton } from "@/routes/inpatient";
 import { dbError } from "@/lib/db-error";
 import { PrintHeader } from "@/components/print-header";
+import { BiometricConsentModal } from "@/components/BiometricConsentModal";
+import { DischargeChecklist } from "@/components/DischargeChecklist";
+import { useBiometricBridge } from "@/hooks/useBiometricBridge";
+import type { BiometricDecision } from "@/types/biometric";
 
 export const Route = createFileRoute("/rooms/$id")({
   component: () => (
@@ -472,24 +476,6 @@ function RoomPage() {
       return { label: "Cancelled", cls: "bg-muted text-muted-foreground" };
     return { label: "Dispensed", cls: "bg-emerald-100 text-emerald-700" };
   }
-  async function closeVisit(reg: Reg) {
-    const rxs = rxByReg.get(reg.id) ?? [];
-    if (rxs.some((r) => r.status === "pending")) {
-      toast.error("Dispense or cancel all pending prescriptions first.");
-      return;
-    }
-    const { error } = await supabase
-      .from("patient_registrations")
-      .update({ status: "done" } as never)
-      .eq("id", reg.id);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Patient visit closed");
-    loadRequests();
-  }
-
   function actionLabel(): string {
     if (kind === "lab") return "Perform tests";
     if (kind === "radiology") return "Open Radiology";
@@ -577,10 +563,6 @@ function RoomPage() {
                 const rxs = rxByReg.get(r.id) ?? [];
                 const created = rxs.length > 0 ? rxs[0].created_at : r.created_at;
                 const status = pharmacyStatus(rxs);
-                const anyPending = rxs.some((x) => x.status === "pending");
-                const isInpatient = rxs.some(
-                  (x) => x.encounter_type === "inpatient" || Boolean(x.admission_id),
-                );
                 return (
                   <tr key={r.id} className="border-t">
                     <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -616,11 +598,6 @@ function RoomPage() {
                           <ClipboardPlus className="mr-1 h-3.5 w-3.5" />
                           Dispense
                         </Button>
-                        {!isInpatient && (
-                          <Button size="sm" disabled={anyPending} onClick={() => closeVisit(r)}>
-                            Close visit
-                          </Button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -2500,24 +2477,6 @@ function PharmacyDialog({
     load();
   }
 
-  async function finish() {
-    const anyPending = rxs.some((r) => r.status === "pending");
-    if (anyPending) {
-      toast.error("Dispense or cancel all pending prescriptions first.");
-      return;
-    }
-    const { error } = await supabase
-      .from("patient_registrations")
-      .update({ status: "done" } as never)
-      .eq("id", reg.id);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Patient visit closed");
-    onSaved();
-  }
-
   const allergies = (reg.history as { allergies?: string })?.allergies ?? "";
 
   return (
@@ -2667,7 +2626,6 @@ function PharmacyDialog({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={finish}>Close visit</Button>
         </DialogFooter>
       </DialogContent>
 
@@ -2782,6 +2740,7 @@ function InsuranceDialog({
           ? "Clearance rejected — patient switched to cash"
           : "Clearance waived — patient routed to triage",
     );
+    setChecklistRefreshKey((k) => k + 1);
   }
 
   // ── SHA-5 state ──────────────────────────────────────────────────────────
@@ -2819,6 +2778,110 @@ function InsuranceDialog({
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpRecordId, setOtpRecordId] = useState<string | null>(null);
   const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
+
+  // ── Discharge gate — Biometric Phase 3 (OPD Level 3B) ─────────────
+  const [closing, setClosing] = useState(false);
+  const [biometricOpen, setBiometricOpen] = useState(false);
+  const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
+  const biometric = useBiometricBridge();
+
+  function dischargeFundType(): string {
+    return (
+      shaFundType ??
+      (reg.insurer_type === "sha_shif"
+        ? "SHIF"
+        : reg.insurer_type === "sha_phf"
+          ? "PHF"
+          : (reg.insurer_type ?? ""))
+    );
+  }
+
+  function dischargeParams() {
+    return {
+      patientId: reg.patient_id ?? reg.id,
+      fundType: dischargeFundType(),
+      trigger: "DISCHARGE" as const,
+      initiatedBy: user?.email ?? user?.id ?? "insurance-desk",
+    };
+  }
+
+  function insuranceApprovedNow(): boolean {
+    return (
+      claimStatus === "submitted" || claimStatus === "approved" || clearanceStatus === "approved"
+    );
+  }
+
+  function triggerBiometricDischarge() {
+    setBiometricOpen(true);
+    void biometric.verify(dischargeParams());
+  }
+
+  function retryBiometricDischarge() {
+    biometric.reset();
+    void biometric.verify(dischargeParams());
+  }
+
+  function handleBiometricContinue(decision: BiometricDecision | null) {
+    setBiometricOpen(false);
+    biometric.reset();
+    if (!decision) {
+      toast.info(
+        "Biometric skipped — bridge offline. Closing visit without biometric verification.",
+      );
+    }
+    void handleCloseVisit();
+  }
+
+  async function handleCloseVisit() {
+    const { data: regRow } = await supabase
+      .from("patient_registrations")
+      .select("status")
+      .eq("id", reg.id)
+      .maybeSingle();
+    const regStatus = String(regRow?.status ?? reg.status ?? "");
+    if (regStatus !== "signed" && regStatus !== "done") {
+      toast.error("Sign & Lock the consultation before closing the visit.");
+      return;
+    }
+    const [labRes, rxRes, invRes] = await Promise.all([
+      supabase.from("lab_orders").select("id,status").eq("encounter_id", reg.id),
+      supabase.from("prescriptions").select("id,status").eq("registration_id", reg.id),
+      supabase.from("invoices").select("balance,status").eq("encounter_id", reg.id).maybeSingle(),
+    ]);
+    const pendingLabs = ((labRes.data ?? []) as { status: string | null }[]).filter(
+      (o) => o.status !== "completed" && o.status !== "cancelled" && o.status !== "declined",
+    );
+    if (pendingLabs.length > 0) {
+      toast.error("Lab results must be released before closing the visit.");
+      return;
+    }
+    const pendingRxs = ((rxRes.data ?? []) as { status: string | null }[]).filter(
+      (r) => r.status === "pending",
+    );
+    if (pendingRxs.length > 0) {
+      toast.error("Dispense or cancel all pending prescriptions first.");
+      return;
+    }
+    const inv = invRes.data as { balance: number | null; status: string | null } | null;
+    const invoiceSettled = !inv || Number(inv.balance ?? 0) <= 0 || inv.status === "paid";
+    if (!invoiceSettled && !insuranceApprovedNow()) {
+      toast.error("Settle the invoice or submit the insurance claim before closing the visit.");
+      return;
+    }
+    setClosing(true);
+    const { error } = await supabase
+      .from("patient_registrations")
+      .update({ status: "done" } as never)
+      .eq("id", reg.id);
+    setClosing(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Patient visit closed");
+    onSaved();
+    onClose();
+  }
 
   // Load benefit packages + draft claim + claim items
   useEffect(() => {
@@ -3152,6 +3215,7 @@ function InsuranceDialog({
     setClaimStatus("submitted");
     setSubmitting(false);
     toast.success("Claim submitted to queue — awaiting Phase 3 API activation");
+    setChecklistRefreshKey((k) => k + 1);
     onSaved();
   }
 
@@ -3703,6 +3767,19 @@ function InsuranceDialog({
                 systems will activate automatically when API credentials are configured.
               </div>
             </div>
+
+            {/* ── Close Visit — Discharge gate (Biometric Phase 3) ─── */}
+            <Section title="Close Visit — Discharge">
+              <DischargeChecklist
+                encounterId={reg.id}
+                refreshKey={checklistRefreshKey}
+                insuranceApproved={insuranceApprovedNow()}
+                requireBiometric={isSha}
+                closing={closing}
+                onTriggerBiometric={triggerBiometricDischarge}
+                onCloseVisit={() => void handleCloseVisit()}
+              />
+            </Section>
           </div>
 
           <DialogFooter>
@@ -3740,6 +3817,24 @@ function InsuranceDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BiometricConsentModal
+        open={biometricOpen}
+        trigger="DISCHARGE"
+        patientName={reg.patient_name}
+        fileNumber={reg.file_number}
+        fundType={dischargeFundType()}
+        connectionStatus={biometric.connectionStatus}
+        scanStatus={biometric.scanStatus}
+        decision={biometric.decision}
+        error={biometric.error}
+        onContinue={handleBiometricContinue}
+        onRetry={retryBiometricDischarge}
+        onCancel={() => {
+          setBiometricOpen(false);
+          biometric.cancel();
+        }}
+      />
 
       {fhirOpen && (
         <Dialog open onOpenChange={(o) => !o && setFhirOpen(false)}>
