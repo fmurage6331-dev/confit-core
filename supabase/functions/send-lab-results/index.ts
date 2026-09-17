@@ -395,7 +395,7 @@ async function generateLabReportPdf(
     font: fontBold,
     color: mutedTextColor,
   });
-  page.drawText(order.test_name || "N/A", {
+  page.drawText((order.lab_test_catalog?.name ?? "n/a") || "N/A", {
     x: leftColX + 75,
     y: currentY,
     size: valueSize,
@@ -496,7 +496,7 @@ async function generateLabReportPdf(
       });
 
       const textY = tableY + 6;
-      page.drawText(order.test_name || "Test", {
+      page.drawText((order.lab_test_catalog?.name ?? "n/a") || "Test", {
         x: colTestX + 10,
         y: textY,
         size: 9,
@@ -644,7 +644,7 @@ async function generateLabReportPdf(
 function buildHtmlEmail(order: LabOrder, patient: Patient, facilityName: string): string {
   const patientName = patient.patient_name || "Patient";
   const orderNumber = order.order_number || "N/A";
-  const testName = order.test_name || "N/A";
+  const testName = (order.lab_test_catalog?.name ?? "n/a") || "N/A";
   const footerLine = facilityName + " | This is an automated message";
 
   return `<!DOCTYPE html>
@@ -752,7 +752,7 @@ serve(async (req: Request) => {
     const { data: labOrder, error: orderError } = await supabase
       .from("lab_orders")
       .select(
-        "id, patient_id, test_name, order_number, status, clinical_indication, specimen_type, collected_at, is_critical, ordered_at, ordered_by",
+        "id, patient_id, test_name, order_number, status, clinical_indication, specimen_type, collected_at, is_critical, ordered_at, ordered_by, catalog_id, lab_test_catalog(name, category, kind)",
       )
       .eq("id", lab_order_id)
       .maybeSingle();
