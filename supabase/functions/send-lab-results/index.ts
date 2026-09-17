@@ -102,10 +102,21 @@ interface Patient {
   file_number: string | null;
 }
 
+interface FacilityBranding {
+  facilityName: string;
+  facilityAddress: string;
+  facilityPhone: string;
+  facilityEmail: string;
+  facilityCounty: string;
+  facilityLevel: string;
+  logoUrl: string | null;
+}
+
 async function generateLabReportPdf(
   order: LabOrder,
   patient: Patient,
   results: LabResult[],
+  branding: FacilityBranding,
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -115,47 +126,153 @@ async function generateLabReportPdf(
   const page = pdfDoc.addPage([595.28, 841.89]);
   const { width, height } = page.getSize();
 
-  // Header bar (teal #0F766E)
+  // Facility header (no coloured bar)
   const tealColor = rgb(15 / 255, 118 / 255, 110 / 255);
   const darkTextColor = rgb(0.12, 0.16, 0.22);
   const mutedTextColor = rgb(0.38, 0.44, 0.52);
 
-  page.drawRectangle({
-    x: 0,
-    y: height - 60,
-    width,
-    height: 60,
+  // Logo top-left (width 120, height proportional, max 60pt)
+  if (branding.logoUrl) {
+    try {
+      const logoResp = await fetch(branding.logoUrl);
+      if (!logoResp.ok) {
+        throw new Error(`Logo fetch failed with status ${logoResp.status}`);
+      }
+      const logoBytes = await logoResp.arrayBuffer();
+      const cleanUrl = branding.logoUrl.toLowerCase().split("?")[0];
+      const isJpg = cleanUrl.endsWith(".jpg") || cleanUrl.endsWith(".jpeg");
+      const logoImage = isJpg ? await pdfDoc.embedJpg(logoBytes) : await pdfDoc.embedPng(logoBytes);
+      const { width: naturalWidth, height: naturalHeight } = logoImage.scale(1);
+      let logoDrawWidth = 120;
+      let logoDrawHeight = (naturalHeight / naturalWidth) * logoDrawWidth;
+      if (logoDrawHeight > 60) {
+        logoDrawHeight = 60;
+        logoDrawWidth = (naturalWidth / naturalHeight) * logoDrawHeight;
+      }
+      page.drawImage(logoImage, {
+        x: 40,
+        y: height - 40 - logoDrawHeight,
+        width: logoDrawWidth,
+        height: logoDrawHeight,
+      });
+    } catch (logoErr) {
+      console.warn("Failed to load facility logo, continuing without it:", logoErr);
+    }
+  }
+
+  // Facility level badge top-right
+  if (branding.facilityLevel) {
+    const levelText = "Level " + branding.facilityLevel;
+    const levelSize = 9;
+    const levelWidth = font.widthOfTextAtSize(levelText, levelSize);
+    page.drawText(levelText, {
+      x: width - 40 - levelWidth,
+      y: height - 50,
+      size: levelSize,
+      font,
+      color: mutedTextColor,
+    });
+  }
+
+  // Facility name (large, bold, teal, centered)
+  const facilityNameSize = 18;
+  const facilityNameWidth = fontBold.widthOfTextAtSize(branding.facilityName, facilityNameSize);
+  let cursorY = height - 115;
+  page.drawText(branding.facilityName, {
+    x: (width - facilityNameWidth) / 2,
+    y: cursorY,
+    size: facilityNameSize,
+    font: fontBold,
     color: tealColor,
   });
 
-  const headerTitle = "AegisCare HMS — Laboratory Report";
-  const titleSize = 16;
-  const titleWidth = fontBold.widthOfTextAtSize(headerTitle, titleSize);
-  page.drawText(headerTitle, {
-    x: (width - titleWidth) / 2,
-    y: height - 37,
-    size: titleSize,
+  // Facility details (small, grey, centered)
+  cursorY -= 16;
+  const detailSize = 9;
+  const detailLine1 = [branding.facilityAddress, branding.facilityCounty]
+    .filter(Boolean)
+    .join(" | ");
+  let detailLine2 = branding.facilityPhone || "";
+  if (branding.facilityEmail) {
+    detailLine2 = detailLine2
+      ? detailLine2 + " | " + branding.facilityEmail
+      : branding.facilityEmail;
+  }
+  if (detailLine1) {
+    const detailLine1Width = font.widthOfTextAtSize(detailLine1, detailSize);
+    page.drawText(detailLine1, {
+      x: (width - detailLine1Width) / 2,
+      y: cursorY,
+      size: detailSize,
+      font,
+      color: mutedTextColor,
+    });
+    cursorY -= 14;
+  }
+  if (detailLine2) {
+    const detailLine2Width = font.widthOfTextAtSize(detailLine2, detailSize);
+    page.drawText(detailLine2, {
+      x: (width - detailLine2Width) / 2,
+      y: cursorY,
+      size: detailSize,
+      font,
+      color: mutedTextColor,
+    });
+    cursorY -= 14;
+  }
+
+  // Thin horizontal rule (teal, full width, 1pt)
+  cursorY -= 6;
+  page.drawLine({
+    start: { x: 40, y: cursorY },
+    end: { x: width - 40, y: cursorY },
+    thickness: 1,
+    color: tealColor,
+  });
+
+  // Report title (medium, bold, dark, centered)
+  cursorY -= 22;
+  const reportTitle = "LABORATORY REPORT";
+  const reportTitleSize = 13;
+  const reportTitleWidth = fontBold.widthOfTextAtSize(reportTitle, reportTitleSize);
+  page.drawText(reportTitle, {
+    x: (width - reportTitleWidth) / 2,
+    y: cursorY,
+    size: reportTitleSize,
+    font: fontBold,
+    color: darkTextColor,
+  });
+
+  // Confidential badge (small, red background, white text, centered)
+  cursorY -= 26;
+  const badgeText = "CONFIDENTIAL";
+  const badgeSize = 9;
+  const badgeTextWidth = fontBold.widthOfTextAtSize(badgeText, badgeSize);
+  const badgePaddingX = 12;
+  const badgePaddingY = 5;
+  const badgeWidth = badgeTextWidth + badgePaddingX * 2;
+  const badgeHeight = badgeSize + badgePaddingY * 2;
+  const badgeX = (width - badgeWidth) / 2;
+  page.drawRectangle({
+    x: badgeX,
+    y: cursorY,
+    width: badgeWidth,
+    height: badgeHeight,
+    color: rgb(0.85, 0.15, 0.15),
+  });
+  page.drawText(badgeText, {
+    x: badgeX + badgePaddingX,
+    y: cursorY + badgePaddingY,
+    size: badgeSize,
     font: fontBold,
     color: rgb(1, 1, 1),
   });
 
-  // Sub-header: CONFIDENTIAL
-  const subHeader = "CONFIDENTIAL";
-  const subHeaderSize = 10;
-  const subHeaderWidth = fontBold.widthOfTextAtSize(subHeader, subHeaderSize);
-  page.drawText(subHeader, {
-    x: (width - subHeaderWidth) / 2,
-    y: height - 80,
-    size: subHeaderSize,
-    font: fontBold,
-    color: rgb(0.85, 0.15, 0.15),
-  });
-
   // Patient section box
   const boxX = 40;
-  const boxY = height - 190;
   const boxWidth = width - 80;
   const boxHeight = 98;
+  const boxY = cursorY - 18 - boxHeight;
 
   page.drawRectangle({
     x: boxX,
@@ -509,32 +626,43 @@ async function generateLabReportPdf(
       font,
       color: mutedTextColor,
     });
+
+    const footerBrand = branding.facilityName + " — Laboratory Report";
+    const footerBrandWidth = font.widthOfTextAtSize(footerBrand, 7.5);
+    p.drawText(footerBrand, {
+      x: (pWidth - footerBrandWidth) / 2,
+      y: 15,
+      size: 7.5,
+      font,
+      color: mutedTextColor,
+    });
   }
 
   return await pdfDoc.save();
 }
 
-function buildHtmlEmail(order: LabOrder, patient: Patient): string {
+function buildHtmlEmail(order: LabOrder, patient: Patient, facilityName: string): string {
   const patientName = patient.patient_name || "Patient";
   const orderNumber = order.order_number || "N/A";
   const testName = order.test_name || "N/A";
+  const footerLine = facilityName + " | This is an automated message";
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Your Laboratory Results — AegisCare HMS</title>
+  <title>Your Laboratory Results — ${escapeHtml(facilityName)}</title>
 </head>
 <body style="margin:0;padding:24px;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.6;">
   <div style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
     <div style="background-color:#0F766E;padding:24px 32px;color:#ffffff;">
-      <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:-0.02em;">AegisCare HMS</h1>
+      <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:-0.02em;">${escapeHtml(facilityName)}</h1>
       <p style="margin:4px 0 0 0;font-size:13px;opacity:0.9;text-transform:uppercase;letter-spacing:0.05em;">Confidential Laboratory Report</p>
     </div>
     <div style="padding:32px;">
       <p style="margin-top:0;font-size:16px;">Dear <strong>${escapeHtml(patientName)}</strong>,</p>
       <p style="font-size:15px;color:#334155;">
-        Your laboratory results from AegisCare HMS are ready. Please find your confidential report attached.
+        Your laboratory results from ${escapeHtml(facilityName)} are ready. Please find your confidential report attached.
       </p>
       <div style="background-color:#f1f5f9;border-left:4px solid #0F766E;padding:14px 18px;margin:20px 0;border-radius:0 4px 4px 0;">
         <span style="font-size:14px;color:#0f172a;font-weight:500;">
@@ -549,7 +677,7 @@ function buildHtmlEmail(order: LabOrder, patient: Patient): string {
           <strong>CONFIDENTIALITY NOTICE:</strong> This laboratory report contains confidential medical information intended solely for the named patient. If you have received this in error, please delete it immediately and notify the sender. Unauthorised disclosure is prohibited under the Kenya Data Protection Act 2019.
         </p>
         <p style="font-size:11px;color:#94a3b8;margin:0;text-align:center;">
-          AegisCare HMS | This is an automated message
+          ${escapeHtml(footerLine)}
         </p>
       </div>
     </div>
@@ -567,9 +695,27 @@ serve(async (req: Request) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const brevoApiKey = Deno.env.get("BREVO_API_KEY");
   const brevoSenderEmail = Deno.env.get("BREVO_SENDER_EMAIL");
-  const brevoSenderName = Deno.env.get("BREVO_SENDER_NAME") || "AegisCare HMS Laboratory";
+  const brevoSenderNameEnv = Deno.env.get("BREVO_SENDER_NAME");
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const { data: settings } = await supabase
+    .from("app_settings")
+    .select(
+      "facility_name, facility_address, facility_phone, facility_email, facility_county, facility_level, logo_url, app_name",
+    )
+    .eq("id", "global")
+    .single();
+
+  const facilityName = settings?.facility_name || settings?.app_name || "AegisCare HMS";
+  const facilityAddress = settings?.facility_address || "";
+  const facilityPhone = settings?.facility_phone || "";
+  const facilityEmail = settings?.facility_email || "";
+  const facilityCounty = settings?.facility_county || "";
+  const facilityLevel = settings?.facility_level || "";
+  const logoUrl = settings?.logo_url || null;
+
+  const brevoSenderName = brevoSenderNameEnv || facilityName + " Laboratory";
 
   let currentLabOrderId: string | null = null;
   let currentPatientId: string | null = null;
@@ -689,6 +835,15 @@ serve(async (req: Request) => {
       labOrder as LabOrder,
       patient as Patient,
       resultsList,
+      {
+        facilityName,
+        facilityAddress,
+        facilityPhone,
+        facilityEmail,
+        facilityCounty,
+        facilityLevel,
+        logoUrl,
+      },
     );
     const base64Pdf = uint8ArrayToBase64(pdfBytes);
 
@@ -713,7 +868,7 @@ serve(async (req: Request) => {
     }
 
     // Send email via Brevo
-    const htmlEmail = buildHtmlEmail(labOrder as LabOrder, patient as Patient);
+    const htmlEmail = buildHtmlEmail(labOrder as LabOrder, patient as Patient, facilityName);
     const orderNumberSafe = labOrder.order_number || labOrder.id;
 
     const brevoPayload = {
@@ -727,7 +882,7 @@ serve(async (req: Request) => {
           name: patient?.patient_name || email,
         },
       ],
-      subject: "Your Laboratory Results — AegisCare HMS",
+      subject: "Your Laboratory Results — " + facilityName,
       htmlContent: htmlEmail,
       attachment: [
         {
