@@ -1,8 +1,8 @@
 ---
 title: AegisCare HMS — DHA Compliance Assessment
 author: Francis Muhoro
-date: 2026-08-27
-version: v5.16
+date: 2026-09-08
+version: v5.17
 ---
 
 # AegisCare HMS — DHA Compliance Assessment
@@ -456,6 +456,53 @@ with 20-year retention.
 
 <!-- pagebreak -->
 
+## Encryption Compliance (Updated 2026-09-08)
+
+**Source:** Digital Health Act 2023 s.24(4); Data Protection Act 2019 s.25/s.41; Digital Health
+(Health Information Management Procedures) Regulations 2025. Full control description:
+`docs/encryption-implementation.md`.
+
+**Status:** ✅ COMPLIANT (controls) / ⚠️ PARTIAL (rollout — dual-write phase, see below)
+
+| Layer / control                                   | Status  | Evidence                                                                 |
+|---------------------------------------------------|---------|--------------------------------------------------------------------------|
+| Layer 1 — TLS 1.3 in transit                      | ✅      | Supabase + Vercel certificates; HTTPS-only API                          |
+| Layer 2 — AES-256 at rest                         | ✅      | Supabase managed Postgres/Storage volume encryption                     |
+| Layer 3 — Column-level PII encryption             | ✅ NEW  | Migration `20260908000001_column_encryption.sql` — pgcrypto AES-256 on `patients.national_id`, `phone`, `email`, `date_of_birth`, `next_of_kin`; trigger `trg_encrypt_patient_pii`; view `patients_secure`; RPC `get_patient_pii()` |
+| Layer 4 — OTP hashing                             | ✅      | `consent_otps.otp_hash` — SHA-256 hash only, 10-minute expiry            |
+| PII access logging                                | ✅ NEW  | `public.pii_access_log` — immutable, admin-only, one row per field decrypted, purpose + client IP |
+| Key management documented                         | ✅ NEW  | Supabase Vault secret `AT_ENCRYPTION_KEY`; metadata in `encryption_keys`; rotation via `rotate_pii_key()` + `backfill_patient_pii_encryption()`; procedure in `docs/breach-response-runbook.md` |
+| RLS on encrypted columns                          | ✅ NEW  | Policy `patients_encrypted_pii_select_authenticated` (`is_approved(auth.uid())`); `anon` privileges revoked on `patients`; decrypt functions not executable by client roles |
+
+**Implementation:** Sensitive PII is encrypted a second time *inside* the database, independent
+of the platform's disk encryption, so a database dump, replica, backup or misconfigured read path
+exposes only ciphertext for those fields. Decryption is available only to approved authenticated
+staff through `patients_secure` / `get_patient_pii()`, is fail-closed (a value is revealed only if
+the access can be written to `pii_access_log`), and every decryption is attributable to a user,
+patient, field, purpose and time. The key never appears in code, `.env` files or database tables.
+
+**Gap (remaining):**
+
+- **Dual-write phase.** Plaintext columns are retained until the application, `patient_registrations`
+  view, FHIR builders and SHA claim functions are switched to the decrypted accessors. Until then
+  plaintext PII is still readable by approved staff through the existing table (as before).
+- **Key provisioning is an operational step** — the migration installs the controls; the Vault
+  secret `AT_ENCRYPTION_KEY` must be created and `backfill_patient_pii_encryption()` run before
+  Layer 3 is effective for existing rows (`pii_encryption_status()` reports the state).
+- OTP hash is unkeyed SHA-256 computed client-side; move to a server-side keyed hash (HMAC/bcrypt).
+- Patient search by phone (`phone.ilike`) still depends on the plaintext column; a keyed-hash
+  search index is needed before plaintext removal.
+
+**Remediation:** (1) Run the migration and provisioning steps in `docs/encryption-implementation.md`;
+(2) Phase 2 — read PII via `get_patient_pii()` in `patients.$id`, registration, billing and
+consent flows, and log UI views with `record_pii_access()`; (3) Phase 3 — null and drop the
+plaintext columns after FHIR/SHA/report dependencies are migrated; (4) server-side OTP hashing;
+(5) schedule annual key rotation and record it in the incident/change register.
+
+---
+
+<!-- pagebreak -->
+
 ## Gap Analysis Summary Table
 
 | #   | Area                                                    | Status                                           |
@@ -489,6 +536,9 @@ with 20-year retention.
 | 27  | Audit log immutability                                  | ⚠️ PARTIAL                                       |
 | 28  | KHIS / MoH reporting integration                        | ⚠️ PARTIAL                                       |
 | 29  | Live ClaimResponse / payment reconciliation             | 🔴 GAP                                           |
+| 30  | Column-level PII encryption (DHA s.24(4) / DPA s.41)    | ✅ COMPLIANT (controls) / ⚠️ PARTIAL (dual-write) |
+| 31  | PII access logging (`pii_access_log`)                   | ✅ COMPLIANT                                     |
+| 32  | Encryption key management documented                    | ✅ COMPLIANT                                     |
 
 ---
 
@@ -504,6 +554,9 @@ with 20-year retention.
   DSAR 30-day SLA process.
 - Enable MFA; run penetration test; harden password/lockout.
 - Track and close the identified security gaps.
+- Provision the PII encryption key (`AT_ENCRYPTION_KEY` in Supabase Vault), run
+  `backfill_patient_pii_encryption()`, then move PII reads to `get_patient_pii()` (dual-read) —
+  see `docs/encryption-implementation.md`.
 
 ### Phase 2 — Credentials & sandbox (blocked on DHA/SHA onboarding)
 
@@ -521,4 +574,6 @@ with 20-year retention.
 - Biometric identity verification (if in scope for deployment).
 - Move to paid Supabase tier, confirm data residency, implement cross-border transfer controls.
 - Complete KHIS and MOH reporting interoperability mapping.
+- Remove plaintext PII columns from `patients` once FHIR/SHA/report dependencies read the
+  encrypted accessors (encryption rollout phase 3).
 - Annual re-certification and ongoing ODPC conformity.
