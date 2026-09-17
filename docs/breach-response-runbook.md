@@ -51,7 +51,30 @@ version: v5.16
 - [ ] If API key exposed: rotate all Supabase keys immediately
 - [ ] If Edge Function compromised: disable via Dashboard
 - [ ] If database breach: immediately enable Supabase network restrictions
+- [ ] If the PII encryption key may be exposed (Vault access, DBA credential leak, dump of `vault.secrets`):
+      rotate the column-encryption key — see "PII Encryption Key Rotation" below
+- [ ] Pull the PII access trail for the affected window:
+      `select * from public.pii_access_log where accessed_at between '<start>' and '<end>' order by accessed_at;`
 - [ ] Document the time of containment
+
+#### PII Encryption Key Rotation (column-level encryption — `docs/encryption-implementation.md`)
+
+Run as a DBA in the Supabase SQL Editor (project `tvdsanagnijrockptzat`):
+
+1. Create a **new** Vault secret (Dashboard → Database → Vault → New secret), e.g.
+   `AT_ENCRYPTION_KEY_<YYYYMMDD>` with value from `openssl rand -hex 32`.
+   Never overwrite the active secret in place — existing ciphertext would become unreadable.
+2. `select public.rotate_pii_key('AT_ENCRYPTION_KEY_<YYYYMMDD>', 'breach containment <incident id>');`
+   — new writes are encrypted with the new key immediately; the old key is kept as `retired` for reads.
+3. `select * from public.backfill_patient_pii_encryption(500);` — repeat until `remaining = 0`
+   (or `select public.pii_encryption_status();` shows `patients_pending_rotation = 0`).
+4. Delete the old Vault secret, then
+   `update public.encryption_keys set status = 'destroyed', notes = '<incident id>' where status = 'retired';`
+5. Record the rotation (date, operator, incident id) in `docs/incident-register.md`.
+
+Note: if the *plaintext* columns (`patients.national_id`, `phone`, `email`, `date_of_birth`,
+`next_of_kin`) were exposed, key rotation does not reduce that exposure — assess under Step 2
+as unencrypted PII until the plaintext-removal phase is complete.
 
 ### 1.3 Escalate Internally
 
