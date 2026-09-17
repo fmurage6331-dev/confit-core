@@ -4,7 +4,7 @@
 | | |
 |---|---|
 | **Controller** | FACILITY_NAME, FACILITY_ADDRESS (KMHFL: FACILITY_KMHFL_CODE) |
-| **Processor** | Lovable (managed hosting), Supabase (project `tgynjasgnerucrlwedui`), AegisCare Development Team (support) |
+| **Processor** | Lovable (managed hosting), Supabase (project `tvdsanagnijrockptzat`), AegisCare Development Team (support) |
 | **Legal framework** | Kenya Data Protection Act, 2019 (No. 24 of 2019); Data Protection (General) Regulations, 2021; Digital Health Act, 2023; Social Health Insurance Act, 2023; Health Act, 2017; Digital Health (Data Exchange Component) Regulations, 2025; ODPC guidance on DPIA |
 | **DPO** | DPO_NAME (🔵 PENDING appointment) |
 | **Date of assessment** | 2026-08-12 (draft) |

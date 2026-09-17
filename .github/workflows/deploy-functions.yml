@@ -17,46 +17,46 @@ jobs:
           version: latest
 
       - name: Deploy icd11-search
-        run: supabase functions deploy icd11-search --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy icd11-search --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy fhir-patient
-        run: supabase functions deploy fhir-patient --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy fhir-patient --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy fhir-encounter
-        run: supabase functions deploy fhir-encounter --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy fhir-encounter --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy fhir-condition
-        run: supabase functions deploy fhir-condition --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy fhir-condition --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy fhir-bundle
-        run: supabase functions deploy fhir-bundle --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy fhir-bundle --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy build-claim-bundle
-        run: supabase functions deploy build-claim-bundle --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy build-claim-bundle --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy claims-dispatcher
-        run: supabase functions deploy claims-dispatcher --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy claims-dispatcher --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy send-sms
-        run: supabase functions deploy send-sms --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy send-sms --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy kmhfl-proxy
-        run: supabase functions deploy kmhfl-proxy --project-ref tgynjasgnerucrlwedui
+        run: supabase functions deploy kmhfl-proxy --project-ref tvdsanagnijrockptzat
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1190" height="842" viewBox="0 0 1190 842" font-family="DejaVu Sans, sans-serif">
 <rect x="0" y="0" width="1190" height="46" rx="4" fill="#0F766E"/>
 <text x="30" y="28" font-size="16" fill="#fff" font-weight="bold">AegisCare HMS / LabTrack v5.5 — Database Schema Map</text>
-<text x="30" y="38.5" font-size="8.5" fill="#D9F0EC" font-weight="normal">85 migrations · ~64 tables · 8 domain clusters · RLS on all clinical data · Supabase project tgynjasgnerucrlwedui</text>
+<text x="30" y="38.5" font-size="8.5" fill="#D9F0EC" font-weight="normal">85 migrations · ~64 tables · 8 domain clusters · RLS on all clinical data · Supabase project tvdsanagnijrockptzat</text>
 <rect x="24" y="60" width="372" height="26" rx="5" fill="#157F5C" stroke="#157F5C" stroke-width="0.7"/>
 <text x="34" y="75" font-size="10.5" fill="#FFFFFF" font-weight="bold">1 · Core Clinical</text>
 <text x="34" y="82.8" font-size="6.8" fill="#EDF5F3" font-weight="normal">patients · encounters · diagnoses · notes · admissions · rooms</text>

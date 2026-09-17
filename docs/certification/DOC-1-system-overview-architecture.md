@@ -7,7 +7,7 @@
 | **Version** | 5.5 |
 | **Repository** | `fmurage6331-dev/confit-core` |
 | **Live URL** | https://aegiscarehms.lovable.app |
-| **Supabase project** | `tgynjasgnerucrlwedui` |
+| **Supabase project** | `tvdsanagnijrockptzat` |
 | **Document version** | 1.0 (draft for DHA certification submission) |
 | **Date** | 2026-08-12 |
 
@@ -74,7 +74,7 @@ Lovable deployment, so no facility can observe another facility's data
 └──────────┬─────────────────────────────────────────────────────────────────┘
            │
 ┌──────────▼─────────────────────────────────────────────────────────────────┐
-│  SUPABASE PROJECT tgynjasgnerucrlwedui                                      │
+│  SUPABASE PROJECT tvdsanagnijrockptzat                                      │
 │  ├─ Postgres 15 + RLS (134 policy definitions) + 85 migrations              │
 │  ├─ Supabase Auth (email/password; admin provisioning)                      │
 │  ├─ Edge Functions (5): claims-dispatcher, fhir-patient, fhir-encounter,    │
@@ -116,7 +116,7 @@ Lovable deployment, so no facility can observe another facility's data
   (service-role) client exists only server-side (`client.server.ts`).
 - 5 Deno edge functions under `supabase/functions/`, all with
   `verify_jwt = true` (`supabase/config.toml`), deployed via GitHub Actions
-  (`.github/workflows/deploy-functions.yml` → project `tgynjasgnerucrlwedui`).
+  (`.github/workflows/deploy-functions.yml` → project `tvdsanagnijrockptzat`).
 
 ### 2.3 Database
 - PostgreSQL 15 with 85 migration files in `supabase/migrations/` (the
@@ -380,17 +380,17 @@ End-to-end (all steps implemented and live except where noted):
 
 - **CI/CD**: GitHub Actions — `ci.yml` (lint + test + build on Bun with
   `--frozen-lockfile`) and `deploy-functions.yml` (deploys edge functions to
-  `tgynjasgnerucrlwedui` on `main` push when `supabase/functions/**` changes).
+  `tvdsanagnijrockptzat` on `main` push when `supabase/functions/**` changes).
 - **Hosting**: Lovable managed (SSR via Nitro; preview/production URLs).
   Environment: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
   (publishable-key API), server-side `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY`
   for SSR auth middleware.
-- **Database**: Supabase project `tgynjasgnerucrlwedui`; schema managed
+- **Database**: Supabase project `tvdsanagnijrockptzat`; schema managed
   exclusively by the 85 migration files (apply in filename order per
   `docs/facility-onboarding.md`); extensions `pg_cron`, `pg_net`; backups and
   encryption per Supabase platform (see DOC-4).
 - **Edge functions**: deployed with `supabase functions deploy <name>
-  --project-ref tgynjasgnerucrlwedui`; secrets stored in Supabase Edge Function
+  --project-ref tvdsanagnijrockptzat`; secrets stored in Supabase Edge Function
   secrets only (never in the repository).
 - **Facility onboarding**: one deployment per facility — fork, create Supabase
   project, run migrations, connect Lovable, configure facility details in

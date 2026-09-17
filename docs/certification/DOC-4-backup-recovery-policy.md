@@ -4,7 +4,7 @@
 | | |
 |---|---|
 | **System** | AegisCare HMS / LabTrack v5.5 |
-| **Supabase project** | `tgynjasgnerucrlwedui` |
+| **Supabase project** | `tvdsanagnijrockptzat` |
 | **Hosting** | Lovable managed hosting (https://aegiscarehms.lovable.app) |
 | **Document status** | DRAFT for certification submission |
 | **Date** | 2026-08-12 |
@@ -109,7 +109,7 @@ policy, seed and cron job:
 
 5.1 **Database dump (routine/export path):** Lovable dashboard →
 **Settings → Database dump** — produces a full PostgreSQL dump of the project
-(`tgynjasgnerucrlwedui`). The dump is the primary **data** recovery artefact
+(`tvdsanagnijrockptzat`). The dump is the primary **data** recovery artefact
 (complements the migration-based **schema** recovery).
 
 5.2 **Alternative:** `supabase db dump` via the Supabase CLI (requires project
@@ -137,11 +137,11 @@ the record (DOC-3 §7).
 `supabase/functions/` and redeployed with:
 
 ```bash
-supabase functions deploy claims-dispatcher --project-ref tgynjasgnerucrlwedui
-supabase functions deploy fhir-patient        --project-ref tgynjasgnerucrlwedui
-supabase functions deploy fhir-encounter      --project-ref tgynjasgnerucrlwedui
-supabase functions deploy fhir-condition      --project-ref tgynjasgnerucrlwedui
-supabase functions deploy icd11-search        --project-ref tgynjasgnerucrlwedui
+supabase functions deploy claims-dispatcher --project-ref tvdsanagnijrockptzat
+supabase functions deploy fhir-patient        --project-ref tvdsanagnijrockptzat
+supabase functions deploy fhir-encounter      --project-ref tvdsanagnijrockptzat
+supabase functions deploy fhir-condition      --project-ref tvdsanagnijrockptzat
+supabase functions deploy icd11-search        --project-ref tvdsanagnijrockptzat
 ```
 
 6.2 Automated deployment also exists via GitHub Actions

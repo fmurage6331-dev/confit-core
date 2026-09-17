@@ -4,8 +4,8 @@
 | | |
 |---|---|
 | **System** | AegisCare HMS / LabTrack v5.5 |
-| **Supabase project ref** | `tgynjasgnerucrlwedui` |
-| **Base URL (Supabase)** | `https://tgynjasgnerucrlwedui.supabase.co` |
+| **Supabase project ref** | `tvdsanagnijrockptzat` |
+| **Base URL (Supabase)** | `https://tvdsanagnijrockptzat.supabase.co` |
 | **Base URL (DHA HIE)** | `https://ilm-dev.dha.go.ke/uat-middleware/api/v1` |
 | **Document status** | DRAFT for certification submission |
 | **Date** | 2026-08-12 |
@@ -18,8 +18,8 @@ AegisCare exposes four API surfaces:
 
 | Surface | Base | Auth | Consumers |
 |---|---|---|---|
-| **Supabase REST (PostgREST)** | `https://tgynjasgnerucrlwedui.supabase.co/rest/v1/{table}` | Supabase JWT (anon key or user session) + RLS | Frontend (via `@supabase/supabase-js`), server functions |
-| **Supabase Edge Functions** | `https://tgynjasgnerucrlwedui.supabase.co/functions/v1/{name}` | Supabase JWT (`verify_jwt = true` on all 5 functions) | Frontend, DHA/SHA integrations, certification tooling |
+| **Supabase REST (PostgREST)** | `https://tvdsanagnijrockptzat.supabase.co/rest/v1/{table}` | Supabase JWT (anon key or user session) + RLS | Frontend (via `@supabase/supabase-js`), server functions |
+| **Supabase Edge Functions** | `https://tvdsanagnijrockptzat.supabase.co/functions/v1/{name}` | Supabase JWT (`verify_jwt = true` on all 5 functions) | Frontend, DHA/SHA integrations, certification tooling |
 | **Supabase RPCs** | `…/rest/v1/rpc/{fn}` | Supabase JWT + RLS/GRANT | Frontend (e.g., `generate_fhir_encounter`, `get_moh_705_report`) |
 | **DHA HIE (external target)** | `https://ilm-dev.dha.go.ke/uat-middleware/api/v1` | OAuth2 `POST /tenants/token` | 🔵 PENDING credentials |
 
@@ -56,7 +56,7 @@ All traffic is HTTPS. Response payloads for FHIR endpoints are served as
 ## Section 3 — Edge Functions API Reference
 
 Common conventions:
-- URL: `https://tgynjasgnerucrlwedui.supabase.co/functions/v1/{name}`
+- URL: `https://tvdsanagnijrockptzat.supabase.co/functions/v1/{name}`
 - Method: POST (JSON body); OPTIONS supported (CORS preflight).
 - Headers: `Authorization: Bearer <jwt>`, `apikey: <key>`, `Content-Type: application/json`.
 - All functions: **Authentication required** (platform JWT verification).
@@ -185,7 +185,7 @@ changes required.
 
 ## Section 5 — Database Functions Reference
 
-Invocation: `POST https://tgynjasgnerucrlwedui.supabase.co/rest/v1/rpc/{fn}`
+Invocation: `POST https://tvdsanagnijrockptzat.supabase.co/rest/v1/rpc/{fn}`
 with `Authorization: Bearer <jwt>`.
 
 | Function | Signature | Purpose | Grants |

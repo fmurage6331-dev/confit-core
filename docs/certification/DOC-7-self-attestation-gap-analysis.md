@@ -6,7 +6,7 @@
 | **System** | AegisCare HMS / LabTrack v5.5 |
 | **Repository** | `fmurage6331-dev/confit-core` |
 | **Live URL** | https://aegiscarehms.lovable.app |
-| **Supabase Project** | `tgynjasgnerucrlwedui` |
+| **Supabase Project** | `tvdsanagnijrockptzat` |
 | **Document type** | Self-attestation gap analysis for DHA HIE certification (Form HMIS 4 pathway) |
 | **Cross-referenced standards** | Kenya Digital Health Act, 2023; Digital Health (Data Exchange Component) Regulations, 2025; FHIR R4; ICD-11; Social Health Insurance Act, 2023 (esp. s.48); Kenya Data Protection Act, 2019; SHA benefit package framework (Legal Notice 146 & 147 of 2024) |
 | **DHA HIE API base** | `https://ilm-dev.dha.go.ke/uat-middleware/api/v1` (per hie-docs.dha.go.ke) |
@@ -475,7 +475,7 @@ the activation manual's golden rule (test in sandbox before production).
 
 I/we attest that the information in this gap analysis reflects the state of the
 AegisCare HMS / LabTrack v5.5 codebase at commit `be795c10` (branch `main`) and the
-live Supabase project `tgynjasgnerucrlwedui`, and that all PARTIAL/PENDING items
+live Supabase project `tvdsanagnijrockptzat`, and that all PARTIAL/PENDING items
 are disclosed to the certifying authority.
 
 | | |

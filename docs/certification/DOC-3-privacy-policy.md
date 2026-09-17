@@ -30,7 +30,7 @@
 - **Data Protection Officer:** DPO_NAME, DPO_EMAIL, DPO_PHONE. 🔵 PENDING until
   appointed.
 - **Data processor:** Lovable (managed hosting) and Supabase (database, auth,
-  edge functions, project `tgynjasgnerucrlwedui`), both processing under
+  edge functions, project `tvdsanagnijrockptzat`), both processing under
   contractual terms and platform security defaults (AES-256 at rest, TLS 1.2+
   in transit). Facility staff are users of the system, not data controllers.
 
