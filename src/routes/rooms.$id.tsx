@@ -1357,12 +1357,10 @@ function ConsultationDialog({
   }
 
   async function finishAndSend() {
-    // SHA/insurance encounters must be signed before closing
     if (reg.payment_mode === "insurance" && reg.status !== "signed") {
       toast.warning(
         "This is an insurance encounter — please Sign & Lock before closing to enable claim submission.",
       );
-      return;
     }
     await saveNotes();
     if (rxs.some((r) => r.status === "pending")) {
@@ -1382,7 +1380,6 @@ function ConsultationDialog({
             toast.warning(
               "Insurance encounter — please Sign & Lock before closing to enable claim submission.",
             );
-            return;
           }
           onClose();
         }
@@ -1847,7 +1844,6 @@ function ConsultationDialog({
                 toast.warning(
                   "Insurance encounter — please Sign & Lock before closing to enable claim submission.",
                 );
-                return;
               }
               onClose();
             }}
